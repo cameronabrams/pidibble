@@ -645,27 +645,25 @@ record_formats:
               EFER:
                 fields:
                   refNum: [Integer,[22,70]]
+                fullname: REFERENCE
               AUTH:
                 fields:
                   continuation: [String,[17,18]]
                   authorList: [CList,[20,79]]
                 continues:
                   - authorList
-                associated_to: EFER
               TITL:
                 fields:
                   continuation: [String,[17,18]]
                   title: [String,[20,79]]
                 continues:
                   - title
-                associated_to: EFER
               EDIT:
                 fields:
                   continuation: [String,[17,18]]
                   editorList: [String,[20,79]]
                 continues:
                   - editorList
-                associated_to: EFER
               REF:
                 fields:
                   test_key: [String,[20,24]]
@@ -685,27 +683,24 @@ record_formats:
                         year: [Integer,[63,66]]
                       continues:
                         - pubName
-                  associated_to: EFER
               PUBL:
                 fields:
                   continuation: [String,[17,18]]
                   pub: [String,[20,70]]
                 continues:
                   - pub
-                associated_to: EFER
               REFN:
                 fields:
                   issnORessn: [String,[36,39]]
                   issn: [String,[41,65]]
-                associated_to: EFER
               PMID:
                 fields:
                   pmid: [String,[20,79]]
-                associated_to: EFER
               DOI:
                 fields:
                   doi: [String,[20,79]]
-                associated_to: EFER
+            determinants:
+              - EFER
         2:
           fields:
             resolutionmsg: [String,[24,41]]

@@ -95,11 +95,12 @@ class PDBRecord(BaseRecord):
     def base_parse(cls,pdbrecordline:str,record_format:dict,typemap:dict):
         while len(pdbrecordline)<80:
             pdbrecordline+=' '
-        input_dict={'key':pdbrecordline[0:6].strip()}
-        fields=record_format.get('fields',{})
-        subrecords=record_format.get('subrecords',{})
-        allowed_values=record_format.get('allowed',{})
-        concats=record_format.get('concatenate',{})
+        local_record_format=record_format.copy()
+        input_dict={'key':pdbrecordline[0:6].strip(),'record_format':local_record_format}
+        fields=local_record_format.get('fields',{})
+        subrecords=local_record_format.get('subrecords',{})
+        allowed_values=local_record_format.get('allowed',{})
+        concats=local_record_format.get('concatenate',{})
         for k,v in fields.items():
             typestring,byte_range=v
             typ=typemap[typestring]
@@ -130,7 +131,12 @@ class PDBRecord(BaseRecord):
             assert input_dict[subrecords['branchon']] in subrecords['formats'],f'{input_dict["key"]} is missing specification of a subrecord format for {subrecords["branchon"]} value {input_dict[subrecords["branchon"]]} from its subrecords specification'
             subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
             subr_dict=PDBRecord.base_parse(pdbrecordline,subrecord_format,typemap)
+            # TODO: special input_dict update that generates the key
+            sav_key=input_dict['key']
             input_dict.update(subr_dict)
+
+            input_dict['key']=f'{sav_key}.{input_dict[subrecords["branchon"]]}'
+            input_dict['record_format']=subrecord_format
         return input_dict
     
     @classmethod
@@ -145,8 +151,12 @@ class PDBRecord(BaseRecord):
         inst=cls(input_dict)
         return inst
 
-    def continue_record(self,other,record_format):
-        assert other.continuation>self.continuation
+    def continue_record(self,other):
+        print(self.key,self.continuation,other.key,other.continuation)
+        if not ('REMARK' in self.key or 'REMARK' in other.key):
+            assert other.continuation>self.continuation # not true for remarks!!
+        #TODO: fix to allow REMARKS to generate list of remark-strings
+        record_format=self.record_format
         for cfield in record_format['continues']:
             if type(self.__dict__[cfield])==str:
                 self.__dict__[cfield]+=' '+other.__dict__[cfield]
@@ -282,22 +292,25 @@ class PDBParser:
     def parse(self):
         record_formats=self.pdb_format_dict['record_formats']
         for i,l in enumerate(self.pdb_lines):
-            key=l[:6].strip()
-            if key[0] in PDBParser.comment_chars:
+            basekey=l[:6].strip()
+            if basekey[0] in PDBParser.comment_chars:
                 self.comment_lines.append([i,l])
                 continue
-            assert key in record_formats,f'{key} is not found in among the available record formats'
-            record_format=record_formats[key]
-            record_type=record_format['type']
-            new_record=PDBRecord.newrecord(l,record_format,self.mappers)
+            assert basekey in record_formats,f'{basekey} is not found in among the available record formats'
+            base_record_format=record_formats[basekey]
+            record_type=base_record_format['type']
+            # key,record_format=self.build_key(basekey,record_formats[basekey])
+            new_record=PDBRecord.newrecord(l,base_record_format,self.mappers)
+            key=new_record.key
+            record_format=new_record.record_format
             if record_type in [1,2,6]:
                 if not key in self.parsed:
                     self.parsed[key]=new_record
                 else:
                     # this must be a continuation record (only allowed for type 2)
                     assert record_type!=1,f'{key} may not have continuation records'
-                    base_record=self.parsed[key]
-                    base_record.continue_record(new_record,record_format)
+                    root_record=self.parsed[key]
+                    root_record.continue_record(new_record)
             elif record_type in [3,4,5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
@@ -309,18 +322,18 @@ class PDBParser:
                     # (b) a new set of (determinants) on this key
                     # note (b) is only option if there are no determinants
                     # first, look for key.(determinants)
-                    base_record=None
+                    root_record=None
                     if 'determinants' in record_format:
                         nrd=[new_record.__dict__[k] for k in record_format['determinants']]
                         for r in self.parsed[key]:
                             td=[r.__dict__[k] for k in record_format['determinants']]
                             if nrd==td:
-                                base_record=r
+                                root_record=r
                                 break
-                    if base_record:
+                    if root_record:
                         # case (a)
-                        assert base_record.continuation<new_record.continuation,f'continuation parsing error'
-                        base_record.continue_record(new_record,record_format)
+                        assert root_record.continuation<new_record.continuation,f'continuation parsing error'
+                        root_record.continue_record(new_record)
                     else:
                         # case (b)
                         self.parsed[key].append(new_record)
