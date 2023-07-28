@@ -11,7 +11,7 @@ import os
 import logging
 import yaml
 
-from pidibble import resources
+from . import resources
 
 logger=logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import unittest
 import pytest
-from pidibble.resources import ResourceManager
+
 from pidibble.rcsb import PDBParser
 
 def test_pdbformat():
