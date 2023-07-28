@@ -41,6 +41,7 @@ record_formats:
       residue2: [Residue10,[30,39]]
       residue3: [Residue10,[41,50]]
       residue4: [Residue10,[52,61]]
+    continuation: seqNum
     determinants:
       - siteID
       - numRes

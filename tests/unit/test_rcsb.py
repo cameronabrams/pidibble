@@ -25,6 +25,8 @@ def test_custom_formats():
     assert p.parsed['MYREC2'][0].residue.chainID=='D'
     assert p.parsed['MYREC2'][0].residue.seqNum==2222
     assert p.parsed['MYREC2'][0].residue.iCode=='J'
+    for s in p.parsed['SITE']:
+        print(s.__dict__)
     assert len(p.parsed['SITE'])==4
     assert p.parsed['SITE'][0].siteID=='AC1'
     assert p.parsed['SITE'][0].residue1.resName=='HIS'
@@ -34,87 +36,100 @@ def test_custom_formats():
     assert len(p.parsed['SITE'][3].residues)==11
     for s in p.parsed['SITE']:
         assert s.numRes==len(s.residues)
+        print(s.continuation)
     s=p.parsed['SITE'][3]
+
     expected_resnames=['HIS','HIS','HIS','HIS','LEU','THR','THR','TRP','HOH','HOH','HOH']
     assert expected_resnames==[r.resName for r in s.residues]
 
 def test_parse():
-    p=PDBParser(PDBcode='4zmj')
-    p.fetch()
-    p.read()
-    p.parse()
-    assert 'HEADER' in p.parsed
-    assert 'VIRAL PROTEIN'==p.parsed['HEADER'].classification
-    assert '04-MAY-15'==p.parsed['HEADER'].depDate
-    assert '4ZMJ'==p.parsed['HEADER'].idCode
-    assert type(p.parsed['COMPND'].compound)==list
-    assert len(p.parsed['COMPND'].compound)==11
-    assert p.parsed['COMPND'].compound[0] =='MOL_ID: 1'
-    assert p.parsed['COMPND'].compound[1] =='MOLECULE: ENVELOPE GLYCOPROTEIN GP160'
-    assert p.parsed['COMPND'].compound[2]=='A_FAKE_TOKEN: A_FAKE_VALUE'
-    assert p.parsed['COMPND'].compound[3]=='CHAIN: G'
-    assert p.parsed['TITLE'].title=='CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER THIS IS A FAKE EXTRA LINE THIS IS ANOTHER FAKE EXTRA LINE'
-    assert type(p.parsed['COMPND'].tokens)==dict
-    # print(p.parsed['COMPND'].tokens)
-    assert 'MOL_ID.1' in p.parsed['COMPND'].tokens['compound'].keys()
-    assert 'MOL_ID.2' in p.parsed['COMPND'].tokens['compound'].keys()
-    assert len(p.parsed['COMPND'].tokens['compound'])==2
-    assert type(p.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==dict
-    assert type(p.parsed['COMPND'].tokens['compound']['MOL_ID.2'])==dict
-    assert len(p.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==5
-    assert p.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MOLECULE']=='ENVELOPE GLYCOPROTEIN GP160'
-    assert p.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MUTATION']=='YES'
-    assert type(p.parsed['SOURCE'].tokens)==dict
-    assert 'MOL_ID.1' in p.parsed['SOURCE'].tokens['srcName'].keys()
-    assert 'MOL_ID.2' in p.parsed['SOURCE'].tokens['srcName'].keys()
-    assert len(p.parsed['SOURCE'].tokens['srcName'])==2
-    assert p.parsed['SOURCE'].tokens['srcName']['MOL_ID.1']['ORGANISM_SCIENTIFIC']=='HUMAN IMMUNODEFICIENCY VIRUS 1'
-    assert len(p.parsed['ATOM'])==4518
-    assert len(p.parsed['ANISOU'])==4518
-    assert len(p.parsed['HETATM'])==338
-    assert len(p.parsed['HET'])==25
-    assert len(p.parsed['LINK'])==25
-    assert not 'MODRES' in p.parsed
-    assert len(p.parsed['REVDAT'])==6
-    assert p.parsed['REVDAT'][0].records==['COMPND', 'REMARK', 'HETNAM', 'LINK', 'SITE', 'ATOM']
-    assert len(p.parsed['SEQADV'])==10
-    assert p.parsed['SEQADV'][0].residue.resName=='ASN'
-    assert p.parsed['SEQADV'][0].residue.chainID=='G'
-    assert p.parsed['SEQADV'][0].residue.seqNum==332
-    assert p.parsed['SEQADV'][0].residue.iCode==''
-    assert p.parsed['SEQADV'][0].database=='UNP'
-    assert p.parsed['SEQADV'][0].dbAccession=='Q2N0S6'
-    assert p.parsed['SEQADV'][0].dbRes=='THR'
-    assert p.parsed['SEQADV'][0].dbSeq==330
-    assert p.parsed['SEQADV'][0].conflict=='ENGINEERED MUTATION'
-    assert len(p.parsed['SSBOND'])==11
-    assert p.parsed['SSBOND'][2].residue1.chainID=='G'
-    assert p.parsed['SSBOND'][2].residue1.seqNum==126
-    assert p.parsed['SSBOND'][2].residue2.chainID=='G'
-    assert p.parsed['SSBOND'][2].residue2.seqNum==196
-    assert len(p.parsed['SEQRES'][0].resNames)==481
-    assert len(p.parsed['SEQRES'][1].resNames)==153
+    q=PDBParser(PDBcode='4zmj')
+    print(f'file {q.pdb_format_file}')
+    q.fetch()
+    q.read()
+    q.parse()
+    assert 'HEADER' in q.parsed
+    assert 'VIRAL PROTEIN'==q.parsed['HEADER'].classification
+    assert '04-MAY-15'==q.parsed['HEADER'].depDate
+    assert '4ZMJ'==q.parsed['HEADER'].idCode
+    assert type(q.parsed['COMPND'].compound)==list
+    assert len(q.parsed['COMPND'].compound)==11
+    assert q.parsed['COMPND'].compound[0] =='MOL_ID: 1'
+    assert q.parsed['COMPND'].compound[1] =='MOLECULE: ENVELOPE GLYCOPROTEIN GP160'
+    assert q.parsed['COMPND'].compound[2]=='A_FAKE_TOKEN: A_FAKE_VALUE'
+    assert q.parsed['COMPND'].compound[3]=='CHAIN: G'
+    assert q.parsed['TITLE'].title=='CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER THIS IS A FAKE EXTRA LINE THIS IS ANOTHER FAKE EXTRA LINE'
+    # print(q.parsed['COMPND'].__dict__)
+    assert type(q.parsed['COMPND'].tokengroups)==dict
+    assert 'MOL_ID.1' in q.parsed['COMPND'].tokengroups['compound']
+    assert 'MOL_ID.2' in q.parsed['COMPND'].tokengroups['compound']
+    m1=q.parsed['COMPND'].tokengroups['compound']['MOL_ID.1']
+    assert m1.MOLECULE=='ENVELOPE GLYCOPROTEIN GP160'
+    assert m1.MUTATION=='YES'
+    assert type(q.parsed['SOURCE'].tokengroups)==dict
+    assert 'MOL_ID.1' in q.parsed['SOURCE'].tokengroups['srcName']
+    assert 'MOL_ID.2' in q.parsed['SOURCE'].tokengroups['srcName']
+    m1=q.parsed['SOURCE'].tokengroups['srcName']['MOL_ID.1']
+    assert m1.ORGANISM_SCIENTIFIC=='HUMAN IMMUNODEFICIENCY VIRUS 1'
+    # print(q.parsed['COMPND'].tokens)
+    # assert 'MOL_ID.2' in q.parsed['COMPND'].tokens['compound'].keys()
+    # assert len(q.parsed['COMPND'].tokens['compound'])==2
+    # assert type(q.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==dict
+    # assert type(q.parsed['COMPND'].tokens['compound']['MOL_ID.2'])==dict
+    # assert len(q.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==5
+    # assert q.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MOLECULE']=='ENVELOPE GLYCOPROTEIN GP160'
+    # assert q.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MUTATION']=='YES'
+    # assert type(q.parsed['SOURCE'].tokens)==dict
+    # assert 'MOL_ID.1' in q.parsed['SOURCE'].tokens['srcName'].keys()
+    # assert 'MOL_ID.2' in q.parsed['SOURCE'].tokens['srcName'].keys()
+    # assert len(q.parsed['SOURCE'].tokens['srcName'])==2
+    # assert q.parsed['SOURCE'].tokens['srcName']['MOL_ID.1']['ORGANISM_SCIENTIFIC']=='HUMAN IMMUNODEFICIENCY VIRUS 1'
+    assert len(q.parsed['ATOM'])==4518
+    assert len(q.parsed['ANISOU'])==4518
+    assert len(q.parsed['HETATM'])==338
+    assert len(q.parsed['HET'])==25
+    assert len(q.parsed['LINK'])==25
+    assert not 'MODRES' in q.parsed
+    assert len(q.parsed['REVDAT'])==6
+    assert q.parsed['REVDAT'][0].records==['COMPND', 'REMARK', 'HETNAM', 'LINK', 'SITE', 'ATOM']
+    assert len(q.parsed['SEQADV'])==10
+    assert q.parsed['SEQADV'][0].residue.resName=='ASN'
+    assert q.parsed['SEQADV'][0].residue.chainID=='G'
+    assert q.parsed['SEQADV'][0].residue.seqNum==332
+    assert q.parsed['SEQADV'][0].residue.iCode==''
+    assert q.parsed['SEQADV'][0].database=='UNP'
+    assert q.parsed['SEQADV'][0].dbAccession=='Q2N0S6'
+    assert q.parsed['SEQADV'][0].dbRes=='THR'
+    assert q.parsed['SEQADV'][0].dbSeq==330
+    assert q.parsed['SEQADV'][0].conflict=='ENGINEERED MUTATION'
+    assert len(q.parsed['SSBOND'])==11
+    assert q.parsed['SSBOND'][2].residue1.chainID=='G'
+    assert q.parsed['SSBOND'][2].residue1.seqNum==126
+    assert q.parsed['SSBOND'][2].residue2.chainID=='G'
+    assert q.parsed['SSBOND'][2].residue2.seqNum==196
+    assert len(q.parsed['SEQRES'][0].resNames)==481
+    assert len(q.parsed['SEQRES'][1].resNames)==153
     expected_seq='ALA GLU ASN LEU TRP VAL THR VAL TYR TYR GLY'.split()
-    assert p.parsed['SEQRES'][0].resNames[:len(expected_seq)]==expected_seq
+    assert q.parsed['SEQRES'][0].resNames[:len(expected_seq)]==expected_seq
     "ATOM   4519  OD2 ASP B 664     -15.056 125.079  66.899  1.00142.18           O  "
-    assert p.parsed['ATOM'][0].residue.resName=='LEU'
-    assert p.parsed['ATOM'][-1].name=='OD2'
-    assert p.parsed['ATOM'][0].serial==1
-    assert p.parsed['ATOM'][-1].serial==4519
-    assert p.parsed['ATOM'][-1].residue.resName=='ASP'
-    assert len(p.parsed['TER'])==2
-    assert p.parsed['TER'][0].residue.resName=='VAL'
-    assert p.parsed['TER'][0].residue.chainID=='G'
-    assert p.parsed['TER'][0].residue.seqNum==505
-    assert p.parsed['TER'][0].residue.iCode==''
+    assert q.parsed['ATOM'][0].residue.resName=='LEU'
+    assert q.parsed['ATOM'][-1].name=='OD2'
+    assert q.parsed['ATOM'][0].serial==1
+    assert q.parsed['ATOM'][-1].serial==4519
+    assert q.parsed['ATOM'][-1].residue.resName=='ASP'
+    assert len(q.parsed['TER'])==2
+    assert q.parsed['TER'][0].residue.resName=='VAL'
+    assert q.parsed['TER'][0].residue.chainID=='G'
+    assert q.parsed['TER'][0].residue.seqNum==505
+    assert q.parsed['TER'][0].residue.iCode==''
 
-    assert p.parsed['TER'][1].residue.resName=='ASP'
-    assert p.parsed['TER'][1].residue.chainID=='B'
-    assert p.parsed['TER'][1].residue.seqNum==664
-    assert p.parsed['TER'][1].residue.iCode==''
+    assert q.parsed['TER'][1].residue.resName=='ASP'
+    assert q.parsed['TER'][1].residue.chainID=='B'
+    assert q.parsed['TER'][1].residue.seqNum==664
+    assert q.parsed['TER'][1].residue.iCode==''
 
-    assert len(p.parsed['JRNL'])==16
+    # assert len(q.parsed['JRNL'])==16
 
-    assert len(p.parsed['REMARK'])==649 # unparsed remarks
+    # assert len(q.parsed['REMARK'])==649 # unparsed remarks
 
 

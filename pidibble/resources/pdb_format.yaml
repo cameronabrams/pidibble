@@ -138,37 +138,31 @@ record_formats:
       compound: [SList,[11,80]]
     continues:
       - compound
-    tokens:
+    token_formats:
       compound:
-        MOL_ID: 
-          type: Integer
-        MOLECULE: 
-          type: String
-          associated_to: MOL_ID
-        CHAIN: 
-          type: CList
-          associated_to: MOL_ID
-        FRAGMENT:
-          type: String
-          associated_to: MOL_ID
-        SYNONYM: 
-          type: CList
-          associated_to: MOL_ID
-        EC:
-          type: CList
-          associated_to: MOL_ID
-        ENGINEERED: 
-          type: String
-          associated_to: MOL_ID
-        MUTATION:
-          type: String
-          associated_to: MOL_ID
-        OTHER_DETAILS: 
-          type: String
-          associated_to: MOL_ID
-        A_FAKE_TOKEN:
-          type: String
-          associated_to: MOL_ID
+        tokens:
+          MOL_ID: 
+            type: Integer
+          MOLECULE: 
+            type: String
+          CHAIN: 
+            type: CList
+          FRAGMENT:
+            type: String
+          SYNONYM: 
+            type: CList
+          EC:
+            type: CList
+          ENGINEERED: 
+            type: String
+          MUTATION:
+            type: String
+          OTHER_DETAILS: 
+            type: String
+          A_FAKE_TOKEN:
+            type: String
+        determinants:
+          - MOL_ID
   EXPDTA:
     type: 2
     fields:
@@ -197,112 +191,81 @@ record_formats:
       srcName: [SList,[11,79]]
     continues:
       - srcName
-    tokens:
+    token_formats:
       srcName:
-        MOL_ID:
-          type: Integer
-        SYNTHETIC:
-          type: String
-          associated_to: MOL_ID
-        FRAGMENT:
-          type: String
-          associated_to: MOL_ID
-        ORGANISM_SCIENTIFIC:
-          type: String
-          associated_to: MOL_ID
-        ORGANISM_COMMON:
-          type: String
-          associated_to: MOL_ID
-        ORGANISM_TAXID:
-          type: String
-          associated_to: MOL_ID
-        STRAIN:
-          type: String
-          associated_to: MOL_ID
-        VARIANT:
-          type: String
-          associated_to: MOL_ID
-        CELL_LINE:
-          type: String
-          associated_to: MOL_ID
-        ATCC:
-          type: String
-          associated_to: MOL_ID
-        ORGAN:
-          type: String
-          associated_to: MOL_ID
-        TISSUE:
-          type: String
-          associated_to: MOL_ID
-        CELL:
-          type: String
-          associated_to: MOL_ID
-        ORGANELLE:
-          type: String
-          associated_to: MOL_ID
-        SECRETION:
-          type: String
-          associated_to: MOL_ID
-        CELLULAR_LOCATION:
-          type: String
-          associated_to: MOL_ID
-        PLASMID:
-          type: String
-          associated_to: MOL_ID
-        GENE:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_COMMON:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_TAXID:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_STRAIN:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_VARIANT:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_CELL:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_CELL_LINE:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_ATCC_NUMBER:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_ORGAN:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_TISSUE:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_ORGANELLE:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_CELLULAR_LOCATION:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_VECTOR_TYPE:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_VECTOR:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_PLASMID:
-          type: String
-          associated_to: MOL_ID
-        EXPRESSION_SYSTEM_GENE:
-          type: String
-          associated_to: MOL_ID
-        OTHER_DETAILS:
-          type: String
-          associated_to: MOL_ID
+        tokens:
+          MOL_ID:
+            type: Integer
+          SYNTHETIC:
+            type: String
+          FRAGMENT:
+            type: String
+          ORGANISM_SCIENTIFIC:
+            type: String
+          ORGANISM_COMMON:
+            type: String
+          ORGANISM_TAXID:
+            type: String
+          STRAIN:
+            type: String
+          VARIANT:
+            type: String
+          CELL_LINE:
+            type: String
+          ATCC:
+            type: String
+          ORGAN:
+            type: String
+          TISSUE:
+            type: String
+          CELL:
+            type: String
+          ORGANELLE:
+            type: String
+          SECRETION:
+            type: String
+          CELLULAR_LOCATION:
+            type: String
+          PLASMID:
+            type: String
+          GENE:
+            type: String
+          EXPRESSION_SYSTEM:
+            type: String
+          EXPRESSION_SYSTEM_COMMON:
+            type: String
+          EXPRESSION_SYSTEM_TAXID:
+            type: String
+          EXPRESSION_SYSTEM_STRAIN:
+            type: String
+          EXPRESSION_SYSTEM_VARIANT:
+            type: String
+          EXPRESSION_SYSTEM_CELL:
+            type: String
+          EXPRESSION_SYSTEM_CELL_LINE:
+            type: String
+          EXPRESSION_SYSTEM_ATCC_NUMBER:
+            type: String
+          EXPRESSION_SYSTEM_ORGAN:
+            type: String
+          EXPRESSION_SYSTEM_TISSUE:
+            type: String
+          EXPRESSION_SYSTEM_ORGANELLE:
+            type: String
+          EXPRESSION_SYSTEM_CELLULAR_LOCATION:
+            type: String
+          EXPRESSION_SYSTEM_VECTOR_TYPE:
+            type: String
+          EXPRESSION_SYSTEM_VECTOR:
+            type: String
+          EXPRESSION_SYSTEM_PLASMID:
+            type: String
+          EXPRESSION_SYSTEM_GENE:
+            type: String
+          OTHER_DETAILS:
+            type: String
+        determinants:
+          - MOL_ID
   SPLIT:
     type: 2
     fields: 
@@ -580,6 +543,7 @@ record_formats:
       chainID: [String,[12,12]]
       numRes: [Integer,[14,17]]
       resNames: [WList,[20,70]]
+    continuation: serNum
     determinants:
       - chainID
       - numRes
@@ -595,6 +559,7 @@ record_formats:
       residue2: [Residue10,[30,39]]
       residue3: [Residue10,[41,50]]
       residue4: [Residue10,[52,61]]
+    continuation: seqNum
     determinants:
       - siteID
       - numRes
@@ -621,23 +586,25 @@ record_formats:
     type: 6
     fields:
       subkey: [String,[13,16]]
-      continuation: [String,[17,18]]
       text: [String,[20,79]]
     subrecords:
       branchon: subkey
       formats:
         AUTH:
           fields:
+            continuation: [String,[17,18]]
             authorList: [CList,[20,79]]
           continues:
             - authorList
         TITL:
           fields:
+            continuation: [String,[17,18]]
             title: [String,[20,79]]
           continues:
             - title
         REF:
           fields:
+            continuation: [String,[17,18]]
             pubName: [String,[20,47]]
             volumelabel: [String,[50,51]]
             volume: [String,[52,55]]
@@ -647,6 +614,7 @@ record_formats:
             - pubName
         PUBL:
           fields:
+            continuation: [String,[17,18]]
             pub: [String,[20,70]]
           continues:
             - pub
@@ -741,6 +709,9 @@ record_formats:
         2:
           fields:
             resolutionmsg: [String,[24,41]]
+        3:
+          fields:
+             refinementdetails: [String,[12,80]]
         4:
           fields:
             formatmsg: [String,[12,80]]
