@@ -1,0 +1,9 @@
+Title: TestUserConfig
+BuildSteps:
+  - mods:
+      Mutations:
+        - chainID: A
+          origresname: GLU
+          resseqnum: 123
+          newresname: ARG
+        - G:TYR,555,PHE
