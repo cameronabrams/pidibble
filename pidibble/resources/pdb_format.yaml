@@ -41,6 +41,8 @@ record_formats:
     fields:
       continuation: [String,[9,10]]
       title: [String,[11,80]]
+    continues:
+      - title
   CRYST1:
     type: 1
     fields:
@@ -504,6 +506,8 @@ record_formats:
       modType: [0,1]
     continues:
       - records
+    determinants:
+      - modNum
   SEQADV:
     type: 3
     fields:
@@ -616,229 +620,229 @@ record_formats:
   JRNL:
     type: 6
     fields:
-      text: [String,[13,79]]
+      subkey: [String,[13,16]]
+      continuation: [String,[17,18]]
+      text: [String,[20,79]]
     subrecords:
-      text:
-        key: [String,[13,16]]
-        subrecord_formats:
-          AUTH:
-            fields:
-              continuation: [String,[17,18]]
-              authorList: [CList,[20,79]]
-            continues:
-              - authorList
-          TITL:
-            fields:
-              continuation: [String,[17,18]]
-              title: [String,[20,79]]
-            continues:
-              - title
-          REF:
-            fields:
-              continuation: [String,[17,18]]
-              pubName: [String,[20,47]]
-              volumelabel: [String,[50,51]]
-              volume: [String,[52,55]]
-              page: [String,[57,61]]
-              year: [Integer,[63,66]]
-            continues:
-              - pubName
-          PUBL:
-            fields:
-              continuation: [String,[17,18]]
-              pub: [String,[20,70]]
-            continues:
-              - pub
-          REFN:
-            fields:
-              issnORessn: [String,[36,39]]
-              issn: [String,[41,65]]
-          PMID:
-            fields:
-              pmid: [Integer,[20,79]]
-          DOI:
-            fields:
-              doi: [String,[20,79]]
+      branchon: subkey
+      formats:
+        AUTH:
+          fields:
+            authorList: [CList,[20,79]]
+          continues:
+            - authorList
+        TITL:
+          fields:
+            title: [String,[20,79]]
+          continues:
+            - title
+        REF:
+          fields:
+            pubName: [String,[20,47]]
+            volumelabel: [String,[50,51]]
+            volume: [String,[52,55]]
+            page: [String,[57,61]]
+            year: [Integer,[63,66]]
+          continues:
+            - pubName
+        PUBL:
+          fields:
+            pub: [String,[20,70]]
+          continues:
+            - pub
+        REFN:
+          fields:
+            issnORessn: [String,[36,39]]
+            issn: [String,[41,65]]
+        PMID:
+          fields:
+            pmid: [Integer,[20,79]]
+        DOI:
+          fields:
+            doi: [String,[20,79]]
   REMARK:
     type: 6
     fields:
       remarkNum: [Integer,[8,10]]
       contents: [String,[12,79]]
-    branchon: remarkNum
-    branch_records:
-      1:
-        fields:
-          test_key: [String,[13,16]]
-        branchon: test_key
-        branch_records:
-          EFER:
-            fields:
-              refNum: [Integer,[22,70]]
-          AUTH:
-            fields:
-              continuation: [String,[17,18]]
-              authorList: [CList,[20,79]]
-            continues:
-              - authorList
-            associated_to: EFER
-          TITL:
-            fields:
-              continuation: [String,[17,18]]
-              title: [String,[20,79]]
-            continues:
-              - title
-            associated_to: EFER
-          EDIT:
-            fields:
-              continuation: [String,[17,18]]
-              editorList: [String,[20,79]]
-            continues:
-              - editorList
-            associated_to: EFER
-          REF:
-            fields:
-              test_key: [String,[20,24]]
+    subrecords:
+      branchon: remarkNum
+      formats:
+        1:
+          fields:
+            test_key: [String,[13,16]]
+          subrecords:
             branchon: test_key
-            branch_records:
-              'TO BE':
+            formats:
+              EFER:
                 fields:
-                  message: [String,[20,34]]
-              '*':
+                  refNum: [Integer,[22,70]]
+              AUTH:
                 fields:
                   continuation: [String,[17,18]]
-                  pubName: [String,[20,47]]
-                  volumelabel: [String,[50,51]]
-                  volume: [String,[52,55]]
-                  page: [String,[57,61]]
-                  year: [Integer,[63,66]]
+                  authorList: [CList,[20,79]]
                 continues:
-                  - pubName
-            associated_to: EFER
-          PUBL:
-            fields:
-              continuation: [String,[17,18]]
-              pub: [String,[20,70]]
-            continues:
-              - pub
-            associated_to: EFER
-          REFN:
-            fields:
-              issnORessn: [String,[36,39]]
-              issn: [String,[41,65]]
-            associated_to: EFER
-          PMID:
-            fields:
-              pmid: [String,[20,79]]
-            associated_to: EFER
-          DOI:
-            fields:
-              doi: [String,[20,79]]
-            associated_to: EFER
-      2:
-        fields:
-          resolutionmsg: [String,[24,41]]
-      4:
-        fields:
-          formatmsg: [String,[12,80]]
-      100:
-        fields:
-          processmsg: [String,[12,80]]
-      200:
-        fields:
-          crystallizationmsg: [String,[12,80]]
-      205:
-        fields:
-          fiberextractionmsg: [String,[12,80]]
-      210:
-        fields:
-          nmrdetails: [String,[12,80]]
-      215:
-        fields:
-          solutionnmrdetails: [String,[12,80]]
-      217:
-        fields:
-          solidstatenmrdetails: [String,[12,80]]
-      230:
-        fields:
-          neutrondiffractiondetails: [String,[12,80]]
-      240:
-        fields:
-          electroncrystallographydetails: [String,[12,80]]
-      245:
-        fields:
-          emdetails: [String,[12,80]]
-      247:
-        fields:
-          emdisclaimer: [String,[12,80]]
-      265:
-        fields:
-          solutionscatteringdetails: [String,[12,80]]
-      280:
-        fields:
-          crystalinformation: [String,[12,80]]
-      285:
-        fields:
-          unitcellinformation: [String,[12,80]]
-      290:
-        fields:
-          crystallographicautodetails: [String,[12,80]]
-      300:
-        fields:
-          biomoleculedeclarations: [String,[12,80]]
-      350:
-        fields:
-          biomoleculespecifications: [String,[12,80]]
-      375:
-        fields:
-          specialatomspecifications: [String,[12,80]]
-      400:
-        fields:
-          compounddetails: [String,[12,80]]
-      450:
-        fields:
-          biologicalfreetext: [String,[12,80]]
-      465:
-        fields:
-          missingresiduespecifications: [String,[12,80]]
-      470:
-        fields:
-          missingatomspecifications: [String,[12,80]]
-      480:
-        fields:
-          zerooccupancyspecifications: [String,[12,80]]
-      500:
-        fields:
-          geometryspecifications: [String,[12,80]]
-      525:
-        fields:
-          distantsolventatoms: [String,[12,80]]
-      600:
-        fields:
-          heterogendetails: [String,[12,80]]
-      610:
-        fields:
-          nonpolymermissingatoms: [String,[12,80]]
-      615:
-        fields:
-          nonpolymermodeledatoms: [String,[12,80]]
-      620:
-        fields:
-          metalcoordinationdetails: [String,[12,80]]
-      630:
-        fields:
-          inhibitordescription: [String,[12,80]]
-      650:
-        fields:
-          helixdescription: [String,[12,80]]
-      700:
-        fields:
-          sheetdescription: [String,[12,80]]
-      800:
-        fields:
-          sitedetails: [String,[12,80]]
-      900:
-        fields:
-          relateddetails: [String,[12,80]]
-      999:
-        fields:
-          sequenceconcerns: [String,[12,80]]
+                  - authorList
+                associated_to: EFER
+              TITL:
+                fields:
+                  continuation: [String,[17,18]]
+                  title: [String,[20,79]]
+                continues:
+                  - title
+                associated_to: EFER
+              EDIT:
+                fields:
+                  continuation: [String,[17,18]]
+                  editorList: [String,[20,79]]
+                continues:
+                  - editorList
+                associated_to: EFER
+              REF:
+                fields:
+                  test_key: [String,[20,24]]
+                subrecords:
+                  branchon: test_key
+                  formats:
+                    'TO BE':
+                      fields:
+                        message: [String,[20,34]]
+                    '*':
+                      fields:
+                        continuation: [String,[17,18]]
+                        pubName: [String,[20,47]]
+                        volumelabel: [String,[50,51]]
+                        volume: [String,[52,55]]
+                        page: [String,[57,61]]
+                        year: [Integer,[63,66]]
+                      continues:
+                        - pubName
+                  associated_to: EFER
+              PUBL:
+                fields:
+                  continuation: [String,[17,18]]
+                  pub: [String,[20,70]]
+                continues:
+                  - pub
+                associated_to: EFER
+              REFN:
+                fields:
+                  issnORessn: [String,[36,39]]
+                  issn: [String,[41,65]]
+                associated_to: EFER
+              PMID:
+                fields:
+                  pmid: [String,[20,79]]
+                associated_to: EFER
+              DOI:
+                fields:
+                  doi: [String,[20,79]]
+                associated_to: EFER
+        2:
+          fields:
+            resolutionmsg: [String,[24,41]]
+        4:
+          fields:
+            formatmsg: [String,[12,80]]
+        100:
+          fields:
+            processmsg: [String,[12,80]]
+        200:
+          fields:
+            crystallizationmsg: [String,[12,80]]
+        205:
+          fields:
+            fiberextractionmsg: [String,[12,80]]
+        210:
+          fields:
+            nmrdetails: [String,[12,80]]
+        215:
+          fields:
+            solutionnmrdetails: [String,[12,80]]
+        217:
+          fields:
+            solidstatenmrdetails: [String,[12,80]]
+        230:
+          fields:
+            neutrondiffractiondetails: [String,[12,80]]
+        240:
+          fields:
+            electroncrystallographydetails: [String,[12,80]]
+        245:
+          fields:
+            emdetails: [String,[12,80]]
+        247:
+          fields:
+            emdisclaimer: [String,[12,80]]
+        265:
+          fields:
+            solutionscatteringdetails: [String,[12,80]]
+        280:
+          fields:
+            crystalinformation: [String,[12,80]]
+        285:
+          fields:
+            unitcellinformation: [String,[12,80]]
+        290:
+          fields:
+            crystallographicautodetails: [String,[12,80]]
+        300:
+          fields:
+            biomoleculedeclarations: [String,[12,80]]
+        350:
+          fields:
+            biomoleculespecifications: [String,[12,80]]
+        375:
+          fields:
+            specialatomspecifications: [String,[12,80]]
+        400:
+          fields:
+            compounddetails: [String,[12,80]]
+        450:
+          fields:
+            biologicalfreetext: [String,[12,80]]
+        465:
+          fields:
+            missingresiduespecifications: [String,[12,80]]
+        470:
+          fields:
+            missingatomspecifications: [String,[12,80]]
+        480:
+          fields:
+            zerooccupancyspecifications: [String,[12,80]]
+        500:
+          fields:
+            geometryspecifications: [String,[12,80]]
+        525:
+          fields:
+            distantsolventatoms: [String,[12,80]]
+        600:
+          fields:
+            heterogendetails: [String,[12,80]]
+        610:
+          fields:
+            nonpolymermissingatoms: [String,[12,80]]
+        615:
+          fields:
+            nonpolymermodeledatoms: [String,[12,80]]
+        620:
+          fields:
+            metalcoordinationdetails: [String,[12,80]]
+        630:
+          fields:
+            inhibitordescription: [String,[12,80]]
+        650:
+          fields:
+            helixdescription: [String,[12,80]]
+        700:
+          fields:
+            sheetdescription: [String,[12,80]]
+        800:
+          fields:
+            sitedetails: [String,[12,80]]
+        900:
+          fields:
+            relateddetails: [String,[12,80]]
+        999:
+          fields:
+            sequenceconcerns: [String,[12,80]]

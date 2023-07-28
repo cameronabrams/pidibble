@@ -113,9 +113,7 @@ def test_parse():
     assert p.parsed['TER'][1].residue.seqNum==664
     assert p.parsed['TER'][1].residue.iCode==''
 
-    for x in p.parsed['JRNL']:
-        print(str(x))
-    assert len(p.parsed['JRNL'].AUTH)==10
+    assert len(p.parsed['JRNL'])==16
 
     assert len(p.parsed['REMARK'])==649 # unparsed remarks
 

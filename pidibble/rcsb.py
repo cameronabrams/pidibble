@@ -84,19 +84,25 @@ class BaseRecord:
         return ';'.join([f'{k}:[{v}]' for k,v in self.__dict__.items()])
 
 class PDBRecord(BaseRecord):
+    def __init__(self,input_dict):
+        for k,v in input_dict.items():
+            self.__dict__[k]=v
+    
     @classmethod
-    def base_parse(cls,pdbrecord,record_format,typemap):
-        while len(pdbrecord)<80:
-            pdbrecord+=' '
-        input_dict={}
+    def base_parse(cls,pdbrecordline:str,record_format:dict,typemap:dict):
+        while len(pdbrecordline)<80:
+            pdbrecordline+=' '
+        input_dict={'key':pdbrecordline[0:6].strip()}
         fields=record_format.get('fields',{})
+        subrecords=record_format.get('subrecords',{})
         allowed_values=record_format.get('allowed',{})
+        concats=record_format.get('concatenate',{})
         for k,v in fields.items():
             typestring,byte_range=v
             typ=typemap[typestring]
-            assert byte_range[1]<=len(pdbrecord)
+            assert byte_range[1]<=len(pdbrecordline)
             # using columns beginning with "1" not "0"
-            fieldstring=pdbrecord[byte_range[0]-1:byte_range[1]]
+            fieldstring=pdbrecordline[byte_range[0]-1:byte_range[1]]
             # print(typestring,typ)
             input_dict[k]='' if fieldstring.strip()=='' else typ(fieldstring)
             if type(input_dict[k])==str:
@@ -105,54 +111,29 @@ class PDBRecord(BaseRecord):
             #     input_dict[k]=input_dict[k].strip()
             if typestring in allowed_values:
                 assert input_dict[k] in allowed_values[typestring]
-
+        for cfield,subf in concats.items():
+            if not cfield in input_dict:
+                input_dict[cfield]=[]
+                for f in subf:
+                    assert f in input_dict,f'{input_dict["key"]} specifies a field for concatenation ({f}) that is not found'
+                    # print(f,input_dict[f])
+                    if input_dict[f]:
+                        input_dict[cfield].append(input_dict[f])
+                    # del input_dict[f]
+        if subrecords:
+            assert 'formats' in subrecords,f'{input_dict["key"]} is missing formats from its subrecords specification'
+            assert 'branchon' in subrecords,f'{input_dict["key"]} is missing specification of base key from its subrecords specification'
+            assert subrecords['branchon'] in input_dict,f'{input_dict["key"]} specifies a base record that is not found'
+            assert input_dict[subrecords['branchon']] in subrecords['formats'],f'{input_dict["key"]} is missing specification of a subrecord format for {subrecords["branchon"]} from its subrecords specification'
+            subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
+            subr_dict=PDBRecord.base_parse(cls,pdbrecordline,subrecord_format,typemap)
+            input_dict.update(subr_dict)
         return input_dict
-
+    
     @classmethod
-    def new(cls,pdbrecord,record_format,typemap,**kwargs):
-        input_dict=cls.base_parse(pdbrecord,record_format,typemap)
-        concats=record_format.get('concatenate',{})
-        if input_dict:
-            continue_on=kwargs.get('continue_on',None)
-            if continue_on:
-                continuation=input_dict.get('continuation','')
-                if continuation!='':
-                    # this is a continuation record
-                    for attr in continue_on.__dict__.keys():
-                        cont_attr=input_dict.get(attr,'')
-                        if cont_attr!='':
-                            if type(continue_on.__dict__[attr])!=list:
-                                continue_on.__dict__[attr]=[continue_on.__dict__[attr]]
-                            if type(cont_attr)==list:
-                                continue_on.__dict__[attr].extend(cont_attr)
-                            else:
-                                continue_on.__dict__[attr].append(cont_attr)
-                    return continue_on
-            for cfield,subf in concats.items():
-                if not cfield in input_dict:
-                    input_dict[cfield]=[]
-                    for f in subf:
-                        # print(f,input_dict[f])
-                        if input_dict[f]:
-                            input_dict[cfield].append(input_dict[f])
-                        # del input_dict[f]
-            subrecords=record_format.get('subrecords',{})
-            for srf,srecfmtwkey in subrecords.items():
-                assert type(input_dict[srf])==str
-                typestring,byte_range=srecfmtwkey['key']
-                typ=typemap[typestring]
-                fieldstring=pdbrecord[byte_range[0]-1:byte_range[1]].strip()
-                key=typ(fieldstring)
-                srf=srecfmtwkey['subrecord_formats'][key]
-                print(key,srf.get('continues',[]))
-                if not key in input_dict:
-                    input_dict[key]=PDBRecord.new(pdbrecord,srf,typemap)
-                else:
-                    newrec=PDBRecord.new(pdbrecord,srf,typemap)
-                    input_dict[key].merge(newrec,srf)
-            inst=cls(input_dict)
-            return inst
-        return None
+    def newrecord(cls,pdbrecordline,record_format,typemap):
+        input_dict=PDBRecord.base_parse(cls,pdbrecordline,record_format,typemap)
+        return cls(input_dict)
 
     def update_2(self,pdbrecord,record_format,typemap):
         if not 'continuation' in record_format['fields']:
@@ -278,55 +259,45 @@ class PDBParser:
             if key[0] in PDBParser.comment_chars:
                 self.comment_lines.append([i,l])
                 continue
+            assert key in self.pdb_format_dict['record_formats'],f'{key} is not found in among the available record formats'
             record_format=self.pdb_format_dict['record_formats'][key]
             # print(key,record_format)
             record_type=record_format['type']
+            new_record=PDBRecord.new(l,record_format,self.mappers)
+
             if record_type==1: # one-time-single-line
                 # print(key,record_format)
                 if key in self.parsed:
                     logger.fatal(f'PDB record type {key} can appear only once in a PDB file.')
-                self.parsed[key]=PDBRecord.new(l,record_format,self.mappers)
-            elif record_type==2:
-                if key!=self.previous_key:
-                    self.parsed[key]=PDBRecord.new(l,record_format,self.mappers)
-                    if self.previous_key:
-                        # print(self.previous_key)
-                        self.parsed[self.previous_key].parse_tokens(self.previous_record_format,self.mappers)
-                    self.previous_key=key
-                    self.previous_record_format=record_format
-                else:
-                    self.parsed[key].update_2(l,record_format,self.mappers)
-            elif record_type==3:
+                self.parsed[key]=new_record
+            elif record_type==2: # one-time-multiple-lines
                 if not key in self.parsed:
-                    self.parsed[key]=[]
-                    self.last_parsed_3=None
-                parsed_record=PDBRecord.new(l,record_format,self.mappers,continue_on=self.last_parsed_3)
-                if parsed_record!=self.last_parsed_3:
-                    self.parsed[key].append(parsed_record)
-                self.last_parsed_3=self.parsed[key][-1]
-            elif record_type==4:
-                # - continuation requires which field continues
-                # - serNum requires matches
-                # - seqNum is added to keyname
-                parsed_record=PDBRecord.new(l,record_format,self.mappers)
-                if not key in self.parsed:
-                    self.parsed[key]=[parsed_record]
+                    self.parsed[key]=new_record
                 else:
-                    if 'determinants' in record_format:
-                        det=[parsed_record.__dict__[x] for x in     record_format['determinants']]
-                        present_record=None
-                        for r in self.parsed[key]:
-                            testdet=[r.__dict__[x] for x in record_format['determinants']]
-                            if det==testdet:
-                                present_record=r
-                                # print(present_record.__dict__)
-                                break
-                        if not present_record:
-                            self.parsed[key].append(parsed_record)
-                        else:
-                            present_record.merge(parsed_record,record_format)
+                    continuation=new_record.continuation
+                    assert continuation.isdigit()
+                    base_record=self.parsed[key]
+                    base_record.extend(new_record,record_format,self.mappers)
+            elif record_type in [3,4]: # multiple-times-single-line, except for some reason REVDAT, so let's make it all the same
+                if not key in self.parsed:
+                    self.parsed[key]=[new_record]
+                else:
+                    if 'continuation' in new_record.__dict__:
+                        assert key=='REVDAT'
+                        if new_record.continuation.isdigit():
+                            base_record=None
+                            nrd=[new_record.__dict__[k] for k in record_format['determinants']]
+                            for r in self.parsed[key]:
+                                td=[r.__dict__[k] for k in record_format['determinants']]
+                                if nrd==td:
+                                    base_record=r
+                                    break
+                            if base_record:
+                                base_record.extend(new_record,record_format,self.mappers)
+                            else:
+                                self.parsed[key].append(new_record)
                     else:
-                        self.parsed[key].append(parsed_record)
+                        self.parsed[key].append(new_record)
             elif record_type==5:
                 if not key in self.parsed:
                     self.parsed[key]=[]
@@ -335,10 +306,13 @@ class PDBParser:
                 if parsed_record!=self.last_parsed_5:
                     self.parsed[key].append(parsed_record)
                 self.last_parsed_5=self.parsed[key][-1]
-            elif record_type==6:
-                parsed_record=PDBRecord.new(l,record_format,self.mappers)
-                if not key in self.parsed:
-                    self.parsed[key]=[]
-                self.parsed[key].append(parsed_record)
+            # elif record_type==6:
+            #     if not key in self.parsed:
+            #         self.parsed[key]=[]
+            #     if 'subrecords' in record_format:
+            #         parsed_subrecord=PDBRecord.newsubrecord(l,record_format,self.mappers)
+            #     else:
+            #         parsed_record=PDBRecord.new(l,record_format,self.mappers)
+            #         self.parsed[key].append(parsed_record)
             
 
