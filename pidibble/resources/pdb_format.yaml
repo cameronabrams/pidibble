@@ -703,112 +703,112 @@ record_formats:
               - EFER
         2:
           fields:
-            resolutionmsg: [String,[24,41]]
+            resolutionmsg: [LList,[24,41]]
         3:
           fields:
-             refinementdetails: [String,[12,80]]
+             refinementdetails: [LList,[12,80]]
         4:
           fields:
-            formatmsg: [String,[12,80]]
+            formatmsg: [LList,[12,80]]
         100:
           fields:
-            processmsg: [String,[12,80]]
+            processmsg: [LList,[12,80]]
         200:
           fields:
-            crystallizationmsg: [String,[12,80]]
+            crystallizationmsg: [LList,[12,80]]
         205:
           fields:
-            fiberextractionmsg: [String,[12,80]]
+            fiberextractionmsg: [LList,[12,80]]
         210:
           fields:
-            nmrdetails: [String,[12,80]]
+            nmrdetails: [LList,[12,80]]
         215:
           fields:
-            solutionnmrdetails: [String,[12,80]]
+            solutionnmrdetails: [LList,[12,80]]
         217:
           fields:
-            solidstatenmrdetails: [String,[12,80]]
+            solidstatenmrdetails: [LList,[12,80]]
         230:
           fields:
-            neutrondiffractiondetails: [String,[12,80]]
+            neutrondiffractiondetails: [LList,[12,80]]
         240:
           fields:
-            electroncrystallographydetails: [String,[12,80]]
+            electroncrystallographydetails: [LList,[12,80]]
         245:
           fields:
-            emdetails: [String,[12,80]]
+            emdetails: [LList,[12,80]]
         247:
           fields:
-            emdisclaimer: [String,[12,80]]
+            emdisclaimer: [LList,[12,80]]
         265:
           fields:
-            solutionscatteringdetails: [String,[12,80]]
+            solutionscatteringdetails: [LList,[12,80]]
         280:
           fields:
-            crystalinformation: [String,[12,80]]
+            crystalinformation: [LList,[12,80]]
         285:
           fields:
-            unitcellinformation: [String,[12,80]]
+            unitcellinformation: [LList,[12,80]]
         290:
           fields:
-            crystallographicautodetails: [String,[12,80]]
+            crystallographicautodetails: [LList,[12,80]]
         300:
           fields:
-            biomoleculedeclarations: [String,[12,80]]
+            biomoleculedeclarations: [LList,[12,80]]
         350:
           fields:
-            biomoleculespecifications: [String,[12,80]]
+            biomoleculespecifications: [LList,[12,80]]
         375:
           fields:
-            specialatomspecifications: [String,[12,80]]
+            specialatomspecifications: [LList,[12,80]]
         400:
           fields:
-            compounddetails: [String,[12,80]]
+            compounddetails: [LList,[12,80]]
         450:
           fields:
-            biologicalfreetext: [String,[12,80]]
+            biologicalfreetext: [LList,[12,80]]
         465:
           fields:
-            missingresiduespecifications: [String,[12,80]]
+            missingresiduespecifications: [LList,[12,80]]
         470:
           fields:
-            missingatomspecifications: [String,[12,80]]
+            missingatomspecifications: [LList,[12,80]]
         480:
           fields:
-            zerooccupancyspecifications: [String,[12,80]]
+            zerooccupancyspecifications: [LList,[12,80]]
         500:
           fields:
-            geometryspecifications: [String,[12,80]]
+            geometryspecifications: [LList,[12,80]]
         525:
           fields:
-            distantsolventatoms: [String,[12,80]]
+            distantsolventatoms: [LList,[12,80]]
         600:
           fields:
-            heterogendetails: [String,[12,80]]
+            heterogendetails: [LList,[12,80]]
         610:
           fields:
-            nonpolymermissingatoms: [String,[12,80]]
+            nonpolymermissingatoms: [LList,[12,80]]
         615:
           fields:
-            nonpolymermodeledatoms: [String,[12,80]]
+            nonpolymermodeledatoms: [LList,[12,80]]
         620:
           fields:
-            metalcoordinationdetails: [String,[12,80]]
+            metalcoordinationdetails: [LList,[12,80]]
         630:
           fields:
-            inhibitordescription: [String,[12,80]]
+            inhibitordescription: [LList,[12,80]]
         650:
           fields:
-            helixdescription: [String,[12,80]]
+            helixdescription: [LList,[12,80]]
         700:
           fields:
-            sheetdescription: [String,[12,80]]
+            sheetdescription: [LList,[12,80]]
         800:
           fields:
-            sitedetails: [String,[12,80]]
+            sitedetails: [LList,[12,80]]
         900:
           fields:
-            relateddetails: [String,[12,80]]
+            relateddetails: [LList,[12,80]]
         999:
           fields:
-            sequenceconcerns: [String,[12,80]]
+            sequenceconcerns: [LList,[12,80]]

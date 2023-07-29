@@ -33,7 +33,8 @@ ListParsers={
     'CList':list_parse(Listparser,','),
     'SList':list_parse(Listparser,';'),
     'WList':list_parse(Listparser,None),
-    'DList':list_parse(Listparser,':')
+    'DList':list_parse(Listparser,':'),
+    'LList':list_parse(Listparser,'\n')
 }
 
 class Stringparser:
@@ -107,7 +108,6 @@ class PDBRecord(BaseRecord):
             assert byte_range[1]<=len(pdbrecordline)
             # using columns beginning with "1" not "0"
             fieldstring=pdbrecordline[byte_range[0]-1:byte_range[1]]
-            # print(typestring,typ)
             input_dict[k]='' if fieldstring.strip()=='' else typ(fieldstring)
             if type(input_dict[k])==str:
                 input_dict[k]=input_dict[k].strip()
@@ -131,7 +131,6 @@ class PDBRecord(BaseRecord):
             assert input_dict[subrecords['branchon']] in subrecords['formats'],f'{input_dict["key"]} is missing specification of a subrecord format for {subrecords["branchon"]} value {input_dict[subrecords["branchon"]]} from its subrecords specification'
             subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
             subr_dict=PDBRecord.base_parse(pdbrecordline,subrecord_format,typemap)
-            # TODO: special input_dict update that generates the key
             sav_key=input_dict['key']
             input_dict.update(subr_dict)
 
@@ -151,15 +150,17 @@ class PDBRecord(BaseRecord):
         inst=cls(input_dict)
         return inst
 
-    def continue_record(self,other):
-        print(self.key,self.continuation,other.key,other.continuation)
-        if not ('REMARK' in self.key or 'REMARK' in other.key):
-            assert other.continuation>self.continuation # not true for remarks!!
-        #TODO: fix to allow REMARKS to generate list of remark-strings
+    def continue_record(self,other,**kwargs):
         record_format=self.record_format
-        for cfield in record_format['continues']:
+        all_fields=kwargs.get('all_fields',False)
+        continuing_fields=self.__dict__.keys() if all_fields else record_format['continues']
+        for cfield in continuing_fields:
             if type(self.__dict__[cfield])==str:
-                self.__dict__[cfield]+=' '+other.__dict__[cfield]
+                if type(other.__dict__[cfield])==str:
+                    self.__dict__[cfield]+=' '+other.__dict__[cfield]
+                elif type(other.__dict__[cfield])==list:
+                    self.__dict__[cfield]=[self.__dict__[cfield]]
+                    self.__dict__[cfield].extend(other.__dict__[cfield])
             elif type(self.__dict__[cfield])==list:
                 if type(other.__dict__[cfield])!=list:
                     assert type(self.__dict__[cfield][0])==type(other.__dict__[cfield])
@@ -189,7 +190,7 @@ class PDBRecord(BaseRecord):
         if not 'token_formats' in record_format:
             return
         attr_w_tokens=record_format['token_formats']
-        print(self.key,list(attr_w_tokens.keys()))
+        # print(self.key,list(attr_w_tokens.keys()))
         self.tokengroups={}
         for a in attr_w_tokens.keys():
             obj=self.__dict__[a] # expect to be a list
@@ -197,7 +198,7 @@ class PDBRecord(BaseRecord):
             tdict=attr_w_tokens[a]['tokens']
             determinants=attr_w_tokens[a].get('determinants',[])
             assert len(determinants) in [0,1],f'Token group for field {a} of {self.key} may not have more than one determinant'
-            print('token names',list(tdict.keys()),'determinants',determinants)
+            # print('token names',list(tdict.keys()),'determinants',determinants)
             self.tokengroups[a]={}
             for pt in self.__dict__[a]:
                 toks=[x.strip() for x in pt.split(':')]
@@ -217,27 +218,6 @@ class PDBRecord(BaseRecord):
                         pass # should never happen
                 else: # assume we are adding tokens to the last group
                     current_tokengroup.add_token(tokname,tokvalue)
-    # def merge(self,other,record_format):
-    #     continues=self.__dict__ if (not 'continues' in record_format or not record_format['continues']) else record_format['continues']
-    #     # print(continues)
-    #     # print(self.__dict__)
-    #     for cfield in continues:
-    #         if type(self.__dict__[cfield])==list:
-    #             if type(other.__dict__[cfield])==list:
-    #                 self.__dict__[cfield].extend(other.__dict__[cfield])
-    #             else:
-    #                 self.__dict__[cfield].append(other.__dict__[cfield])
-    #         elif type(self.__dict__[cfield])==str: # assume a string
-    #             # print(self.__dict__[cfield],other.__dict__[cfield])
-    #             self.__dict__[cfield]+=' '+other.__dict__[cfield]
-    #         elif type(self.__dict__[cfield])==int:
-    #             self.__dict__[cfield]=[self.__dict__[cfield],other.__dict__[cfield]]
-    #         else:
-    #             self.__dict__[cfield]=[self.__dict__[cfield],other.__dict__[cfield]]
-        # concats=record_format.get('concatenate',{})
-        # for concatfield,subfields in concats.items():
-        #     if not concatfield in self.__dict__.keys():
-        #         self.__dict__[concatfield]=[]
             
 class PDBParser:
     mappers={'Integer':int,'String':str,'Float':float}
@@ -307,10 +287,10 @@ class PDBParser:
                 if not key in self.parsed:
                     self.parsed[key]=new_record
                 else:
-                    # this must be a continuation record (only allowed for type 2)
+                    # this must be a continuation record
                     assert record_type!=1,f'{key} may not have continuation records'
                     root_record=self.parsed[key]
-                    root_record.continue_record(new_record)
+                    root_record.continue_record(new_record,all_fields=('REMARK' in key))
             elif record_type in [3,4,5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
@@ -340,14 +320,14 @@ class PDBParser:
         for key,p in self.parsed.items():
             # print(key)
             if type(p)==PDBRecord:
-                rf=record_formats[key]
+                rf=p.record_format
                 if 'token_formats' in rf:
                     p.parse_tokens(rf,self.mappers)
             elif type(p)==list:
                 for q in p:
-                    rf=record_formats[key]
+                    rf=q.record_format
                     if 'token_formats' in rf:
-                        p.parse_tokens(rf,self.mappers)
+                        q.parse_tokens(rf,self.mappers)
 
             
 

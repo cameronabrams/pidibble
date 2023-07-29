@@ -25,8 +25,8 @@ def test_custom_formats():
     assert p.parsed['MYREC2'][0].residue.chainID=='D'
     assert p.parsed['MYREC2'][0].residue.seqNum==2222
     assert p.parsed['MYREC2'][0].residue.iCode=='J'
-    for s in p.parsed['SITE']:
-        print(s.__dict__)
+    # for s in p.parsed['SITE']:
+    #     print(s.__dict__)
     assert len(p.parsed['SITE'])==4
     assert p.parsed['SITE'][0].siteID=='AC1'
     assert p.parsed['SITE'][0].residue1.resName=='HIS'
@@ -36,7 +36,7 @@ def test_custom_formats():
     assert len(p.parsed['SITE'][3].residues)==11
     for s in p.parsed['SITE']:
         assert s.numRes==len(s.residues)
-        print(s.continuation)
+        # print(s.continuation)
     s=p.parsed['SITE'][3]
 
     expected_resnames=['HIS','HIS','HIS','HIS','LEU','THR','THR','TRP','HOH','HOH','HOH']
@@ -44,7 +44,7 @@ def test_custom_formats():
 
 def test_parse():
     q=PDBParser(PDBcode='4zmj')
-    print(f'file {q.pdb_format_file}')
+    # print(f'file {q.pdb_format_file}')
     q.fetch()
     q.read()
     q.parse()
@@ -128,7 +128,31 @@ def test_parse():
     assert q.parsed['TER'][1].residue.seqNum==664
     assert q.parsed['TER'][1].residue.iCode==''
 
-    # assert len(q.parsed['JRNL'])==16
+    assert len(q.parsed['JRNL.AUTH'].authorList)==53
+    assert q.parsed['JRNL.AUTH'].authorList[0]=='Y.DO KWON'
+    assert q.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
+    assert q.parsed['JRNL.TITL'].title=='CRYSTAL STRUCTURE, CONFORMATIONAL FIXATION AND ENTRY-RELATED INTERACTIONS OF MATURE LIGAND-FREE HIV-1 ENV.'
+    assert q.parsed['JRNL.REF'].pubName=='NAT.STRUCT.MOL.BIOL.'
+    assert q.parsed['JRNL.REF'].volume=='22'
+    assert q.parsed['JRNL.REF'].page=='522'
+    assert q.parsed['JRNL.REF'].year==2015
+    assert q.parsed['JRNL.REFN'].issnORessn=='ESSN'
+    assert q.parsed['JRNL.REFN'].issn=='1545-9985'
+    assert q.parsed['JRNL.PMID'].pmid==26098315
+    assert q.parsed['JRNL.DOI'].doi=='10.1038/NSMB.3051'
+
+    assert q.parsed['REMARK.2'].resolutionmsg==['', '3.31 ANGSTROMS.']
+    assert len(q.parsed['REMARK.3'].refinementdetails)==331
+    assert q.parsed['REMARK.3'].refinementdetails[0]==''
+    assert q.parsed['REMARK.3'].refinementdetails[3]=='AUTHORS     : PAUL ADAMS,PAVEL AFONINE,VINCENT CHEN,IAN'
+    assert q.parsed['REMARK.3'].refinementdetails[-1]=='OTHER REFINEMENT REMARKS: NULL'
+
+    assert q.parsed['REMARK.4'].formatmsg[1]=='4ZMJ COMPLIES WITH FORMAT V. 3.30, 13-JUL-11'
+    assert q.parsed['REMARK.100'].processmsg[-1]=='THE DEPOSITION ID IS D_1000209535.'
+    assert len(q.parsed['REMARK.200'].crystallizationmsg)==49
+    assert q.parsed['REMARK.200'].crystallizationmsg[-1]=='REMARK: NULL'
+    assert len(q.parsed['REMARK.290'].crystallographicautodetails)==40
+    assert q.parsed['REMARK.290'].crystallographicautodetails[-1]=='REMARK: NULL'
 
     # assert len(q.parsed['REMARK'])==649 # unparsed remarks
 
