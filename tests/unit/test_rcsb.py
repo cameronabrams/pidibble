@@ -1,6 +1,6 @@
 import unittest
 import pytest
-
+import numpy as np
 from pidibble.rcsb import PDBParser
 
 def test_pdbformat():
@@ -9,10 +9,10 @@ def test_pdbformat():
     assert(all([x in p.pdb_format_dict.keys() for x in expected_sections]))
 
 def test_custom_formats():
-    p=PDBParser(PDBcode='test',pdb_format_file='test_pdb_format.yaml')
-    p.fetch()
-    p.read()
-    p.parse()
+    p=PDBParser(PDBcode='test',pdb_format_file='test_pdb_format.yaml').parse()
+    # p.fetch()
+    # p.read()
+    # p.parse()
     assert 'MYREC1' in p.parsed
     assert 'MYREC2' in p.parsed
     assert p.parsed['MYREC1'][0].cussword=='FUCK'
@@ -43,11 +43,11 @@ def test_custom_formats():
     assert expected_resnames==[r.resName for r in s.residues]
 
 def test_parse():
-    q=PDBParser(PDBcode='4zmj')
+    q=PDBParser(PDBcode='4zmj').parse()
     # print(f'file {q.pdb_format_file}')
-    q.fetch()
-    q.read()
-    q.parse()
+    # q.fetch()
+    # q.read()
+    # q.parse()
     assert 'HEADER' in q.parsed
     assert 'VIRAL PROTEIN'==q.parsed['HEADER'].classification
     assert '04-MAY-15'==q.parsed['HEADER'].depDate
@@ -142,12 +142,52 @@ def test_parse():
     assert len(q.parsed['REMARK.290'].crystallographicautodetails)==40
     assert q.parsed['REMARK.290'].crystallographicautodetails[-1]=='REMARK: NULL'
 
-    print(q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations'])
+    # print(q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations'])
 
     assert q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations']['BIOMOLECULE'].BIOMOLECULE==['1']
     assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].AUTH_BIO_UNIT=='HEXAMERIC'
     assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].SOFT_QUAT_STRUCT=='HEXAMERIC'
     assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].CHAIN_BIOMT==['G', 'B', 'A', 'C', 'D']
-    # assert len(q.parsed['REMARK'])==649 # unparsed remarks
+    # for k in q.parsed.keys():
+    #     print(k)
+    # print(q.parsed['REMARK.350'])
+    # print(q.parsed['REMARK.350.BIOMT'])
+    assert q.parsed['REMARK.350.BIOMT'].rowNum==[1,2,3,1,2,3,1,2,3]
+    assert q.parsed['REMARK.350.BIOMT'].transNum==[1,1,1,2,2,2,3,3,3]
+    assert q.parsed['REMARK.350.BIOMT'].M1==[1.0,0.0,0.0,-0.5,0.866025,0.0,-0.5,-0.866025,0.0]
+    rec=q.parsed['REMARK.350.BIOMT']
+    M=[]
+    for i in range(3):
+        M.append(np.zeros((3,3)))
+    for t,r,m1,m2,m3 in zip(rec.transNum,rec.rowNum,rec.M1,rec.M2,rec.M3):
+        M[t-1][r-1,0]=m1
+        M[t-1][r-1,1]=m2
+        M[t-1][r-1,2]=m3
+    
+    expM=[
+        np.array([
+            [1.0,0.0,0.0],
+            [0.0,1.0,0.0],
+            [0.0,0.0,1.0]
+        ]),
+        np.array([
+            [-0.5,-0.866025,0.0],
+            [0.866025,-0.5,0.0],
+            [0.0,0.0,1.0]
+        ]),
+        np.array([
+            [-0.5,0.866025,0.0],
+            [-0.866025,-0.5,0.0],
+            [0.0,0.0,1.0]
+        ])       
+    ]
+    assert all(np.array_equal(m,em) for m,em in zip(M,expM))
+
+    assert q.parsed['REMARK.465'].freetext[1].strip()=='REMARK 465 MISSING RESIDUES'
+    assert q.parsed['REMARK.465'].table[0].resname=='ALA'
+    assert q.parsed['REMARK.465'].table[0].modelNum==''
+    assert q.parsed['REMARK.465'].table[0].chainID=='G'
+    assert q.parsed['REMARK.465'].table[0].resseqnum==31
+    assert len(q.parsed['REMARK.465'].table)==61
 
 

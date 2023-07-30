@@ -12,5 +12,5 @@ SITE     2 AC4 11 LEU A 198  THR A 199  THR A 200  TRP A 209
 SITE     3 AC4 11 HOH A 572  HOH A 582  HOH A 635           
 #        1         2         3         4         5         6         7         8
 #2345678901234567890123456789012345678901234567890123456789012345678901234567890
-#SEQADV 4ZMJ ASN G  332  UNP  Q2N0S6    THR   330 ENGINEERED MUTATION            
-#SEQADV 4ZMJ CYS G  501  UNP  Q2N0S6    ALA   498 ENGINEERED MUTATION
+#EMARK 465   M RES C SSSEQI                                                     
+#EMARK 465     ALA G    31                                                      

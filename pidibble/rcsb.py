@@ -43,17 +43,11 @@ class Stringparser:
         self.fields={k:v for k,v in fmtdict.items()}
     def parse(self,record):
         input_dict={}
-        total_bytes=0
-        for k,v in self.fields.items():
-            typestring,byte_range=v
-            total_bytes+=byte_range[1]-byte_range[0]+1
-        while len(record)<=total_bytes:
-                record+=' '
-        # print(f'({record})',len(record))
+        record+=' '*(80-len(record)) # pad
         for k,v in self.fields.items():
             typestring,byte_range=v
             typ=self.typemap[typestring]
-            assert byte_range[1]<=len(record)
+            assert byte_range[1]<=len(record),f'{record} {byte_range}'
             # using columns beginning with "1" not "0"
             fieldstring=record[byte_range[0]-1:byte_range[1]]
             # print(k,f'({fieldstring})')
@@ -70,8 +64,8 @@ class Stringparser:
 #         isempty&=(v=='')
 #     return isempty
 
-def stringparse(fmtdict,typemap):
-    return Stringparser(fmtdict,typemap).parse
+# def stringparse(fmtdict,typemap):
+#     return Stringparser(fmtdict,typemap).parse
 
 class BaseRecord:
     def __init__(self,input_dict):
@@ -97,15 +91,13 @@ class tokengroup:
 class PDBRecord(BaseRecord):
     continuation='0'
     @classmethod
-    def base_parse(cls,pdbrecordline:str,record_format:dict,typemap:dict):
-        while len(pdbrecordline)<80:
-            pdbrecordline+=' '
-        local_record_format=record_format.copy()
-        input_dict={'key':pdbrecordline[0:6].strip(),'record_format':local_record_format}
+    def base_parse(cls,current_key,pdbrecordline:str,current_format:dict,typemap:dict):
+        local_record_format=current_format.copy()
         fields=local_record_format.get('fields',{})
         subrecords=local_record_format.get('subrecords',{})
         allowed_values=local_record_format.get('allowed',{})
         concats=local_record_format.get('concatenate',{})
+        input_dict={}
         for k,v in fields.items():
             typestring,byte_range=v
             typ=typemap[typestring]
@@ -128,30 +120,33 @@ class PDBRecord(BaseRecord):
             assert 'formats' in subrecords,f'{input_dict["key"]} is missing formats from its subrecords specification'
             assert 'branchon' in subrecords,f'{input_dict["key"]} is missing specification of base key from its subrecords specification'
             assert subrecords['branchon'] in input_dict,f'{input_dict["key"]} specifies a base record that is not found'
-            assert input_dict[subrecords['branchon']] in subrecords['formats'],f'{input_dict["key"]} is missing specification of a subrecord format for {subrecords["branchon"]} value {input_dict[subrecords["branchon"]]} from its subrecords specification'
-            subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
-            subr_dict=PDBRecord.base_parse(pdbrecordline,subrecord_format,typemap)
-            sav_key=input_dict['key']
-            input_dict.update(subr_dict)
-            input_dict['key']=f'{sav_key}.{input_dict[subrecords["branchon"]]}'
-            input_dict['record_format']=subrecord_format
-        return input_dict
+            required=subrecords.get('required',True)
+            if required or input_dict[subrecords['branchon']] in subrecords['formats']:
+                assert input_dict[subrecords['branchon']] in subrecords['formats'],f'Key "{input_dict["key"]}" is missing specification of a required subrecord format for field "{subrecords["branchon"]}" value "{input_dict[subrecords["branchon"]]}" from its subrecords specification'
+                subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
+                new_key=f'{current_key}.{input_dict[subrecords["branchon"]]}'
+                input_dict,current_key,current_format=PDBRecord.base_parse(new_key,pdbrecordline,subrecord_format,typemap)
+        return input_dict,current_key,current_format
     
     @classmethod
-    def newrecord(cls,pdbrecordline,record_format,typemap):
-        input_dict=PDBRecord.base_parse(pdbrecordline,record_format,typemap)
-        continuation_custom_fieldname=record_format.get('continuation',None)
+    def newrecord(cls,base_key:str,pdbrecordline:str,record_format:dict,typemap:dict):
+        while len(pdbrecordline)<80:
+            pdbrecordline+=' '
+        input_dict,current_key,current_format=PDBRecord.base_parse(base_key,pdbrecordline,record_format,typemap)
+        continuation_custom_fieldname=current_format.get('continuation',None)
         if continuation_custom_fieldname:
             input_dict['continuation']=str(input_dict[continuation_custom_fieldname])
         if input_dict.get('continuation','')=='':
             input_dict['continuation']='0'
         inst=cls(input_dict)
+        inst.key=current_key
+        inst.format=current_format
         return inst
 
-    def continue_record(self,other,**kwargs):
-        record_format=self.record_format
+    def continue_record(self,other,record_format,typemap:dict,**kwargs):
         all_fields=kwargs.get('all_fields',False)
-        continuing_fields=record_format['fields'].keys() if all_fields else record_format['continues']
+        continuing_fields=record_format.get('continues',record_format['fields'].keys() if all_fields else {})
+        # print(f'{self.key} {continuing_fields}')
         for cfield in continuing_fields:
             if type(self.__dict__[cfield])==str:
                 if type(other.__dict__[cfield])==str:
@@ -202,7 +197,7 @@ class PDBRecord(BaseRecord):
             for pt in self.__dict__[a]:
                 toks=[x.strip() for x in pt.split(':')]
                 if len(toks)!=2: # this is not a token-bearing string
-                    print('ignoring tokenstring:',toks)
+                    # print('ignoring tokenstring:',toks)
                     continue
                 tokkey=None
                 tokname,tokvalue=[x.strip() for x in pt.split(':')]
@@ -214,14 +209,14 @@ class PDBRecord(BaseRecord):
                 else:
                     tokkey=tokname
                 if not tokkey:
-                    logger.info(f'Ignoring token {tokname} in record {self.key}')
+                    # logger.info(f'Ignoring token {tokname} in record {self.key}')
                     continue
                 typ=typemap[tdict[tokkey]['type']]
                 tokvalue=typ(tokvalue)
                 if tokkey in determinants:
                     detrank=determinants.index(tokkey)
                     if detrank==0:
-                        print('new det tokgroup',tokkey,tokvalue)
+                        # print('new det tokgroup',tokkey,tokvalue)
                         new_tokengroup=tokengroup(tokkey,tokvalue)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                         current_tokengroup=self.tokengroups[a][new_tokengroup.label]
@@ -232,12 +227,12 @@ class PDBRecord(BaseRecord):
                     if not current_tokengroup:
                         # we have not encoutered the determinant token 
                         # so we assume there is not one
-                        print('new nondet tokgroup',tokkey,tokvalue)
+                        # print('new nondet tokgroup',tokkey,tokvalue)
                         new_tokengroup=tokengroup(tokkey,tokvalue,determinant=False)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                     else:
                         current_tokengroup.add_token(tokkey,tokvalue)
-            
+
 class PDBParser:
     mappers={'Integer':int,'String':str,'Float':float}
     mappers.update(ListParsers)
@@ -260,6 +255,7 @@ class PDBParser:
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
                 self.mappers[map]=Listparser(d).parse
+        # define mappers for custom formats of substrings
         cformat_dict=self.pdb_format_dict.get('custom_formats',{})
         for cname,cformat in cformat_dict.items():
             if not cname in self.mappers:
@@ -287,21 +283,26 @@ class PDBParser:
             self.pdb_lines=f.read().split('\n')
             if self.pdb_lines[-1]=='':
                 self.pdb_lines=self.pdb_lines[:-1]
+        
 
-    def parse(self):
+    def parse_base(self):
         record_formats=self.pdb_format_dict['record_formats']
-        for i,l in enumerate(self.pdb_lines):
-            basekey=l[:6].strip()
-            if basekey[0] in PDBParser.comment_chars:
-                self.comment_lines.append([i,l])
+        key=''
+        record_format={}
+        for i,pdbrecord_line in enumerate(self.pdb_lines):
+            tc=pdbrecord_line[0]
+            if tc in PDBParser.comment_chars:
                 continue
-            assert basekey in record_formats,f'{basekey} is not found in among the available record formats'
-            base_record_format=record_formats[basekey]
+            pdbrecord_line+=' '*(80-len(pdbrecord_line))
+            base_key=pdbrecord_line[:6].strip()
+            assert base_key in record_formats,f'{base_key} is not found in among the available record formats'
+            base_record_format=record_formats[base_key]
             record_type=base_record_format['type']
-            # key,record_format=self.build_key(basekey,record_formats[basekey])
-            new_record=PDBRecord.newrecord(l,base_record_format,self.mappers)
+            new_record=PDBRecord.newrecord(base_key,pdbrecord_line,base_record_format,self.mappers)
             key=new_record.key
-            record_format=new_record.record_format
+            record_format=new_record.format
+            # if key=='REMARK.465':
+            #     print('R465',record_format)
             if record_type in [1,2,6]:
                 if not key in self.parsed:
                     self.parsed[key]=new_record
@@ -309,7 +310,7 @@ class PDBParser:
                     # this must be a continuation record
                     assert record_type!=1,f'{key} may not have continuation records'
                     root_record=self.parsed[key]
-                    root_record.continue_record(new_record,all_fields=('REMARK' in key))
+                    root_record.continue_record(new_record,record_format,self.mappers,all_fields=('REMARK' in key))
             elif record_type in [3,4,5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
@@ -332,14 +333,15 @@ class PDBParser:
                     if root_record:
                         # case (a)
                         assert root_record.continuation<new_record.continuation,f'continuation parsing error'
-                        root_record.continue_record(new_record)
+                        root_record.continue_record(new_record,record_format,self.mappers)
                     else:
                         # case (b)
                         self.parsed[key].append(new_record)
+    def parse_tokens(self):
         for key,p in self.parsed.items():
             # print(key)
             if type(p)==PDBRecord:
-                rf=p.record_format
+                rf=p.format
                 # if key=='REMARK.300':
                 #     print('nonlist remark300',rf)
                 if 'token_formats' in rf:
@@ -347,12 +349,41 @@ class PDBParser:
                     p.parse_tokens(rf,self.mappers)
             elif type(p)==list:
                 for q in p:
-                    rf=q.record_format
+                    rf=q.format
                     if 'token_formats' in rf:
                         # if key=='REMARK.300':
                         #     print('list remark300',rf)
                         # print('list',q.key,rf)
                         q.parse_tokens(rf,self.mappers)
 
+    def parse_tables(self):
+        for key,rec in self.parsed.items():
+            if type(rec)==list:
+                continue # don't expect to read a table from a multiple-record entry
+            fmt=rec.format
+            if 'table' in fmt:
+                # print(key,'will acquire a table')
+                table=fmt['table']
+                sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
+                sigval=table['value']
+                rowparser=Stringparser(table['fields'],self.mappers).parse
+                rec.table=[]
+                scanfield=table['from']
+                reading_table=False
+                for l in rec.__dict__[scanfield]:
+                    if reading_table:
+                        rec.table.append(rowparser(l))
+                    probe=sigparser(l)
+                    # print(probe.signal,sigval)
+                    if probe.signal==sigval:
+                        reading_table=True
+
+    def parse(self):
+        self.fetch()
+        self.read()
+        self.parse_base()
+        self.parse_tokens()
+        self.parse_tables()
+        return self
             
 

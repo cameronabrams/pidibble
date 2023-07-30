@@ -762,7 +762,22 @@ record_formats:
                   type: CList
         350:
           fields:
+            subkey: [String,[14,18]]
             biomoleculespecifications: [LList,[12,80]]
+          continues:
+            - biomoleculespecifications
+          subrecords:
+            branchon: subkey
+            required: False
+            formats:
+              BIOMT:
+                fields:
+                  rowNum: [Integer,[19,19]]
+                  transNum: [Integer,[22,23]]
+                  M1: [Float,[25,33]]
+                  M2: [Float,[35,43]]
+                  M3: [Float,[45,53]]
+                  T: [Float,[58,68]]
           token_formats:
             biomoleculespecifications:
               tokens:
@@ -802,7 +817,17 @@ record_formats:
             biologicalfreetext: [LList,[12,80]]
         465:
           fields:
-            missingresiduespecifications: [LList,[12,80]]
+            freetext: [LList,[1,80]]
+          table:
+            from: freetext
+            signal: [String,[14,27]]
+            value: 'M RES C SSSEQI'
+            fields:
+              modelNum: [Integer,[13,14]]
+              resname: [String,[16,18]]
+              chainID: [String,[20,20]]
+              resseqnum: [Integer,[22,26]]
+              iCode: [String,[27,27]]
         470:
           fields:
             missingatomspecifications: [LList,[12,80]]
