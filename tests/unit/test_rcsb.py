@@ -59,7 +59,6 @@ def test_parse():
     assert q.parsed['COMPND'].compound[2]=='A_FAKE_TOKEN: A_FAKE_VALUE'
     assert q.parsed['COMPND'].compound[3]=='CHAIN: G'
     assert q.parsed['TITLE'].title=='CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER THIS IS A FAKE EXTRA LINE THIS IS ANOTHER FAKE EXTRA LINE'
-    # print(q.parsed['COMPND'].__dict__)
     assert type(q.parsed['COMPND'].tokengroups)==dict
     assert 'MOL_ID.1' in q.parsed['COMPND'].tokengroups['compound']
     assert 'MOL_ID.2' in q.parsed['COMPND'].tokengroups['compound']
@@ -71,19 +70,7 @@ def test_parse():
     assert 'MOL_ID.2' in q.parsed['SOURCE'].tokengroups['srcName']
     m1=q.parsed['SOURCE'].tokengroups['srcName']['MOL_ID.1']
     assert m1.ORGANISM_SCIENTIFIC=='HUMAN IMMUNODEFICIENCY VIRUS 1'
-    # print(q.parsed['COMPND'].tokens)
-    # assert 'MOL_ID.2' in q.parsed['COMPND'].tokens['compound'].keys()
-    # assert len(q.parsed['COMPND'].tokens['compound'])==2
-    # assert type(q.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==dict
-    # assert type(q.parsed['COMPND'].tokens['compound']['MOL_ID.2'])==dict
-    # assert len(q.parsed['COMPND'].tokens['compound']['MOL_ID.1'])==5
-    # assert q.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MOLECULE']=='ENVELOPE GLYCOPROTEIN GP160'
-    # assert q.parsed['COMPND'].tokens['compound']['MOL_ID.1']['MUTATION']=='YES'
-    # assert type(q.parsed['SOURCE'].tokens)==dict
-    # assert 'MOL_ID.1' in q.parsed['SOURCE'].tokens['srcName'].keys()
-    # assert 'MOL_ID.2' in q.parsed['SOURCE'].tokens['srcName'].keys()
-    # assert len(q.parsed['SOURCE'].tokens['srcName'])==2
-    # assert q.parsed['SOURCE'].tokens['srcName']['MOL_ID.1']['ORGANISM_SCIENTIFIC']=='HUMAN IMMUNODEFICIENCY VIRUS 1'
+
     assert len(q.parsed['ATOM'])==4518
     assert len(q.parsed['ANISOU'])==4518
     assert len(q.parsed['HETATM'])==338
@@ -107,11 +94,12 @@ def test_parse():
     assert q.parsed['SSBOND'][2].residue1.seqNum==126
     assert q.parsed['SSBOND'][2].residue2.chainID=='G'
     assert q.parsed['SSBOND'][2].residue2.seqNum==196
+    
     assert len(q.parsed['SEQRES'][0].resNames)==481
     assert len(q.parsed['SEQRES'][1].resNames)==153
     expected_seq='ALA GLU ASN LEU TRP VAL THR VAL TYR TYR GLY'.split()
     assert q.parsed['SEQRES'][0].resNames[:len(expected_seq)]==expected_seq
-    "ATOM   4519  OD2 ASP B 664     -15.056 125.079  66.899  1.00142.18           O  "
+
     assert q.parsed['ATOM'][0].residue.resName=='LEU'
     assert q.parsed['ATOM'][-1].name=='OD2'
     assert q.parsed['ATOM'][0].serial==1
@@ -154,6 +142,12 @@ def test_parse():
     assert len(q.parsed['REMARK.290'].crystallographicautodetails)==40
     assert q.parsed['REMARK.290'].crystallographicautodetails[-1]=='REMARK: NULL'
 
+    print(q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations'])
+
+    assert q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations']['BIOMOLECULE'].BIOMOLECULE==['1']
+    assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].AUTH_BIO_UNIT=='HEXAMERIC'
+    assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].SOFT_QUAT_STRUCT=='HEXAMERIC'
+    assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].CHAIN_BIOMT==['G', 'B', 'A', 'C', 'D']
     # assert len(q.parsed['REMARK'])==649 # unparsed remarks
 
 

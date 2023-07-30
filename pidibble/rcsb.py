@@ -85,8 +85,12 @@ class BaseRecord:
         return ';'.join([f'{k}:[{v}]' for k,v in self.__dict__.items()])
 
 class tokengroup:
-    def __init__(self,tokname,tokval):
-        self.label=f'{tokname}.{tokval}'
+    def __init__(self,tokname,tokval,determinant=True):
+        if determinant:
+            self.label=f'{tokname}.{tokval}'
+        else:
+            self.label=f'{tokname}'
+            self.add_token(tokname,tokval)
     def add_token(self,tokname,tokval):
         self.__dict__[tokname]=tokval
 
@@ -106,13 +110,11 @@ class PDBRecord(BaseRecord):
             typestring,byte_range=v
             typ=typemap[typestring]
             assert byte_range[1]<=len(pdbrecordline)
-            # using columns beginning with "1" not "0"
+            # columns begin at "1" not "0"
             fieldstring=pdbrecordline[byte_range[0]-1:byte_range[1]]
             input_dict[k]='' if fieldstring.strip()=='' else typ(fieldstring)
             if type(input_dict[k])==str:
                 input_dict[k]=input_dict[k].strip()
-            # if typ==str:
-            #     input_dict[k]=input_dict[k].strip()
             if typestring in allowed_values:
                 assert input_dict[k] in allowed_values[typestring]
         for cfield,subf in concats.items():
@@ -120,10 +122,8 @@ class PDBRecord(BaseRecord):
                 input_dict[cfield]=[]
                 for f in subf:
                     assert f in input_dict,f'{input_dict["key"]} specifies a field for concatenation ({f}) that is not found'
-                    # print(f,input_dict[f])
                     if input_dict[f]:
                         input_dict[cfield].append(input_dict[f])
-                    # del input_dict[f]
         if subrecords:
             assert 'formats' in subrecords,f'{input_dict["key"]} is missing formats from its subrecords specification'
             assert 'branchon' in subrecords,f'{input_dict["key"]} is missing specification of base key from its subrecords specification'
@@ -133,7 +133,6 @@ class PDBRecord(BaseRecord):
             subr_dict=PDBRecord.base_parse(pdbrecordline,subrecord_format,typemap)
             sav_key=input_dict['key']
             input_dict.update(subr_dict)
-
             input_dict['key']=f'{sav_key}.{input_dict[subrecords["branchon"]]}'
             input_dict['record_format']=subrecord_format
         return input_dict
@@ -142,7 +141,6 @@ class PDBRecord(BaseRecord):
     def newrecord(cls,pdbrecordline,record_format,typemap):
         input_dict=PDBRecord.base_parse(pdbrecordline,record_format,typemap)
         continuation_custom_fieldname=record_format.get('continuation',None)
-        # print(input_dict['key'],continuation_custom_fieldname)
         if continuation_custom_fieldname:
             input_dict['continuation']=str(input_dict[continuation_custom_fieldname])
         if input_dict.get('continuation','')=='':
@@ -153,7 +151,7 @@ class PDBRecord(BaseRecord):
     def continue_record(self,other,**kwargs):
         record_format=self.record_format
         all_fields=kwargs.get('all_fields',False)
-        continuing_fields=self.__dict__.keys() if all_fields else record_format['continues']
+        continuing_fields=record_format['fields'].keys() if all_fields else record_format['continues']
         for cfield in continuing_fields:
             if type(self.__dict__[cfield])==str:
                 if type(other.__dict__[cfield])==str:
@@ -200,24 +198,45 @@ class PDBRecord(BaseRecord):
             assert len(determinants) in [0,1],f'Token group for field {a} of {self.key} may not have more than one determinant'
             # print('token names',list(tdict.keys()),'determinants',determinants)
             self.tokengroups[a]={}
+            current_tokengroup=None
             for pt in self.__dict__[a]:
                 toks=[x.strip() for x in pt.split(':')]
-                assert len(toks)==2,f'Malformed token string {pt}'
+                if len(toks)!=2: # this is not a token-bearing string
+                    print('ignoring tokenstring:',toks)
+                    continue
+                tokkey=None
                 tokname,tokvalue=[x.strip() for x in pt.split(':')]
-                assert tokname in tdict.keys(),f'Unrecognized token {tokname}'
-                typ=typemap[tdict[tokname]['type']]
+                if not tokname in tdict.keys():
+                    for k,v in tdict.items():
+                        if 'key' in v:
+                            if tokname==v['key']:
+                                tokkey=k
+                else:
+                    tokkey=tokname
+                if not tokkey:
+                    logger.info(f'Ignoring token {tokname} in record {self.key}')
+                    continue
+                typ=typemap[tdict[tokkey]['type']]
                 tokvalue=typ(tokvalue)
-                if tokname in determinants:
-                    detrank=determinants.index(tokname)
+                if tokkey in determinants:
+                    detrank=determinants.index(tokkey)
                     if detrank==0:
-                        new_tokengroup=tokengroup(tokname,tokvalue)
+                        print('new det tokgroup',tokkey,tokvalue)
+                        new_tokengroup=tokengroup(tokkey,tokvalue)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                         current_tokengroup=self.tokengroups[a][new_tokengroup.label]
                     else:
                         assert False,'should never have a detrank>0'
                         pass # should never happen
                 else: # assume we are adding tokens to the last group
-                    current_tokengroup.add_token(tokname,tokvalue)
+                    if not current_tokengroup:
+                        # we have not encoutered the determinant token 
+                        # so we assume there is not one
+                        print('new nondet tokgroup',tokkey,tokvalue)
+                        new_tokengroup=tokengroup(tokkey,tokvalue,determinant=False)
+                        self.tokengroups[a][new_tokengroup.label]=new_tokengroup
+                    else:
+                        current_tokengroup.add_token(tokkey,tokvalue)
             
 class PDBParser:
     mappers={'Integer':int,'String':str,'Float':float}
@@ -321,12 +340,18 @@ class PDBParser:
             # print(key)
             if type(p)==PDBRecord:
                 rf=p.record_format
+                # if key=='REMARK.300':
+                #     print('nonlist remark300',rf)
                 if 'token_formats' in rf:
+                    # print('non-list',p.key,rf)
                     p.parse_tokens(rf,self.mappers)
             elif type(p)==list:
                 for q in p:
                     rf=q.record_format
                     if 'token_formats' in rf:
+                        # if key=='REMARK.300':
+                        #     print('list remark300',rf)
+                        # print('list',q.key,rf)
                         q.parse_tokens(rf,self.mappers)
 
             

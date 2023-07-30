@@ -755,9 +755,42 @@ record_formats:
         300:
           fields:
             biomoleculedeclarations: [LList,[12,80]]
+          token_formats:
+            biomoleculedeclarations:
+              tokens:
+                BIOMOLECULE:
+                  type: CList
         350:
           fields:
             biomoleculespecifications: [LList,[12,80]]
+          token_formats:
+            biomoleculespecifications:
+              tokens:
+                BIOMOLECULE:
+                  type: Integer
+                AUTH_BIO_UNIT:
+                  type: String
+                  key: 'AUTHOR DETERMINED BIOLOGICAL UNIT'
+                SOFT_QUAT_STRUCT:
+                  type: String
+                  key: 'SOFTWARE DETERMINED QUATERNARY STRUCTURE'
+                SOFTWARE_USED:
+                  type: String
+                  key: 'SOFTWARE_USED'
+                TOT_BSA:
+                  type: String
+                  key: 'REMARK 350 TOTAL BURIED SURFACE AREA'
+                TOT_SA:
+                  type: String
+                  key: 'REMARK 350 SURFACE AREA OF THE COMPLEX'
+                DELTA_SOL_FREE_ENERGY:
+                  type: String
+                  key: 'REMARK 350 CHANGE IN SOLVENT FREE ENERGY'
+                CHAIN_BIOMT:
+                  type: CList
+                  key: 'APPLY THE FOLLOWING TO CHAINS'
+              determinants:
+                - BIOMOLECULE
         375:
           fields:
             specialatomspecifications: [LList,[12,80]]
