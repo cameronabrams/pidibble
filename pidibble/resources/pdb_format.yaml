@@ -661,7 +661,7 @@ record_formats:
               EDIT:
                 fields:
                   continuation: [String,[17,18]]
-                  editorList: [String,[20,79]]
+                  editorList: [CList,[20,79]]
                 continues:
                   - editorList
               REF:
