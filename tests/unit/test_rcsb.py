@@ -184,10 +184,15 @@ def test_parse():
     assert all(np.array_equal(m,em) for m,em in zip(M,expM))
 
     assert q.parsed['REMARK.465'].freetext[1].strip()=='REMARK 465 MISSING RESIDUES'
-    assert q.parsed['REMARK.465'].table[0].resname=='ALA'
-    assert q.parsed['REMARK.465'].table[0].modelNum==''
-    assert q.parsed['REMARK.465'].table[0].chainID=='G'
-    assert q.parsed['REMARK.465'].table[0].resseqnum==31
-    assert len(q.parsed['REMARK.465'].table)==61
+    assert q.parsed['REMARK.465'].tables['MISSING'][0].resname=='ALA'
+    assert q.parsed['REMARK.465'].tables['MISSING'][0].modelNum==''
+    assert q.parsed['REMARK.465'].tables['MISSING'][0].chainID=='G'
+    assert q.parsed['REMARK.465'].tables['MISSING'][0].resseqnum==31
+    assert len(q.parsed['REMARK.465'].tables['MISSING'])==61
 
+    assert q.parsed['REMARK.500'].tables['RAMA_OUTLIERS'][0].residue.resName=='PRO'
+    assert q.parsed['REMARK.500'].tables['NONCISTRANS'][0].residueC.resName=='ALA'
+    assert q.parsed['REMARK.500'].tables['NONCISTRANS'][0].omega==146.93
+    assert q.parsed['REMARK.500'].tables['NONCISTRANS'][-1].omega==149.23
 
+#REMARK 500 LEU G  494     GLY G  495                  149.23                    

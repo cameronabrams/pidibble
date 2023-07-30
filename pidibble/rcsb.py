@@ -361,22 +361,32 @@ class PDBParser:
             if type(rec)==list:
                 continue # don't expect to read a table from a multiple-record entry
             fmt=rec.format
-            if 'table' in fmt:
-                # print(key,'will acquire a table')
-                table=fmt['table']
-                sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
-                sigval=table['value']
-                rowparser=Stringparser(table['fields'],self.mappers).parse
-                rec.table=[]
-                scanfield=table['from']
-                reading_table=False
-                for l in rec.__dict__[scanfield]:
-                    if reading_table:
-                        rec.table.append(rowparser(l))
-                    probe=sigparser(l)
-                    # print(probe.signal,sigval)
-                    if probe.signal==sigval:
-                        reading_table=True
+            if 'tables' in fmt:
+                rec.tables={}
+                scanbegin=0
+                for tname,table in fmt['tables'].items():
+                    print(f'{key} will acquire a table {tname} from line {scanbegin}')
+                    sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
+                    sigval=table['value']
+                    rowparser=Stringparser(table['fields'],self.mappers).parse
+                    rec.tables[tname]=[]
+                    scanfield=table['from']
+                    reading_table=False
+                    for i in range(scanbegin,len(rec.__dict__[scanfield])):
+                        l=rec.__dict__[scanfield][i]
+                        if reading_table:
+                            parsedrow=rowparser(l)
+                            if not all([x=='' for x in parsedrow.__dict__.values()]):
+                                rec.tables[tname].append(parsedrow)
+                        probe=sigparser(l)
+                        print(probe.signal,sigval)
+                        if probe.signal==sigval:
+                            reading_table=True
+                        if reading_table:
+                            if probe.signal=='':
+                                scanbegin=i+1
+                                break
+                        
 
     def parse(self):
         self.fetch()

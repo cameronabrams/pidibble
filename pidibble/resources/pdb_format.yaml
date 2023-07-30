@@ -818,16 +818,17 @@ record_formats:
         465:
           fields:
             freetext: [LList,[1,80]]
-          table:
-            from: freetext
-            signal: [String,[14,27]]
-            value: 'M RES C SSSEQI'
-            fields:
-              modelNum: [Integer,[13,14]]
-              resname: [String,[16,18]]
-              chainID: [String,[20,20]]
-              resseqnum: [Integer,[22,26]]
-              iCode: [String,[27,27]]
+          tables:
+            MISSING:
+              from: freetext
+              signal: [String,[14,27]]
+              value: 'M RES C SSSEQI'
+              fields:
+                modelNum: [Integer,[13,14]]
+                resname: [String,[16,18]]
+                chainID: [String,[20,20]]
+                resseqnum: [Integer,[22,26]]
+                iCode: [String,[27,27]]
         470:
           fields:
             missingatomspecifications: [LList,[12,80]]
@@ -836,7 +837,26 @@ record_formats:
             zerooccupancyspecifications: [LList,[12,80]]
         500:
           fields:
-            geometryspecifications: [LList,[12,80]]
+            freetext: [LList,[1,80]]
+          tables:
+            RAMA_OUTLIERS:
+              from: freetext
+              signal: [String,[13,45]]
+              value: 'M RES CSSEQI        PSI       PHI'
+              fields:
+                modelNum: [Integer,[12,13]]
+                residue: [Residue10,[15,24]]
+                phi: [Float,[29,35]]
+                psi: [Float,[39,45]]
+            NONCISTRANS:
+              from: freetext
+              signal: [String,[44,58]]
+              value: 'MODEL     OMEGA'
+              fields:
+                residueN: [Residue10,[12,21]]
+                residueC: [Residue10,[27,36]]
+                modelNum: [Integer,[44,48]]
+                omega: [Float,[54,60]]
         525:
           fields:
             distantsolventatoms: [LList,[12,80]]

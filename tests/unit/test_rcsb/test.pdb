@@ -12,5 +12,11 @@ SITE     2 AC4 11 LEU A 198  THR A 199  THR A 200  TRP A 209
 SITE     3 AC4 11 HOH A 572  HOH A 582  HOH A 635           
 #        1         2         3         4         5         6         7         8
 #2345678901234567890123456789012345678901234567890123456789012345678901234567890
+#EMARK 500  M RES CSSEQI        PSI       PHI                                   
+#EMARK 500    PRO G  43       66.50    -66.28 
 #EMARK 465   M RES C SSSEQI                                                     
-#EMARK 465     ALA G    31                                                      
+#EMARK 465     ALA G    31   
+#        1         2         3         4         5         6         7         8
+#2345678901234567890123456789012345678901234567890123456789012345678901234567890
+#EMARK 500                                 MODEL     OMEGA                      
+#EMARK 500 ASP G   57     ALA G   58                  146.93                                     
