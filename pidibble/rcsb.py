@@ -113,16 +113,16 @@ class PDBRecord(BaseRecord):
             if not cfield in input_dict:
                 input_dict[cfield]=[]
                 for f in subf:
-                    assert f in input_dict,f'{input_dict["key"]} specifies a field for concatenation ({f}) that is not found'
+                    assert f in input_dict,f'{current_key} specifies a field for concatenation ({f}) that is not found'
                     if input_dict[f]:
                         input_dict[cfield].append(input_dict[f])
         if subrecords:
-            assert 'formats' in subrecords,f'{input_dict["key"]} is missing formats from its subrecords specification'
-            assert 'branchon' in subrecords,f'{input_dict["key"]} is missing specification of base key from its subrecords specification'
-            assert subrecords['branchon'] in input_dict,f'{input_dict["key"]} specifies a base record that is not found'
+            assert 'formats' in subrecords,f'{current_key} is missing formats from its subrecords specification'
+            assert 'branchon' in subrecords,f'{current_key} is missing specification of base key from its subrecords specification'
+            assert subrecords['branchon'] in input_dict,f'{current_key} specifies a base record that is not found'
             required=subrecords.get('required',True)
             if required or input_dict[subrecords['branchon']] in subrecords['formats']:
-                assert input_dict[subrecords['branchon']] in subrecords['formats'],f'Key "{input_dict["key"]}" is missing specification of a required subrecord format for field "{subrecords["branchon"]}" value "{input_dict[subrecords["branchon"]]}" from its subrecords specification'
+                assert input_dict[subrecords['branchon']] in subrecords['formats'],f'Key "{current_key}" is missing specification of a required subrecord format for field "{subrecords["branchon"]}" value "{input_dict[subrecords["branchon"]]}" from its subrecords specification'
                 subrecord_format=subrecords['formats'][input_dict[subrecords['branchon']]]
                 new_key=f'{current_key}.{input_dict[subrecords["branchon"]]}'
                 input_dict,current_key,current_format=PDBRecord.base_parse(new_key,pdbrecordline,subrecord_format,typemap)
@@ -143,7 +143,7 @@ class PDBRecord(BaseRecord):
         inst.format=current_format
         return inst
 
-    def continue_record(self,other,record_format,typemap:dict,**kwargs):
+    def continue_record(self,other,record_format,**kwargs):
         all_fields=kwargs.get('all_fields',False)
         continuing_fields=record_format.get('continues',record_format['fields'].keys() if all_fields else {})
         # print(f'{self.key} {continuing_fields}')
@@ -163,23 +163,8 @@ class PDBRecord(BaseRecord):
             else:
                 self.__dict__[cfield]=[self.__dict__[cfield],other.__dict__[cfield]]
 
-    # def update_2(self,pdbrecord,record_format,typemap):
-    #     if not 'continuation' in record_format['fields']:
-    #         logging.fatal(f'A type-2 pdb record must have a continuation field')
-    #     input_dict=PDBRecord.base_parse(pdbrecord,record_format,typemap)
-    #     for k in input_dict.keys():
-    #         # just add to the end of the string
-    #         if type(self.__dict__[k])==str:
-    #             self.__dict__[k]+=' '+input_dict[k]
-    #         else:
-    #             if not type(self.__dict__[k])==list:
-    #                 self.__dict__[k]=[self.__dict__[k]]
-    #             if type(input_dict[k])==list:
-    #                 self.__dict__[k].extend(input_dict[k])
-    #             else:
-    #                 self.__dict__[k].append(input_dict[k])
-
-    def parse_tokens(self,record_format,typemap):
+    def parse_tokens(self,typemap):
+        record_format=self.format
         if not 'token_formats' in record_format:
             return
         attr_w_tokens=record_format['token_formats']
@@ -232,6 +217,45 @@ class PDBRecord(BaseRecord):
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                     else:
                         current_tokengroup.add_token(tokkey,tokvalue)
+    def parse_embedded(self,format_dict,typemap):
+        new_records={}
+        record_format=self.format 
+        if not 'embedded_records' in record_format:
+            return
+        embedspec=record_format['embedded_records']
+        embedfrom=embedspec['from']
+        assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
+        print(embedspec)
+        sigparser=Stringparser({'signal':embedspec['signal']},typemap).parse
+        idxparser=Stringparser({'record_index':embedspec['record_index']},typemap).parse
+        embedfmt=format_dict.get(embedspec['record_format'],{})
+        assert embedfmt!={},f'Record {self.key} contains an embedded_records specification with an invalid record format [{embedspec["record_format"]}]'
+        base_key=self.key
+        key=base_key
+        idx=-1
+        for record in self.__dict__[embedfrom]:
+            # check for signal
+            tv=sigparser(record).signal
+            print(f'trial sigval {tv} looking for {embedspec["value"]}')
+            if tv==embedspec['value']:
+                idx=idxparser(record).record_index
+                embedkey=f'{base_key}.{idx}'
+                print(f'initiating capture for key {key}')
+            else:
+                if idx>0:
+                    new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
+                    key=new_record.key
+                    record_format=new_record.format
+                    if not key in new_records:
+                        print(f'new record for {key}')
+                        new_records[key]=new_record
+                    else:
+                      # this must be a continuation record
+                        print(f'continuing record for {key}')
+                        root_record=new_records[key]
+                        root_record.continue_record(new_record,record_format)
+        print(f'embed rec new keys',new_records)
+        return new_records
 
 class PDBParser:
     mappers={'Integer':int,'String':str,'Float':float}
@@ -301,8 +325,6 @@ class PDBParser:
             new_record=PDBRecord.newrecord(base_key,pdbrecord_line,base_record_format,self.mappers)
             key=new_record.key
             record_format=new_record.format
-            # if key=='REMARK.465':
-            #     print('R465',record_format)
             if record_type in [1,2,6]:
                 if not key in self.parsed:
                     self.parsed[key]=new_record
@@ -310,7 +332,7 @@ class PDBParser:
                     # this must be a continuation record
                     assert record_type!=1,f'{key} may not have continuation records'
                     root_record=self.parsed[key]
-                    root_record.continue_record(new_record,record_format,self.mappers,all_fields=('REMARK' in key))
+                    root_record.continue_record(new_record,record_format,all_fields=('REMARK' in key))
             elif record_type in [3,4,5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
@@ -333,10 +355,31 @@ class PDBParser:
                     if root_record:
                         # case (a)
                         assert root_record.continuation<new_record.continuation,f'continuation parsing error'
-                        root_record.continue_record(new_record,record_format,self.mappers)
+                        root_record.continue_record(new_record,record_format)
                     else:
                         # case (b)
                         self.parsed[key].append(new_record)
+
+
+    def post_process(self):
+        self.parse_embedded_records()
+        self.parse_tokens()
+        self.parse_tables()
+
+    def parse_embedded_records(self):
+        new_parsed_records={}
+        for key,p in self.parsed.items():
+            if type(p)==PDBRecord:
+                rf=p.format
+                if 'embedded_records' in rf:
+                    new_parsed_records.update(p.parse_embedded(self.pdb_format_dict['record_formats'],self.mappers))
+            elif type(p)==list:
+                for q in p:
+                    rf=q.format
+                    if 'embedded_records' in rf:
+                        new_parsed_records.update(q.parse_embedded(self.pdb_format_dict['record_formats'],self.mappers))
+        self.parsed.update(new_parsed_records)
+
     def parse_tokens(self):
         for key,p in self.parsed.items():
             # print(key)
@@ -346,7 +389,7 @@ class PDBParser:
                 #     print('nonlist remark300',rf)
                 if 'token_formats' in rf:
                     # print('non-list',p.key,rf)
-                    p.parse_tokens(rf,self.mappers)
+                    p.parse_tokens(self.mappers)
             elif type(p)==list:
                 for q in p:
                     rf=q.format
@@ -354,7 +397,7 @@ class PDBParser:
                         # if key=='REMARK.300':
                         #     print('list remark300',rf)
                         # print('list',q.key,rf)
-                        q.parse_tokens(rf,self.mappers)
+                        q.parse_tokens(self.mappers)
 
     def parse_tables(self):
         for key,rec in self.parsed.items():
@@ -392,8 +435,7 @@ class PDBParser:
         self.fetch()
         self.read()
         self.parse_base()
-        self.parse_tokens()
-        self.parse_tables()
+        self.post_process()
         return self
             
 

@@ -5,7 +5,7 @@ from pidibble.rcsb import PDBParser
 
 def test_pdbformat():
     p=PDBParser()
-    expected_sections=['record_types', 'delimiters', 'record_formats']
+    expected_sections=['record_formats']
     assert(all([x in p.pdb_format_dict.keys() for x in expected_sections]))
 
 def test_custom_formats():
@@ -196,3 +196,15 @@ def test_parse():
     assert q.parsed['REMARK.500'].tables['NONCISTRANS'][-1].omega==149.23
 
 #REMARK 500 LEU G  494     GLY G  495                  149.23                    
+
+def test_rem1_ref():
+    p=PDBParser(PDBcode='test2').parse()
+
+    assert p.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
+    assert p.parsed['REMARK.1.1.AUTH'].authorList==['J.N.BREG', 'J.H.J.VAN  OPHEUSDEN', 'M.J.M.BURGERING','R.BOELENS','R.KAPTEIN']
+    assert p.parsed['REMARK.1.1.TITL'].title=='STRUCTURE OF ARC REPRESSOR  IN SOLUTION: EVIDENCE FOR A FAMILY OF B-SHEET DNA-BINDING PROTEIN'
+    assert p.parsed['REMARK.1.1.REF'].pubName=='NATURE'
+    assert p.parsed['REMARK.1.2.AUTH'].authorList==['J.N.BREG', 'R.BOELENS','A.V.E.GEORGE','R.KAPTEIN']
+    assert p.parsed['REMARK.1.2.REF'].pubName=='BIOCHEMISTRY'
+    assert p.parsed['REMARK.0.1.AUTH'].authorList==['I.P.FREELY', 'R.U.SEERIUS']
+    assert p.parsed['REMARK.0.1'].tokengroups['tokencheck']['PDB_ID'].PDB_ID=='POOP'

@@ -1,14 +1,3 @@
-record_types:
-  1: one-time-single-line
-  2: one-time-multiple-line
-  3: multiple-times-one-line
-  4: multiple-times-multiple-lines
-  5: grouping
-  6: other
-delimiters: # below are defaults; already hard-coded
-  CList: ","
-  SList: ";"
-  WList: " "
 custom_formats:
   Residue10:
     resName: [String,[1,3]]
@@ -585,10 +574,12 @@ record_formats:
   JRNL:
     type: 6
     fields:
+      tokencheck: [SList,[13,26]]
       subkey: [String,[13,16]]
       text: [String,[20,79]]
     subrecords:
       branchon: subkey
+      required: False
       formats:
         AUTH:
           fields:
@@ -628,6 +619,12 @@ record_formats:
         DOI:
           fields:
             doi: [String,[20,79]]
+    token_formats:
+      tokencheck:
+        tokens:
+          PDB_ID:
+            type: String
+            key: PDB ID
   REMARK:
     type: 6
     fields:
@@ -636,77 +633,30 @@ record_formats:
     subrecords:
       branchon: remarkNum
       formats:
-        1:
+        0: # re-refinement notices
           fields:
-            test_key: [String,[13,16]]
-          subrecords:
-            branchon: test_key
-            formats:
-              EFER:
-                fields:
-                  refNum: [Integer,[22,70]]
-                fullname: REFERENCE
-              AUTH:
-                fields:
-                  continuation: [String,[17,18]]
-                  authorList: [CList,[20,79]]
-                continues:
-                  - authorList
-              TITL:
-                fields:
-                  continuation: [String,[17,18]]
-                  title: [String,[20,79]]
-                continues:
-                  - title
-              EDIT:
-                fields:
-                  continuation: [String,[17,18]]
-                  editorList: [CList,[20,79]]
-                continues:
-                  - editorList
-              REF:
-                fields:
-                  test_key: [String,[20,24]]
-                subrecords:
-                  branchon: test_key
-                  formats:
-                    'TO BE':
-                      fields:
-                        message: [String,[20,34]]
-                    '*':
-                      fields:
-                        continuation: [String,[17,18]]
-                        pubName: [String,[20,47]]
-                        volumelabel: [String,[50,51]]
-                        volume: [String,[52,55]]
-                        page: [String,[57,61]]
-                        year: [Integer,[63,66]]
-                      continues:
-                        - pubName
-              PUBL:
-                fields:
-                  continuation: [String,[17,18]]
-                  pub: [String,[20,70]]
-                continues:
-                  - pub
-              REFN:
-                fields:
-                  issnORessn: [String,[36,39]]
-                  issn: [String,[41,65]]
-              PMID:
-                fields:
-                  pmid: [String,[20,79]]
-              DOI:
-                fields:
-                  doi: [String,[20,79]]
-            determinants:
-              - EFER
+            freetext: [LList,[1,80]]
+          embedded_records:
+            from: freetext
+            signal: [String,[12,34]]
+            value: ORIGINAL DATA REFERENCE
+            record_index: [Integer,[35,70]]
+            record_format: JRNL
+        1: # references cited
+          fields:
+            freetext: [LList,[1,80]]
+          embedded_records:
+            from: freetext
+            signal: [String,[12,20]]
+            value: REFERENCE
+            record_index: [Integer,[22,70]]
+            record_format: JRNL
         2:
           fields:
             resolutionmsg: [LList,[24,41]]
         3:
           fields:
-             refinementdetails: [LList,[12,80]]
+            refinementdetails: [LList,[12,80]]
         4:
           fields:
             formatmsg: [LList,[12,80]]
