@@ -225,7 +225,7 @@ class PDBRecord(BaseRecord):
         embedspec=record_format['embedded_records']
         embedfrom=embedspec['from']
         assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
-        print(embedspec)
+        # print(embedspec)
         sigparser=Stringparser({'signal':embedspec['signal']},typemap).parse
         idxparser=Stringparser({'record_index':embedspec['record_index']},typemap).parse
         embedfmt=format_dict.get(embedspec['record_format'],{})
@@ -240,21 +240,21 @@ class PDBRecord(BaseRecord):
             if tv==embedspec['value']:
                 idx=idxparser(record).record_index
                 embedkey=f'{base_key}.{idx}'
-                print(f'initiating capture for key {key}')
+                # print(f'initiating capture for key {key}')
             else:
                 if idx>0:
                     new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
                     key=new_record.key
                     record_format=new_record.format
                     if not key in new_records:
-                        print(f'new record for {key}')
+                        # print(f'new record for {key}')
                         new_records[key]=new_record
                     else:
                       # this must be a continuation record
-                        print(f'continuing record for {key}')
+                        # print(f'continuing record for {key}')
                         root_record=new_records[key]
                         root_record.continue_record(new_record,record_format)
-        print(f'embed rec new keys',new_records)
+        # print(f'embed rec new keys',new_records)
         return new_records
 
 class PDBParser:
@@ -408,7 +408,7 @@ class PDBParser:
                 rec.tables={}
                 scanbegin=0
                 for tname,table in fmt['tables'].items():
-                    print(f'{key} will acquire a table {tname} from line {scanbegin}')
+                    # print(f'{key} will acquire a table {tname} from line {scanbegin}')
                     sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
                     sigval=table['value']
                     rowparser=Stringparser(table['fields'],self.mappers).parse
@@ -422,7 +422,7 @@ class PDBParser:
                             if not all([x=='' for x in parsedrow.__dict__.values()]):
                                 rec.tables[tname].append(parsedrow)
                         probe=sigparser(l)
-                        print(probe.signal,sigval)
+                        # print(probe.signal,sigval)
                         if probe.signal==sigval:
                             reading_table=True
                         if reading_table:

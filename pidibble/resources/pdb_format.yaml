@@ -379,10 +379,7 @@ record_formats:
   HET:
     type: 3
     fields:
-      hetID: [String,[8,10]]
-      chainID: [String,[13,13]]
-      seqNum: [Integer,[14,17]]
-      iCode: [String,[18,18]]
+      residue: [Residue11,[8,18]]
       numHetAtoms: [Integer,[21,25]]
       text: [String,[31,70]]
   HETATM:
