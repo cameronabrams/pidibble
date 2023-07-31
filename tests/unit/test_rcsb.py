@@ -1,5 +1,5 @@
 import numpy as np
-from pidibble.rcsb import PDBParser
+from pidibble.rcsb import PDBParser, PDBRecord, get_symm_ops
 import unittest
 import pytest
 
@@ -40,6 +40,9 @@ def test_custom_formats():
     assert expected_resnames==[r.resName for r in s.residues]
 
 class TestParse(unittest.TestCase):
+
+    # def __init__(self):
+
     def setUp(self):
         self.P=PDBParser(PDBcode='4zmj').parse()
     
@@ -50,6 +53,14 @@ class TestParse(unittest.TestCase):
         self.assertEqual('04-MAY-15',q.parsed['HEADER'].depDate)
         self.assertEqual('4ZMJ',q.parsed['HEADER'].idCode)
     
+    def test_obslte(self):
+        q=self.P
+        self.assertTrue('OBSLTE' not in q.parsed)
+
+    def test_title(self):
+        rec=self.P.parsed['TITLE']
+        self.assertEqual(rec.title,'CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER THIS IS A FAKE EXTRA LINE THIS IS ANOTHER FAKE EXTRA LINE')
+
     def test_compnd(self):
         q=self.P
         rec=q.parsed['COMPND']
@@ -66,6 +77,91 @@ class TestParse(unittest.TestCase):
         rec=q.parsed['SOURCE']
         m1=q.parsed['SOURCE'].tokengroups['srcName']['MOL_ID.1']
         self.assertEqual(m1.ORGANISM_SCIENTIFIC,'HUMAN IMMUNODEFICIENCY VIRUS 1')
+
+    def test_split(self):
+        self.assertTrue('SPLIT' not in self.P.parsed)
+
+    def test_sprsde(self):
+        self.assertTrue('SPRSDE' not in self.P.parsed)
+
+    def test_cispep(self):
+        rec=self.P.parsed['CISPEP']
+        self.assertEqual(len(rec),3)
+        arec=rec[0]
+        self.assertEqual(arec.residue1.resName,'ILE')
+        self.assertEqual(arec.residue1.chainID,'G')
+        self.assertEqual(arec.residue1.seqNum,138)
+        self.assertEqual(arec.residue2.resName,'THR')
+        self.assertEqual(arec.residue2.chainID,'G')
+        self.assertEqual(arec.residue2.seqNum,139)
+        self.assertEqual(arec.modNum,0)
+        self.assertEqual(arec.measure,-24.5)
+        arec=rec[-1]
+        self.assertEqual(arec.residue1.resName,'SER')
+        self.assertEqual(arec.residue1.chainID,'G')
+        self.assertEqual(arec.residue1.seqNum,460)
+        self.assertEqual(arec.residue2.resName,'THR')
+        self.assertEqual(arec.residue2.chainID,'G')
+        self.assertEqual(arec.residue2.seqNum,461)
+        self.assertEqual(arec.modNum,0)
+        self.assertEqual(arec.measure,6.44)
+
+    def test_conect(self):
+        rec=self.P.parsed['CONECT']
+        self.assertEqual(len(rec),378)
+        arec=rec[-8]
+        self.assertEqual(arec.serial,4851)
+        self.assertEqual(arec.partners,[4852,4853,4858])
+
+# DBREF  4ZMJ G   31   507  UNP    Q2N0S6   Q2N0S6_9HIV1    30    504             
+# DBREF  4ZMJ B  512   664  UNP    Q2N0S6   Q2N0S6_9HIV1   509    661 
+    def test_dbref(self):
+        rec=self.P.parsed['DBREF']
+        self.assertEqual(len(rec),2)
+        a=rec[0]
+        self.assertEqual([a.idCode,a.chainID,a.seqBegin,a.insertBegin,a.seqEnd,a.insertEnd],['4ZMJ','G',31,'',507,''])
+        self.assertEqual([a.database,a.dbAccession,a.dbIdCode,a.dbseqBegin,a.dbinsBegin,a.dbseqEnd,a.dbinsEnd],['UNP','Q2N0S6','Q2N0S6_9HIV1',30,'',504,''])
+
+    def test_dbref12(self):
+        self.assertTrue('DBREF1' not in self.P.parsed)
+        self.assertTrue('DBREF2' not in self.P.parsed)
+
+    def test_helix(self):
+        rec=self.P.parsed['HELIX']
+        self.assertEqual(len(rec),13)
+        h=rec[0]
+        self.assertEqual([h.serNum,h.helixID,h.helixClass,h.length],[1,'AA1',1,6])
+        self.assertEqual([h.initRes.resName,h.initRes.seqNum,h.initRes.iCode,h.initRes.chainID],['ALA',58,'','G'])
+        self.assertEqual([h.endRes.resName,h.endRes.seqNum,h.endRes.iCode,h.endRes.chainID],['THR',63,'','G'])
+        h=rec[5]
+        self.assertEqual([h.serNum,h.helixID,h.helixClass,h.length],[6,'AA6',1,10])
+        self.assertEqual([h.initRes.resName,h.initRes.seqNum,h.initRes.iCode,h.initRes.chainID],['MET',475,'','G'])
+        self.assertEqual([h.endRes.resName,h.endRes.seqNum,h.endRes.iCode,h.endRes.chainID],['TYR',484,'','G'])
+
+    def test_modres(self):
+        self.assertTrue('MODRES' not in self.P.parsed)
+
+    def test_mtrix123(self):
+        self.assertTrue('MTRIX1' not in self.P.parsed)
+        self.assertTrue('MTRIX2' not in self.P.parsed)
+        self.assertTrue('MTRIX3' not in self.P.parsed)
+
+    def test_keywds(self):
+        rec=self.P.parsed['KEYWDS']
+        self.assertEqual(len(rec.keywds),5)
+        exp_keywds=[x.strip() for x in 'HIV-1, ENV TRIMER, UNLIGANDED, BG505 SOSIP, VIRAL PROTEIN'.split(',')]
+        self.assertEqual(rec.keywds,exp_keywds)
+
+    def test_expdta(self):
+        rec=self.P.parsed['EXPDTA']
+        self.assertEqual(rec.technique,'X-RAY DIFFRACTION')
+
+    def test_author(self):
+        rec=self.P.parsed['AUTHOR']
+        self.assertEqual(rec.authorList,['Y.D.KWON','P.D.KWONG'])
+
+    def test_mdltyp(self):
+        self.assertTrue('MDLTYP' not in self.P.parsed)
 
     def test_atoms(self):
         atoms=self.P.parsed['ATOM']
@@ -149,42 +245,225 @@ class TestParse(unittest.TestCase):
         self.assertEqual(rec[0].dbSeq,330)
         self.assertEqual(rec[0].conflict,'ENGINEERED MUTATION')
 
+    def test_sheet(self):
+        rec=self.P.parsed['SHEET']
+        self.assertTrue(len(rec),45)
+        sid='AA1'
+        s_aa1=[x for x in rec if x.sheetID==sid]
+        self.assertTrue(len(s_aa1),3)
+        sid='AA7'
+        s_aa7=[x for x in rec if x.sheetID==sid]
+        self.assertTrue(len(s_aa7),7)
+        self.assertTrue([x.initRes.resName for x in s_aa7],['LEU','ILE','ILE','HIS','SER','GLU','HIS'])
 
-    # assert len(q.parsed['SSBOND'])==11
-    # assert q.parsed['SSBOND'][2].residue1.chainID=='G'
-    # assert q.parsed['SSBOND'][2].residue1.seqNum==126
-    # assert q.parsed['SSBOND'][2].residue2.chainID=='G'
-    # assert q.parsed['SSBOND'][2].residue2.seqNum==196
+    def test_ssbond(self):
+        rec=self.P.parsed['SSBOND']
+        self.assertEqual(len(rec),11)
+        anssbond=rec[0]
+        self.assertEqual(anssbond.residue1.chainID,'G')
+        self.assertEqual(anssbond.residue1.seqNum,54)
+        self.assertEqual(anssbond.residue2.chainID,'G')
+        self.assertEqual(anssbond.residue2.seqNum,74)
+        anssbond=rec[9]
+        self.assertEqual(anssbond.residue1.chainID,'G')
+        self.assertEqual(anssbond.residue1.seqNum,501)
+        self.assertEqual(anssbond.residue2.chainID,'B')
+        self.assertEqual(anssbond.residue2.seqNum,605)
+
+    def test_cryst1(self):
+        rec=self.P.parsed['CRYST1']
+        """ 
+        CRYST1  107.180  107.180  103.060  90.00  90.00 120.00 P 63          6   
+        """
+        self.assertEqual([rec.a,rec.b,rec.c],[107.180,107.180,103.060])
+        self.assertEqual([rec.alpha,rec.beta,rec.gamma],[90,90,120])
+        self.assertEqual(rec.sGroup,'P 63')
+        self.assertEqual(rec.z,6)
+
+    def test_origx123(self):
+        """ 
+        ORIGX1      1.000000  0.000000  0.000000        0.00000                         
+        ORIGX2      0.000000  1.000000  0.000000        0.00000                         
+        ORIGX3      0.000000  0.000000  1.000000        0.00000  
+        """
+        o=[self.P.parsed[x] for x in ['ORIGX1','ORIGX2','ORIGX3']]
+        self.assertEqual([o[0].O11,o[0].O12,o[0].O13,o[0].T1],[1.0,0.0,0.0,0.0])
+        self.assertEqual([o[1].O21,o[1].O22,o[1].O23,o[1].T2],[0.0,1.0,0.0,0.0])
+        self.assertEqual([o[2].O31,o[2].O32,o[2].O33,o[2].T3],[0.0,0.0,1.0,0.0])
+
+    def test_scale123(self):
+        """ 
+        SCALE1      0.009330  0.005387  0.000000        0.00000                         
+        SCALE2      0.000000  0.010773  0.000000        0.00000                         
+        SCALE3      0.000000  0.000000  0.009703        0.00000  
+        """
+        s=[self.P.parsed[x] for x in ['SCALE1','SCALE2','SCALE3']]
+        self.assertEqual([s[0].S11,s[0].S12,s[0].S13,s[0].U1],[0.00933,0.005387,0.0,0.0])
+        self.assertEqual([s[1].S21,s[1].S22,s[1].S23,s[1].U2],[0.0,0.010773,0.0,0.0])
+        self.assertEqual([s[2].S31,s[2].S32,s[2].S33,s[2].U3],[0.0,0.0,0.009703,0.0])
+
+    def test_caveat(self):
+        self.assertTrue('CAVEAT' not in self.P.parsed)
+
+    def test_formul(self):
+        rec=self.P.parsed['FORMUL']
+        self.assertEqual(len(rec),3)
+        """ 
+        FORMUL   3  NAG    21(C8 H15 N O6)                                              
+        FORMUL   3  BMA    C6 H12 O6                                                    
+        FORMUL   3  MAN    3(C6 H12 O6)     
+        """
+        a=rec[0]
+        self.assertEqual([a.compNum,a.hetID,a.asterisk,a.chemicalformula],[3,'NAG','','21(C8 H15 N O6)'])
+
+    def test_hetnam(self):
+        """ 
+        HETNAM     NAG 2-ACETAMIDO-2-DEOXY-BETA-D-GLUCOPYRANOSE                         
+        HETNAM     BMA BETA-D-MANNOPYRANOSE                                             
+        HETNAM     MAN ALPHA-D-MANNOPYRANOSE   
+        """
+        rec=self.P.parsed['HETNAM']
+        self.assertEqual(len(rec),3)
+        a=rec[1]
+        self.assertEqual([a.hetID,a.chemicalname],['BMA','BETA-D-MANNOPYRANOSE'])
+
+    def test_hetsyn(self):
+        self.assertTrue('HETSYN' not in self.P.parsed)
+
+    def test_seqres(self):
+        rec=self.P.parsed['SEQRES']
+        self.assertEqual(len(rec),2)
+        arec=rec[0]
+        self.assertEqual(arec.chainID,'G')
+        self.assertEqual(len(arec.resNames),arec.numRes)
+        expected_seq='ALA GLU ASN LEU TRP VAL THR VAL TYR TYR GLY'.split()
+        self.assertEqual(arec.resNames[:len(expected_seq)],expected_seq)
+        expected_seq='CYS LYS ARG ARG VAL VAL GLY ARG ARG ARG ARG ARG ARG'.split()
+        self.assertEqual(arec.resNames[-len(expected_seq):],expected_seq)
+        arec=rec[1]
+        self.assertEqual(arec.chainID,'B')
+        self.assertEqual(len(arec.resNames),arec.numRes)
+        expected_seq='ALA VAL GLY ILE GLY ALA VAL PHE LEU GLY PHE LEU GLY ALA ALA GLY SER THR MET GLY ALA ALA SER MET THR LEU THR VAL GLN ALA ARG ASN LEU LEU SER GLY ILE VAL GLN'.split()
+        self.assertEqual(arec.resNames[:len(expected_seq)],expected_seq)
+
+    def test_site(self):
+        self.assertTrue('SITE' not in self.P.parsed)
+
+    def test_endmdl(self):
+        self.assertTrue('ENDMDL' not in self.P.parsed)
+
+    def test_nummdl(self):
+        self.assertTrue('NUMMDL' not in self.P.parsed)
+
+    def test_model(self):
+        self.assertTrue('MODEL' not in self.P.parsed)
+
+    def test_end(self):
+        rec=self.P.parsed['END']
+        self.assertTrue(type(rec)==PDBRecord)
+
+    def test_master(self):
+        rec=self.P.parsed['MASTER']
+        """ 
+        MASTER      649    0   25   13   35    0    0    6 4856    2  378   49   
+        """
+        expres=[649,25,13,35,0,0,6,4856,2,378,49]
+        res=[rec.numRemark,rec.numHet,rec.numHelix,rec.numSheet,rec.numTurn,rec.numSite,rec.numXform,rec.numCoord,rec.numTer,rec.numConect,rec.numSeq]
+        self.assertEqual(expres,res)
+
+    def test_ter(self):
+        rec=self.P.parsed['TER']
+        self.assertEqual(len(rec),2)
+        ater=rec[0]
+        self.assertEqual(ater.serial,3544)
+        self.assertEqual(ater.residue.resName,'VAL')
+        self.assertEqual(ater.residue.chainID,'G')
+        self.assertEqual(ater.residue.seqNum,505)
+        ater=rec[1]
+        self.assertEqual(ater.serial,4520)
+        self.assertEqual(ater.residue.resName,'ASP')
+        self.assertEqual(ater.residue.chainID,'B')
+        self.assertEqual(ater.residue.seqNum,664)
+
+    def test_jrnl(self):
+        rec=self.P.parsed['JRNL.AUTH']
+        self.assertEqual(len(rec.authorList),53)
+        self.assertEqual(rec.authorList[0],'Y.DO KWON')
+        self.assertEqual(rec.authorList[1],'M.PANCERA')
+        self.assertEqual(rec.authorList[-2],'J.R.MASCOLA')
+        self.assertEqual(rec.authorList[-1],'P.D.KWONG')
+        rec=self.P.parsed['JRNL.TITL']
+        self.assertEqual(rec.title,'CRYSTAL STRUCTURE, CONFORMATIONAL FIXATION AND ENTRY-RELATED INTERACTIONS OF MATURE LIGAND-FREE HIV-1 ENV.')
+        rec=self.P.parsed['JRNL.REF']
+        self.assertEqual(rec.pubName,'NAT.STRUCT.MOL.BIOL.')
+        self.assertEqual(rec.volume,'22')
+        self.assertEqual(rec.page,'522')
+        self.assertEqual(rec.year,2015)
+        rec=self.P.parsed['JRNL.REFN']
+        self.assertEqual(rec.issnORessn,'ESSN')
+        self.assertEqual(rec.issn,'1545-9985')
+        rec=self.P.parsed['JRNL.PMID']
+        self.assertEqual(rec.pmid,26098315)
+        rec=self.P.parsed['JRNL.DOI']
+        self.assertEqual(rec.doi,'10.1038/NSMB.3051')
+
+    def test_remark_0(self):
+        self.assertTrue('REMARK.0' not in self.P.parsed)
+
+    def test_remark_1(self):
+        self.assertTrue('REMARK.1' not in self.P.parsed)
+
+    def test_remark_290(self):
+        self.assertTrue('REMARK.290' in self.P.parsed)
+        self.assertTrue('REMARK.290.CRYSTSYMMTRANS' in self.P.parsed)
+        rec=self.P.parsed['REMARK.290.CRYSTSYMMTRANS']
+        print(rec.__dict__)
+        Mlist,Tlist=get_symm_ops(rec)
+        self.assertEqual(len(Mlist),6)
+        self.assertTrue(np.array_equal(Mlist[0],np.identity(3)))
+        self.assertTrue(np.array_equal(Mlist[1],
+                                       np.array(
+                                        [
+                                            [-0.500000,-0.866025,0.000000],
+                                            [ 0.866025,-0.500000,0.000000],
+                                            [ 0.00000,  0.000000,1.000000]
+                                        ])))
+        self.assertTrue(np.array_equal(Mlist[-1],
+                                       np.array(
+                                        [
+                                            [0.500000,-0.866025,0.00000],
+                                            [0.866025,0.500000,0.000000],
+                                            [ 0.00000,  0.000000,1.000000]
+                                        ])))
+        self.assertTrue(np.array_equal(Tlist[-1],np.array([0.0,0.0,51.53])))
     
-    # assert len(q.parsed['SEQRES'][0].resNames)==481
-    # assert len(q.parsed['SEQRES'][1].resNames)==153
-    # expected_seq='ALA GLU ASN LEU TRP VAL THR VAL TYR TYR GLY'.split()
-    # assert q.parsed['SEQRES'][0].resNames[:len(expected_seq)]==expected_seq
+    def test_remark_350(self):
+        self.assertTrue('REMARK.350' in self.P.parsed)
+        self.assertTrue(hasattr(self.P.parsed['REMARK.350'],'tokens'))
+        rec=self.P.parsed['REMARK.350']
+        self.assertEqual(rec.tokens['APPLY THE FOLLOWING TO CHAINS'],' G, B, A, C, D')
+        self.assertTrue('REMARK.350.BIOMOLECULE.1' in self.P.parsed)
+        rec=self.P.parsed['REMARK.350.BIOMOLECULE.1']
+        Mlist,Tlist=get_symm_ops(rec)
+        self.assertEqual(len(Mlist),3)
+        self.assertTrue(np.array_equal(Mlist[0],np.identity(3)))
+        self.assertTrue(np.array_equal(Mlist[1],
+                                       np.array(
+                                        [
+                                            [-0.500000,-0.866025,0.000000],
+                                            [ 0.866025,-0.500000,0.000000],
+                                            [ 0.00000,  0.000000,1.000000]
+                                        ])))
+        self.assertTrue(np.array_equal(Tlist[1],np.array([107.18,185.64121,0.0])))
 
-
-    # assert len(q.parsed['TER'])==2
-    # assert q.parsed['TER'][0].residue.resName=='VAL'
-    # assert q.parsed['TER'][0].residue.chainID=='G'
-    # assert q.parsed['TER'][0].residue.seqNum==505
-    # assert q.parsed['TER'][0].residue.iCode==''
-
-    # assert q.parsed['TER'][1].residue.resName=='ASP'
-    # assert q.parsed['TER'][1].residue.chainID=='B'
-    # assert q.parsed['TER'][1].residue.seqNum==664
-    # assert q.parsed['TER'][1].residue.iCode==''
-
-    # assert len(q.parsed['JRNL.AUTH'].authorList)==53
-    # assert q.parsed['JRNL.AUTH'].authorList[0]=='Y.DO KWON'
-    # assert q.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
-    # assert q.parsed['JRNL.TITL'].title=='CRYSTAL STRUCTURE, CONFORMATIONAL FIXATION AND ENTRY-RELATED INTERACTIONS OF MATURE LIGAND-FREE HIV-1 ENV.'
-    # assert q.parsed['JRNL.REF'].pubName=='NAT.STRUCT.MOL.BIOL.'
-    # assert q.parsed['JRNL.REF'].volume=='22'
-    # assert q.parsed['JRNL.REF'].page=='522'
-    # assert q.parsed['JRNL.REF'].year==2015
-    # assert q.parsed['JRNL.REFN'].issnORessn=='ESSN'
-    # assert q.parsed['JRNL.REFN'].issn=='1545-9985'
-    # assert q.parsed['JRNL.PMID'].pmid==26098315
-    # assert q.parsed['JRNL.DOI'].doi=='10.1038/NSMB.3051'
+        """test_remark_290 
+                          - rowName
+                  - replNum
+                  - m1
+                  - m2
+                  - m3
+                  - t
+        """
 
     # assert q.parsed['REMARK.2'].resolutionmsg==['', '3.31 ANGSTROMS.']
     # assert len(q.parsed['REMARK.3'].refinementdetails)==331
@@ -254,14 +533,14 @@ class TestParse(unittest.TestCase):
 
 #REMARK 500 LEU G  494     GLY G  495                  149.23                    
 
-def test_rem1_ref():
-    p=PDBParser(PDBcode='test2').parse()
+# def test_rem1_ref():
+#     p=PDBParser(PDBcode='test2').parse()
 
-    assert p.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
-    assert p.parsed['REMARK.1.1.AUTH'].authorList==['J.N.BREG', 'J.H.J.VAN  OPHEUSDEN', 'M.J.M.BURGERING','R.BOELENS','R.KAPTEIN']
-    assert p.parsed['REMARK.1.1.TITL'].title=='STRUCTURE OF ARC REPRESSOR  IN SOLUTION: EVIDENCE FOR A FAMILY OF B-SHEET DNA-BINDING PROTEIN'
-    assert p.parsed['REMARK.1.1.REF'].pubName=='NATURE'
-    assert p.parsed['REMARK.1.2.AUTH'].authorList==['J.N.BREG', 'R.BOELENS','A.V.E.GEORGE','R.KAPTEIN']
-    assert p.parsed['REMARK.1.2.REF'].pubName=='BIOCHEMISTRY'
-    assert p.parsed['REMARK.0.1.AUTH'].authorList==['I.P.FREELY', 'R.U.SEERIUS']
-    assert p.parsed['REMARK.0.1'].tokengroups['tokencheck']['PDB_ID'].PDB_ID=='POOP'
+#     assert p.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
+#     assert p.parsed['REMARK.1.1.AUTH'].authorList==['J.N.BREG', 'J.H.J.VAN  OPHEUSDEN', 'M.J.M.BURGERING','R.BOELENS','R.KAPTEIN']
+#     assert p.parsed['REMARK.1.1.TITL'].title=='STRUCTURE OF ARC REPRESSOR  IN SOLUTION: EVIDENCE FOR A FAMILY OF B-SHEET DNA-BINDING PROTEIN'
+#     assert p.parsed['REMARK.1.1.REF'].pubName=='NATURE'
+#     assert p.parsed['REMARK.1.2.AUTH'].authorList==['J.N.BREG', 'R.BOELENS','A.V.E.GEORGE','R.KAPTEIN']
+#     assert p.parsed['REMARK.1.2.REF'].pubName=='BIOCHEMISTRY'
+#     assert p.parsed['REMARK.0.1.AUTH'].authorList==['I.P.FREELY', 'R.U.SEERIUS']
+#     assert p.parsed['REMARK.0.1'].tokengroups['tokencheck']['PDB_ID'].PDB_ID=='POOP'

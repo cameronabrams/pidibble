@@ -10,7 +10,7 @@ import urllib.request
 import os
 import logging
 import yaml
-
+import numpy as np
 from . import resources
 
 logger=logging.getLogger(__name__)
@@ -222,38 +222,81 @@ class PDBRecord(BaseRecord):
         record_format=self.format 
         if not 'embedded_records' in record_format:
             return
-        embedspec=record_format['embedded_records']
-        embedfrom=embedspec['from']
-        assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
-        # print(embedspec)
-        sigparser=Stringparser({'signal':embedspec['signal']},typemap).parse
-        idxparser=Stringparser({'record_index':embedspec['record_index']},typemap).parse
-        embedfmt=format_dict.get(embedspec['record_format'],{})
-        assert embedfmt!={},f'Record {self.key} contains an embedded_records specification with an invalid record format [{embedspec["record_format"]}]'
         base_key=self.key
-        key=base_key
-        idx=-1
-        for record in self.__dict__[embedfrom]:
-            # check for signal
-            tv=sigparser(record).signal
-            print(f'trial sigval {tv} looking for {embedspec["value"]}')
-            if tv==embedspec['value']:
-                idx=idxparser(record).record_index
-                embedkey=f'{base_key}.{idx}'
-                # print(f'initiating capture for key {key}')
+        embedspec=record_format.get('embedded_records',{})
+        for ename,espec in embedspec.items():
+            embedfrom=espec['from']
+            assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
+            assert 'signal' in espec,f'Record {self.key} has an embed spec {ename} for which no signal is specified'
+            sigparser=Stringparser({'signal':espec['signal']},typemap).parse
+            assert 'value' in espec,f'Record {self.key} has an embed spec {ename} for which no value for signal {espec["signal"]} is specified'
+            idxparser=None
+            if 'record_index' in espec:
+                idxparser=Stringparser({'record_index':espec['record_index']},typemap).parse
+            if type(espec['record_format'])==str:
+                embedfmt=format_dict.get(espec['record_format'],{})
+                assert embedfmt!={},f'Record {self.key} contains an embedded_records specification with an invalid record format [{espec["record_format"]}]'
             else:
-                if idx>0:
+                assert type(espec['record_format'])==dict,'Record {self.key} has an embed spec {ename} for which no format is specified'
+                embedfmt=espec['record_format']
+            skiplines=espec.get('skiplines',0)
+            tokenize=espec.get('tokenize',{})
+            if tokenize:
+                self.tokens={}
+                tokenparser=Stringparser({'token':tokenize['from']},typemap).parse
+            key=base_key
+            embedkey=base_key
+            idx=-1
+            lskip=0
+            triggered=False
+            capturing=False
+            for record in self.__dict__[embedfrom]:
+                # check for signal
+                if not triggered and sigparser(record).signal==espec['value']:
+                    # this is a signal-line
+                    triggered=True
+                    if not skiplines and not tokenize:
+                        capturing=True
+                    embedkey=f'{base_key}.{ename}'
+                    if idxparser:
+                        idx=idxparser(record).record_index
+                        embedkey=f'{base_key}.{ename}.{idx}'
+                    print(f'initiating capture for key {key} using {embedkey}')
+                elif triggered and not capturing:
+                    if skiplines:
+                        print(f'Skipping {record}')
+                        lskip+=1
+                        if lskip==skiplines:
+                            capturing=True
+                    elif tokenize:
+                        tokenrec=tokenparser(record)
+                        tokenstr=tokenrec.token
+                        print(f'Checking non-data line for tokenization "{tokenstr}"')
+                        if tokenize['d'] in tokenstr:
+                            k,v=tokenstr.split(tokenize['d'])
+                            self.tokens[k]=v
+                        else:
+                            capturing=True
+                elif capturing:
+                    if sigparser(record).signal=='':
+                        print(f'Terminate embed capture for {embedkey}')
+                        break # blank line ends the subrecord
+                    print(f'Parsing "{record}"')
                     new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
                     key=new_record.key
                     record_format=new_record.format
+                    print(f'new record has key {key}')
                     if not key in new_records:
-                        # print(f'new record for {key}')
+                # print(f'new record for {key}')
                         new_records[key]=new_record
                     else:
-                      # this must be a continuation record
-                        # print(f'continuing record for {key}')
+                # this must be a continuation record
+                # print(f'continuing record for {key}')
                         root_record=new_records[key]
                         root_record.continue_record(new_record,record_format)
+                else:
+                    print(f'Ingoring {record}')
+                        
         # print(f'embed rec new keys',new_records)
         return new_records
 
@@ -438,4 +481,21 @@ class PDBParser:
         self.post_process()
         return self
             
-
+def get_symm_ops(rec:PDBRecord):
+    # assert rec.key=='REMARK.290.CRYSTSYMMTRANS'
+    # TODO: infer attribute names from rec.format
+    M=np.identity(3)
+    T=np.array([0.,0.,0.])
+    Mlist=[]
+    Tlist=[]
+    for r,i,c1,c2,c3,t in zip(rec.rowName,rec.replNum,rec.m1,rec.m2,rec.m3,rec.t):
+        row=int(r[-1])-1
+        M[row][0]=c1
+        M[row][1]=c2
+        M[row][2]=c3
+        T[row]=t
+        if row==2:
+            Mlist.append(M.copy())
+            Tlist.append(T.copy())
+            M=np.identity(3)
+    return Mlist,Tlist

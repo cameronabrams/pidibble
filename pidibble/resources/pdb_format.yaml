@@ -104,12 +104,12 @@ record_formats:
       S31: [Float,[11,20]]
       S32: [Float,[21,30]]
       S33: [Float,[31,40]]
-      U1: [Float,[46,55]]
+      U3: [Float,[46,55]]
   AUTHOR:
     type: 2
     fields:
       continuation: [String,[9,10]]
-      authorList: [SList,[11,79]]
+      authorList: [CList,[11,79]]
     continues:
       - authorList
   CAVEAT:
@@ -156,7 +156,7 @@ record_formats:
     type: 2
     fields:
       continuation: [String,[9,10]]
-      technique: [SList,[11,79]]
+      technique: [String,[11,79]]
     continues:
       - technique
   MDLTYP:
@@ -333,9 +333,10 @@ record_formats:
       insertEnd: [String,[25,25]]
       database: [String,[27,32]]
       dbAccession: [String,[34,41]]
+      dbIdCode: [String,[43,54]]
       dbseqBegin: [Integer,[56,60]]
       dbinsBegin: [String,[61,61]]
-      dbseqEnd: [String,[63,67]]
+      dbseqEnd: [Integer,[63,67]]
       dbinsEnd: [String,[68,68]]
   DBREF1:
     fields:
@@ -634,20 +635,22 @@ record_formats:
           fields:
             freetext: [LList,[1,80]]
           embedded_records:
-            from: freetext
-            signal: [String,[12,34]]
-            value: ORIGINAL DATA REFERENCE
-            record_index: [Integer,[35,70]]
-            record_format: JRNL
+            ORIGREF:
+              from: freetext
+              signal: [String,[12,34]]
+              value: ORIGINAL DATA REFERENCE
+              record_index: [Integer,[35,70]]
+              record_format: JRNL
         1: # references cited
           fields:
             freetext: [LList,[1,80]]
           embedded_records:
-            from: freetext
-            signal: [String,[12,20]]
-            value: REFERENCE
-            record_index: [Integer,[22,70]]
-            record_format: JRNL
+            REFERENCE:
+              from: freetext
+              signal: [String,[12,20]]
+              value: REFERENCE
+              record_index: [Integer,[22,70]]
+              record_format: JRNL
         2:
           fields:
             resolutionmsg: [LList,[24,41]]
@@ -698,61 +701,63 @@ record_formats:
             unitcellinformation: [LList,[12,80]]
         290:
           fields:
-            crystallographicautodetails: [LList,[12,80]]
+            freetext: [LList,[1,80]]
+          embedded_records:
+            CRYSTSYMMTRANS:
+              from: freetext
+              signal: [String,[12,52]]
+              value: CRYSTALLOGRAPHIC SYMMETRY TRANSFORMATIONS
+              skiplines: 3
+              record_format:
+                fields:
+                  rowName: [SList,[14,19]]
+                  replNum: [Integer,[21,23]]
+                  m1: [Float,[24,33]]
+                  m2: [Float,[34,43]]
+                  m3: [Float,[44,53]]
+                  t:  [Float,[59,68]]
+                continues:
+                  - rowName
+                  - replNum
+                  - m1
+                  - m2
+                  - m3
+                  - t
         300:
           fields:
-            biomoleculedeclarations: [LList,[12,80]]
+            freetext: [LList,[12,80]]
           token_formats:
-            biomoleculedeclarations:
+            freetext:
               tokens:
                 BIOMOLECULE:
                   type: CList
         350:
           fields:
-            subkey: [String,[14,18]]
-            biomoleculespecifications: [LList,[12,80]]
-          continues:
-            - biomoleculespecifications
-          subrecords:
-            branchon: subkey
-            required: False
-            formats:
-              BIOMT:
+            freetext: [LList,[1,80]]
+          embedded_records:
+            BIOMOLECULE:
+              from: freetext
+              signal: [String,[12,22]]
+              value: BIOMOLECULE
+              record_index: [Integer,[24,26]]
+              tokenize:  # lines between the signal line and the embedded record data are tokenized if a delimiter is found
+                d: ':'
+                from: [String,[12,80]]
+              record_format:
                 fields:
-                  rowNum: [Integer,[19,19]]
-                  transNum: [Integer,[22,23]]
-                  M1: [Float,[25,33]]
-                  M2: [Float,[35,43]]
-                  M3: [Float,[45,53]]
-                  T: [Float,[58,68]]
-          token_formats:
-            biomoleculespecifications:
-              tokens:
-                BIOMOLECULE:
-                  type: Integer
-                AUTH_BIO_UNIT:
-                  type: String
-                  key: 'AUTHOR DETERMINED BIOLOGICAL UNIT'
-                SOFT_QUAT_STRUCT:
-                  type: String
-                  key: 'SOFTWARE DETERMINED QUATERNARY STRUCTURE'
-                SOFTWARE_USED:
-                  type: String
-                  key: 'SOFTWARE_USED'
-                TOT_BSA:
-                  type: String
-                  key: 'REMARK 350 TOTAL BURIED SURFACE AREA'
-                TOT_SA:
-                  type: String
-                  key: 'REMARK 350 SURFACE AREA OF THE COMPLEX'
-                DELTA_SOL_FREE_ENERGY:
-                  type: String
-                  key: 'REMARK 350 CHANGE IN SOLVENT FREE ENERGY'
-                CHAIN_BIOMT:
-                  type: CList
-                  key: 'APPLY THE FOLLOWING TO CHAINS'
-              determinants:
-                - BIOMOLECULE
+                  rowName: [SList,[14,19]]
+                  replNum: [Integer,[21,23]]
+                  m1: [Float,[24,33]]
+                  m2: [Float,[34,43]]
+                  m3: [Float,[44,53]]
+                  t:  [Float,[59,68]]
+                continues:
+                  - rowName
+                  - replNum
+                  - m1
+                  - m2
+                  - m3
+                  - t
         375:
           fields:
             specialatomspecifications: [LList,[12,80]]
