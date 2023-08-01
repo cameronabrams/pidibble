@@ -7,6 +7,19 @@
 
 """
 
+def rstr(d,excludes,pad):
+    retstr=''
+    kfstr=r'{:>'+str(pad)+r's}:'
+    for k,v in d.items():
+        if not k in excludes:
+            retstr+=kfstr.format(k)
+            if type(v)==dict:
+                retstr+='\n'
+                retstr+=rstr(v,excludes,pad+5)
+            else:
+                retstr+=f' {v}'+'\n'
+    return retstr    
+
 class BaseRecord:
     def __init__(self,input_dict):
         self.__dict__.update(input_dict)
@@ -16,12 +29,10 @@ class BaseRecord:
             isempty&=(v=='')
         return isempty
     def __str__(self):
-        return ';'.join([f'{k}:[{v}]' for k,v in self.__dict__.items()])
-    def pstr(self):
+        return '; '.join([f'{k}: {v}' for k,v in self.__dict__.items()])
+    def pstr(self,excludes=['key','format','continuation'],pad=20):
         """pstr generates a pretty string for this record
         """
-        retstr=f'{self.key}:\n'
-        for k,v in self.__dict__.items():
-            if k!='format':
-                retstr+=f'{k:>20s}: {v}'
+        retstr=f'{self.key}'+'\n'
+        retstr+=rstr(self.__dict__,excludes,pad)
         return retstr
