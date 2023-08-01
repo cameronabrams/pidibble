@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "pidibble"
-version = "1.0"
+version = "1.0.4"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -15,7 +15,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
+dependencies = [
+    "numpy",
+    "pyyaml==6.0.1"
+]
 [project.urls]
 "Homepage" = "https://github.com/cameronabrams/pidibble"
 "Bug Tracker" = "https://github.com/cameronabrams/pidibble/issues"
