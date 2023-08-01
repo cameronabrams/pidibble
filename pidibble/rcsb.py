@@ -261,17 +261,17 @@ class PDBRecord(BaseRecord):
                     if idxparser:
                         idx=idxparser(record).record_index
                         embedkey=f'{base_key}.{ename}.{idx}'
-                    print(f'initiating capture for key {key} using {embedkey}')
+                    # print(f'initiating capture for key {key} using {embedkey}')
                 elif triggered and not capturing:
                     if skiplines:
-                        print(f'Skipping {record}')
+                        # print(f'Skipping {record}')
                         lskip+=1
                         if lskip==skiplines:
                             capturing=True
                     elif tokenize:
                         tokenrec=tokenparser(record)
                         tokenstr=tokenrec.token
-                        print(f'Checking non-data line for tokenization "{tokenstr}"')
+                        # print(f'Checking non-data line for tokenization "{tokenstr}"')
                         if tokenize['d'] in tokenstr:
                             k,v=tokenstr.split(tokenize['d'])
                             self.tokens[k]=v
@@ -279,13 +279,13 @@ class PDBRecord(BaseRecord):
                             capturing=True
                 elif capturing:
                     if sigparser(record).signal=='':
-                        print(f'Terminate embed capture for {embedkey}')
+                        # print(f'Terminate embed capture for {embedkey}')
                         break # blank line ends the subrecord
-                    print(f'Parsing "{record}"')
+                    # print(f'Parsing "{record}"')
                     new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
                     key=new_record.key
                     record_format=new_record.format
-                    print(f'new record has key {key}')
+                    # print(f'new record has key {key}')
                     if not key in new_records:
                 # print(f'new record for {key}')
                         new_records[key]=new_record
@@ -295,7 +295,8 @@ class PDBRecord(BaseRecord):
                         root_record=new_records[key]
                         root_record.continue_record(new_record,record_format)
                 else:
-                    print(f'Ingoring {record}')
+                    pass
+                    # print(f'Ingoring {record}')
                         
         # print(f'embed rec new keys',new_records)
         return new_records
@@ -451,7 +452,7 @@ class PDBParser:
                 rec.tables={}
                 scanbegin=0
                 for tname,table in fmt['tables'].items():
-                    print(f'{key} will acquire a table {tname} from line {scanbegin}')
+                    # print(f'{key} will acquire a table {tname} from line {scanbegin}')
                     sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
                     sigval=table['value']
                     skiplines=table.get('skiplines',0)
@@ -476,7 +477,7 @@ class PDBParser:
                                     capturing=True
                         elif capturing:
                             if sigparser(l).signal=='':
-                                print(f'Terminate table {tname}')
+                                # print(f'Terminate table {tname}')
                                 scanbegin=i+1
                                 break
                             parsedrow=rowparser(l)

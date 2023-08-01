@@ -22,8 +22,6 @@ def test_custom_formats():
     assert p.parsed['MYREC2'][0].residue.chainID=='D'
     assert p.parsed['MYREC2'][0].residue.seqNum==2222
     assert p.parsed['MYREC2'][0].residue.iCode=='J'
-    # for s in p.parsed['SITE']:
-    #     print(s.__dict__)
     assert len(p.parsed['SITE'])==4
     assert p.parsed['SITE'][0].siteID=='AC1'
     assert p.parsed['SITE'][0].residue1.resName=='HIS'
