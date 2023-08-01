@@ -451,27 +451,37 @@ class PDBParser:
                 rec.tables={}
                 scanbegin=0
                 for tname,table in fmt['tables'].items():
-                    # print(f'{key} will acquire a table {tname} from line {scanbegin}')
+                    print(f'{key} will acquire a table {tname} from line {scanbegin}')
                     sigparser=Stringparser({'signal':table['signal']},self.mappers).parse
                     sigval=table['value']
+                    skiplines=table.get('skiplines',0)
                     rowparser=Stringparser(table['fields'],self.mappers).parse
                     rec.tables[tname]=[]
                     scanfield=table['from']
-                    reading_table=False
+                    triggered=False
+                    capturing=False
+                    lskip=0
                     for i in range(scanbegin,len(rec.__dict__[scanfield])):
+                        # check for signal
                         l=rec.__dict__[scanfield][i]
-                        if reading_table:
+                        if not triggered and sigparser(l).signal==sigval:
+                            # this is a signal-line
+                            triggered=True
+                            if not skiplines:
+                                capturing=True
+                        elif triggered and not capturing:
+                            if skiplines:
+                                lskip+=1
+                                if lskip==skiplines:
+                                    capturing=True
+                        elif capturing:
+                            if sigparser(l).signal=='':
+                                print(f'Terminate table {tname}')
+                                scanbegin=i+1
+                                break
                             parsedrow=rowparser(l)
                             if not all([x=='' for x in parsedrow.__dict__.values()]):
                                 rec.tables[tname].append(parsedrow)
-                        probe=sigparser(l)
-                        # print(probe.signal,sigval)
-                        if probe.signal==sigval:
-                            reading_table=True
-                        if reading_table:
-                            if probe.signal=='':
-                                scanbegin=i+1
-                                break
                         
 
     def parse(self):

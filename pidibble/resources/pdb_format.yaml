@@ -9,6 +9,11 @@ custom_formats:
     chainID: [String,[5,5]]
     seqNum:  [Integer,[7,10]]
     iCode:  [String,[11,11]]
+  Residue12:
+    resName: [String,[1,3]]
+    chainID: [String,[5,5]]
+    seqNum:  [Integer,[7,11]]
+    iCode:  [String,[12,12]]
 record_formats:
   HEADER:
     type: 1
@@ -773,13 +778,14 @@ record_formats:
           tables:
             MISSING:
               from: freetext
-              signal: [String,[14,27]]
-              value: 'M RES C SSSEQI'
+              signal: [String,[12,27]]
+              value: MISSING RESIDUES
+              skiplines: 5
               fields:
                 modelNum: [Integer,[13,14]]
-                resname: [String,[16,18]]
+                resName: [String,[16,18]]
                 chainID: [String,[20,20]]
-                resseqnum: [Integer,[22,26]]
+                seqNum: [Integer,[22,26]]
                 iCode: [String,[27,27]]
         470:
           fields:
@@ -791,10 +797,47 @@ record_formats:
           fields:
             freetext: [LList,[1,80]]
           tables:
+            CLOSE_CONTACTS_ASYMM_UNIT:
+              from: freetext
+              signal: [String,[12,59]]
+              value: 'SUBTOPIC: CLOSE CONTACTS IN SAME ASYMMETRIC UNIT'
+              skiplines: 4
+              fields:
+                atom1: [String,[13,16]]
+                residue1: [Residue12,[19,30]]
+                atom2: [String,[34,37]]
+                residue2: [Residue12,[40,51]]
+                distance: [Float,[63,68]]
+            CLOSE_CONTACTS:
+              from: freetext
+              signal: [String,[12,35]]
+              value: 'SUBTOPIC: CLOSE CONTACTS'
+              skiplines: 13
+              fields:
+                atom1: [String,[13,16]]
+                residue1: [Residue12,[19,30]]
+                atom2: [String,[34,37]]
+                residue2: [Residue12,[40,51]]
+                ssymop: [String,[54,59]]
+                distance: [Float,[63,68]]
+            COVALENT_BOND_ANGLES:
+              from: freetext
+              signal: [String,[12,41]]
+              value: 'SUBTOPIC: COVALENT BOND ANGLES'
+              skiplines: 13
+              fields:
+                modelNum: [Integer,[12,13]]
+                residue: [Residue11,[15,25]]
+                atom1: [String,[25,28]]
+                atom2: [String,[32,35]]
+                atom3: [String,[40,43]]
+                deviation: [Float,[58,62]]
+                units: [String,[64,70]]
             RAMA_OUTLIERS:
               from: freetext
-              signal: [String,[13,45]]
-              value: 'M RES CSSEQI        PSI       PHI'
+              signal: [String,[12,35]]
+              value: 'SUBTOPIC: TORSION ANGLES'
+              skiplines: 12
               fields:
                 modelNum: [Integer,[12,13]]
                 residue: [Residue10,[15,24]]
@@ -802,11 +845,12 @@ record_formats:
                 psi: [Float,[39,45]]
             NONCISTRANS:
               from: freetext
-              signal: [String,[44,58]]
-              value: 'MODEL     OMEGA'
+              signal: [String,[12,39]]
+              value: 'SUBTOPIC: NON-CIS, NON-TRANS'
+              skiplines: 6
               fields:
-                residueN: [Residue10,[12,21]]
-                residueC: [Residue10,[27,36]]
+                residueN: [Residue11,[12,22]]
+                residueC: [Residue11,[27,37]]
                 modelNum: [Integer,[44,48]]
                 omega: [Float,[54,60]]
         525:

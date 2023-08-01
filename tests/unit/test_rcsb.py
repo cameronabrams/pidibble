@@ -41,8 +41,6 @@ def test_custom_formats():
 
 class TestParse(unittest.TestCase):
 
-    # def __init__(self):
-
     def setUp(self):
         self.P=PDBParser(PDBcode='4zmj').parse()
     
@@ -465,82 +463,130 @@ class TestParse(unittest.TestCase):
                   - t
         """
 
-    # assert q.parsed['REMARK.2'].resolutionmsg==['', '3.31 ANGSTROMS.']
-    # assert len(q.parsed['REMARK.3'].refinementdetails)==331
-    # assert q.parsed['REMARK.3'].refinementdetails[0]==''
-    # assert q.parsed['REMARK.3'].refinementdetails[3]=='AUTHORS     : PAUL ADAMS,PAVEL AFONINE,VINCENT CHEN,IAN'
-    # assert q.parsed['REMARK.3'].refinementdetails[-1]=='OTHER REFINEMENT REMARKS: NULL'
+    def test_remark_465(self):
+        rec=self.P.parsed['REMARK.465']
+        self.assertTrue(hasattr(rec,'tables'))
+        self.assertTrue('MISSING' in rec.tables)
+        missing=rec.tables['MISSING']
 
-    # assert q.parsed['REMARK.4'].formatmsg[1]=='4ZMJ COMPLIES WITH FORMAT V. 3.30, 13-JUL-11'
-    # assert q.parsed['REMARK.100'].processmsg[-1]=='THE DEPOSITION ID IS D_1000209535.'
-    # assert len(q.parsed['REMARK.200'].crystallizationmsg)==49
-    # assert q.parsed['REMARK.200'].crystallizationmsg[-1]=='REMARK: NULL'
-    # assert len(q.parsed['REMARK.290'].crystallographicautodetails)==40
-    # assert q.parsed['REMARK.290'].crystallographicautodetails[-1]=='REMARK: NULL'
+        self.assertEqual(len(missing),61)
+        m=missing[0]
+        self.assertEqual(m.modelNum,'')
+        self.assertEqual(m.resName,'ALA')
+        self.assertEqual(m.chainID,'G')
+        self.assertEqual(m.seqNum,31)
+        m=missing[-1]
+        self.assertEqual(m.modelNum,'')
+        self.assertEqual(m.resName,'LEU')
+        self.assertEqual(m.chainID,'B')
+        self.assertEqual(m.seqNum,568)
+        
+    def test_remark_500(self):
+        rec=self.P.parsed['REMARK.500']
+        self.assertTrue(hasattr(rec,'tables'))
+        tables=rec.tables
+        self.assertTrue('CLOSE_CONTACTS_ASYMM_UNIT' in tables)
+        self.assertTrue('CLOSE_CONTACTS' in tables)
+        self.assertTrue('COVALENT_BOND_ANGLES' in tables)
+        self.assertTrue('RAMA_OUTLIERS' in tables)
+        self.assertTrue('NONCISTRANS' in tables)
 
-    # # print(q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations'])
+        t=tables['CLOSE_CONTACTS_ASYMM_UNIT']
+        self.assertEqual(len(t),2)
+        r=t[0]
+        self.assertEqual(r.atom1,'O')
+        self.assertEqual(r.residue1.resName,'VAL')
+        self.assertEqual(r.residue1.chainID,'G')
+        self.assertEqual(r.residue1.seqNum,36)
+        self.assertEqual(r.residue1.iCode,'')
+        self.assertEqual(r.atom2,'OG1')
+        self.assertEqual(r.residue2.resName,'THR')
+        self.assertEqual(r.residue2.chainID,'B')
+        self.assertEqual(r.residue2.seqNum,606)
+        self.assertEqual(r.residue2.iCode,'')
+        self.assertEqual(r.distance,2.15)
+        t=tables['CLOSE_CONTACTS']
+        self.assertEqual(len(t),2)
+        r=t[0]
+        self.assertEqual(r.atom1,'ND2')
+        self.assertEqual(r.residue1.resName,'ASN')
+        self.assertEqual(r.residue1.chainID,'G')
+        self.assertEqual(r.residue1.seqNum,136)
+        self.assertEqual(r.residue1.iCode,'')
+        self.assertEqual(r.atom2,'O3')
+        self.assertEqual(r.residue2.resName,'NAG')
+        self.assertEqual(r.residue2.chainID,'G')
+        self.assertEqual(r.residue2.seqNum,610)
+        self.assertEqual(r.residue2.iCode,'')
+        self.assertEqual(r.ssymop,'5564')
+        self.assertEqual(r.distance,2.16)
+        t=tables['COVALENT_BOND_ANGLES']
+        self.assertEqual(len(t),2)
+        r=t[0]
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.residue.resName,'PRO')
+        self.assertEqual(r.residue.chainID,'G')
+        self.assertEqual(r.residue.seqNum,79)
+        self.assertEqual(r.residue.iCode,'')
+        self.assertEqual(r.atom1,'C')
+        self.assertEqual(r.atom2,'N')
+        self.assertEqual(r.atom3,'CA')
+        self.assertEqual(r.deviation,9.7)
+        self.assertEqual(r.units,'DEGREES')
+        r=t[1]
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.residue.resName,'PRO')
+        self.assertEqual(r.residue.chainID,'G')
+        self.assertEqual(r.residue.seqNum,214)
+        self.assertEqual(r.residue.iCode,'')
+        self.assertEqual(r.atom1,'C')
+        self.assertEqual(r.atom2,'N')
+        self.assertEqual(r.atom3,'CA')
+        self.assertEqual(r.deviation,-9.1)
+        self.assertEqual(r.units,'DEGREES')
 
-    # assert q.parsed['REMARK.300'].tokengroups['biomoleculedeclarations']['BIOMOLECULE'].BIOMOLECULE==['1']
-    # assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].AUTH_BIO_UNIT=='HEXAMERIC'
-    # assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].SOFT_QUAT_STRUCT=='HEXAMERIC'
-    # assert q.parsed['REMARK.350'].tokengroups['biomoleculespecifications']['BIOMOLECULE.1'].CHAIN_BIOMT==['G', 'B', 'A', 'C', 'D']
-    # # for k in q.parsed.keys():
-    # #     print(k)
-    # # print(q.parsed['REMARK.350'])
-    # # print(q.parsed['REMARK.350.BIOMT'])
-    # assert q.parsed['REMARK.350.BIOMT'].rowNum==[1,2,3,1,2,3,1,2,3]
-    # assert q.parsed['REMARK.350.BIOMT'].transNum==[1,1,1,2,2,2,3,3,3]
-    # assert q.parsed['REMARK.350.BIOMT'].M1==[1.0,0.0,0.0,-0.5,0.866025,0.0,-0.5,-0.866025,0.0]
-    # rec=q.parsed['REMARK.350.BIOMT']
-    # M=[]
-    # for i in range(3):
-    #     M.append(np.zeros((3,3)))
-    # for t,r,m1,m2,m3 in zip(rec.transNum,rec.rowNum,rec.M1,rec.M2,rec.M3):
-    #     M[t-1][r-1,0]=m1
-    #     M[t-1][r-1,1]=m2
-    #     M[t-1][r-1,2]=m3
-    
-    # expM=[
-    #     np.array([
-    #         [1.0,0.0,0.0],
-    #         [0.0,1.0,0.0],
-    #         [0.0,0.0,1.0]
-    #     ]),
-    #     np.array([
-    #         [-0.5,-0.866025,0.0],
-    #         [0.866025,-0.5,0.0],
-    #         [0.0,0.0,1.0]
-    #     ]),
-    #     np.array([
-    #         [-0.5,0.866025,0.0],
-    #         [-0.866025,-0.5,0.0],
-    #         [0.0,0.0,1.0]
-    #     ])       
-    # ]
-    # assert all(np.array_equal(m,em) for m,em in zip(M,expM))
+        
+        t=tables['RAMA_OUTLIERS']
+        self.assertEqual(len(t),33)
+        r=t[0]
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.residue.resName,'PRO')
+        self.assertEqual(r.residue.chainID,'G')
+        self.assertEqual(r.residue.seqNum,43)
+        self.assertEqual(r.residue.iCode,'')
+        self.assertEqual(r.phi,66.5)
+        self.assertEqual(r.psi,-66.28)
+        r=t[-1]
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.residue.resName,'GLN')
+        self.assertEqual(r.residue.chainID,'B')
+        self.assertEqual(r.residue.seqNum,650)
+        self.assertEqual(r.residue.iCode,'')
+        self.assertEqual(r.phi,-74.39)
+        self.assertEqual(r.psi,-111.72)
 
-    # assert q.parsed['REMARK.465'].freetext[1].strip()=='REMARK 465 MISSING RESIDUES'
-    # assert q.parsed['REMARK.465'].tables['MISSING'][0].resname=='ALA'
-    # assert q.parsed['REMARK.465'].tables['MISSING'][0].modelNum==''
-    # assert q.parsed['REMARK.465'].tables['MISSING'][0].chainID=='G'
-    # assert q.parsed['REMARK.465'].tables['MISSING'][0].resseqnum==31
-    # assert len(q.parsed['REMARK.465'].tables['MISSING'])==61
+        t=tables['NONCISTRANS']
+        self.assertEqual(len(t),4)
+        r=t[0]
+        self.assertEqual(r.residueN.resName,'ASP')
+        self.assertEqual(r.residueN.chainID,'G')
+        self.assertEqual(r.residueN.seqNum,57)
+        self.assertEqual(r.residueN.iCode,'')
+        self.assertEqual(r.residueC.resName,'ALA')
+        self.assertEqual(r.residueC.chainID,'G')
+        self.assertEqual(r.residueC.seqNum,58)
+        self.assertEqual(r.residueC.iCode,'')
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.omega,146.93)        
+        r=t[1]
+        self.assertEqual(r.residueN.resName,'GLY')
+        self.assertEqual(r.residueN.chainID,'G')
+        self.assertEqual(r.residueN.seqNum,354)
+        self.assertEqual(r.residueN.iCode,'')
+        self.assertEqual(r.residueC.resName,'ASN')
+        self.assertEqual(r.residueC.chainID,'G')
+        self.assertEqual(r.residueC.seqNum,355)
+        self.assertEqual(r.residueC.iCode,'')
+        self.assertEqual(r.modelNum,'')
+        self.assertEqual(r.omega,-134.45)        
 
-    # assert q.parsed['REMARK.500'].tables['RAMA_OUTLIERS'][0].residue.resName=='PRO'
-    # assert q.parsed['REMARK.500'].tables['NONCISTRANS'][0].residueC.resName=='ALA'
-    # assert q.parsed['REMARK.500'].tables['NONCISTRANS'][0].omega==146.93
-    # assert q.parsed['REMARK.500'].tables['NONCISTRANS'][-1].omega==149.23
-
-#REMARK 500 LEU G  494     GLY G  495                  149.23                    
-
-# def test_rem1_ref():
-#     p=PDBParser(PDBcode='test2').parse()
-
-#     assert p.parsed['JRNL.AUTH'].authorList[-1]=='P.D.KWONG'
-#     assert p.parsed['REMARK.1.1.AUTH'].authorList==['J.N.BREG', 'J.H.J.VAN  OPHEUSDEN', 'M.J.M.BURGERING','R.BOELENS','R.KAPTEIN']
-#     assert p.parsed['REMARK.1.1.TITL'].title=='STRUCTURE OF ARC REPRESSOR  IN SOLUTION: EVIDENCE FOR A FAMILY OF B-SHEET DNA-BINDING PROTEIN'
-#     assert p.parsed['REMARK.1.1.REF'].pubName=='NATURE'
-#     assert p.parsed['REMARK.1.2.AUTH'].authorList==['J.N.BREG', 'R.BOELENS','A.V.E.GEORGE','R.KAPTEIN']
-#     assert p.parsed['REMARK.1.2.REF'].pubName=='BIOCHEMISTRY'
-#     assert p.parsed['REMARK.0.1.AUTH'].authorList==['I.P.FREELY', 'R.U.SEERIUS']
-#     assert p.parsed['REMARK.0.1'].tokengroups['tokencheck']['PDB_ID'].PDB_ID=='POOP'
