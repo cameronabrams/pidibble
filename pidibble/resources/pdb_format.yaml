@@ -9,6 +9,14 @@
 #
 # 0. 31-JUL-2023: Initial formats
 #
+BASE_URL: https://files.rcsb.org/download
+record_types:
+  1: one-time-single-line
+  2: one-time-multiple-line
+  3: multiple-times-one-line
+  4: multiple-times-multiple-lines
+  5: grouping
+  6: other
 custom_formats:
   Residue10:
     resName: [String,[1,3]]

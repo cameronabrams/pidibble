@@ -1,3 +1,4 @@
+BASE_URL: https://files.rcsb.org/download
 record_types:
   1: one-time-single-line
   2: one-time-multiple-line
@@ -5,10 +6,6 @@ record_types:
   4: multiple-times-multiple-lines
   5: grouping
   6: other
-delimiters: # below are defaults; already hard-coded
-  CList: ","
-  SList: ";"
-  WList: " "
 custom_formats:
   Residue10:
     resName: [String,[1,3]]

@@ -1,11 +1,11 @@
 import numpy as np
-from pidibble.rcsb import PDBParser, PDBRecord, get_symm_ops
+from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
 import unittest
 import pytest
 
 def test_pdbformat():
     p=PDBParser()
-    expected_sections=['record_formats']
+    expected_sections=['record_formats','BASE_URL']
     assert(all([x in p.pdb_format_dict.keys() for x in expected_sections]))
 
 def test_custom_formats():

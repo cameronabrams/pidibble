@@ -1,9 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 [project]
 name = "pidibble"
-version = "1.0.4"
+version = "1.0.7"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -16,8 +16,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy",
-    "pyyaml==6.0.1"
+    "numpy>=1.24",
+    "pyyaml>=6"
 ]
 [project.urls]
 "Homepage" = "https://github.com/cameronabrams/pidibble"
