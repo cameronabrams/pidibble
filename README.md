@@ -11,21 +11,4 @@ Once installed, the user has access to the `PDBParser` class in the `pidibble.rc
 * 1.0
     * Initial version
 
-## Meta
-
-Cameron F. Abrams – cfa22@drexel.edu
-
-Distributed under the MIT license.
-
-[https://github.com/cameronabrams](https://github.com/cameronabrams/)
-
-[https://github.com/AbramsGroup](https://github.com/AbramsGroup/)
-
-## Contributing
-
-1. Fork it (<https://github.com/AbramsGroup/HTPolyNet/fork>)
-2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Create a new Pull Request
 
