@@ -6,6 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+from .baseparsers import StringParser
 
 def rstr(d,excludes,pad):
     retstr=''
@@ -36,3 +37,10 @@ class BaseRecord:
         retstr=f'{self.key}'+'\n'
         retstr+=rstr(self.__dict__,excludes,pad)
         return retstr
+
+class BaseRecordParser(StringParser):
+    def add_fields(self,fields):
+        self.fields.update(fields)
+    def parse(self,record):
+        input_dict=super().parse(record)
+        return BaseRecord(input_dict)

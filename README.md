@@ -69,6 +69,8 @@ REMARK.350.BIOMOLECULE.1
 ```
 ## Release History
 
+* 1.0.7.1
+    * support for split BIOMT tables and REMARKS 280, 375, 650, and 700
 * 1.0.7
     * pretty-print enabled
 * 1.0

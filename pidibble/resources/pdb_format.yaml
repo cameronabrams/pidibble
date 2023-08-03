@@ -719,7 +719,20 @@ record_formats:
             solutionscatteringdetails: [LList,[12,80]]
         280:
           fields:
-            crystalinformation: [LList,[12,80]]
+            freetext: [LList,[12,80]]
+          token_formats:
+            freetext: # owns a token-group
+              tokens:
+                SOLV_CONT:
+                  type: Float
+                  key: SOLVENT CONTENT, VS   (%)
+                MATT_COEF:
+                  type: Float
+                  key: MATTHEWS COEFFICIENT, VM (ANGSTROMS**3/DA)
+                CRYS_COND:
+                  type: String
+                  key: CRYSTALLIZATION CONDITIONS
+                  multiline: True
         285:
           fields:
             unitcellinformation: [LList,[12,80]]
@@ -764,7 +777,7 @@ record_formats:
               signal: [String,[12,22]]
               value: BIOMOLECULE
               record_index: [Integer,[24,26]]
-              tokenize:  # lines between the signal line and the embedded record data are tokenized if a delimiter is found
+              tokenize:  # lines between the signal line and the embedded record data header are tokenized if a delimiter is found
                 d: ':'
                 from: [String,[12,80]]
               record_format:
@@ -784,7 +797,17 @@ record_formats:
                   - t
         375:
           fields:
-            specialatomspecifications: [LList,[12,80]]
+            freetext: [LList,[1,80]]
+          tables:
+            SPECIAL_POSITIONS:
+              from: freetext
+              signal: [String,[12,27]]
+              value: SPECIAL POSITION
+              skiplines: 5
+              fields:
+                 atomname: [String,[12,14]]
+                 residue: [Residue10,[17,26]]
+                 special_message: [String,[28,54]]
         400:
           fields:
             compounddetails: [LList,[12,80]]
@@ -892,10 +915,22 @@ record_formats:
             inhibitordescription: [LList,[12,80]]
         650:
           fields:
-            helixdescription: [LList,[12,80]]
+            freetext: [LList,[12,80]]
+          token_formats:
+            freetext: # owns a token-group
+              tokens:
+                HELIX:
+                  type: String
+                  key: DETERMINATION METHOD
         700:
           fields:
-            sheetdescription: [LList,[12,80]]
+            freetext: [LList,[12,80]]
+          token_formats:
+            freetext: # owns a token-group
+              tokens:
+                SHEET:
+                  type: String
+                  key: DETERMINATION METHOD
         800:
           fields:
             sitedetails: [LList,[12,80]]

@@ -7,7 +7,7 @@
 
 """
 
-from .baserecord import BaseRecord
+from .baserecord import BaseRecord, BaseRecordParser
 from .baseparsers import StringParser
 
 class tokengroup:
@@ -29,18 +29,7 @@ class PDBRecord(BaseRecord):
         subrecords=local_record_format.get('subrecords',{})
         allowed_values=local_record_format.get('allowed',{})
         concats=local_record_format.get('concatenate',{})
-        input_dict={}
-        for k,v in fields.items():
-            typestring,byte_range=v
-            typ=typemap[typestring]
-            assert byte_range[1]<=len(pdbrecordline)
-            # columns begin at "1" not "0"
-            fieldstring=pdbrecordline[byte_range[0]-1:byte_range[1]]
-            input_dict[k]='' if fieldstring.strip()=='' else typ(fieldstring)
-            if type(input_dict[k])==str:
-                input_dict[k]=input_dict[k].strip()
-            if typestring in allowed_values:
-                assert input_dict[k] in allowed_values[typestring]
+        input_dict=StringParser(fields,typemap,allowed=allowed_values).parse(pdbrecordline)
         for cfield,subf in concats.items():
             if not cfield in input_dict:
                 input_dict[cfield]=[]
@@ -74,6 +63,20 @@ class PDBRecord(BaseRecord):
         inst.key=current_key
         inst.format=current_format
         return inst
+
+    def get_token(self,key):
+        if not hasattr(self,'tokengroups'):
+            return None
+        values={}
+        for k,tg in self.tokengroups.items():
+            for kk,tl in tg.items():
+                if key in tl.__dict__:
+                    values[kk]=tl.__dict__[key]
+        if len(values)==1:
+            return list(values.values())[0]
+        else:
+            # print(f'Warning: token-key {key} occurs more than once in the {len(self.tokengroups)} tokengroup(s) of {self.key}')
+            return values
 
     def continue_record(self,other,record_format,**kwargs):
         all_fields=kwargs.get('all_fields',False)
@@ -111,25 +114,34 @@ class PDBRecord(BaseRecord):
             # print('token names',list(tdict.keys()),'determinants',determinants)
             self.tokengroups[a]={}
             current_tokengroup=None
-            for pt in self.__dict__[a]:
+            for i in range(len(self.__dict__[a])):
+                pt=self.__dict__[a][i]
                 toks=[x.strip() for x in pt.split(':')]
                 if len(toks)!=2: # this is not a token-bearing string
                     # print('ignoring tokenstring:',toks)
                     continue
                 tokkey=None
                 tokname,tokvalue=[x.strip() for x in pt.split(':')]
+                # print(f'Found {tokname} : {tokvalue}')
                 if not tokname in tdict.keys():
                     for k,v in tdict.items():
                         if 'key' in v:
+                            # print(f'comparing {tokname} to {v["key"]}')
                             if tokname==v['key']:
                                 tokkey=k
                 else:
                     tokkey=tokname
                 if not tokkey:
-                    # logger.info(f'Ignoring token {tokname} in record {self.key}')
+                    # print(f'Ignoring token {tokname} in record {self.key}')
                     continue
                 typ=typemap[tdict[tokkey]['type']]
+                multiline=tdict[tokkey].get('multiline',False)
                 tokvalue=typ(tokvalue)
+                if multiline:
+                    i+=1
+                    while i<len(self.__dict__[a]) and self.__dict__[a][i]!='':
+                        tokvalue+=' '+self.__dict__[a][i].strip()
+                        i+=1
                 if tokkey in determinants:
                     detrank=determinants.index(tokkey)
                     if detrank==0:
@@ -160,11 +172,12 @@ class PDBRecord(BaseRecord):
             embedfrom=espec['from']
             assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
             assert 'signal' in espec,f'Record {self.key} has an embed spec {ename} for which no signal is specified'
-            sigparser=StringParser({'signal':espec['signal']},typemap).parse
+            sigparser=BaseRecordParser({'signal':espec['signal']},typemap)
             assert 'value' in espec,f'Record {self.key} has an embed spec {ename} for which no value for signal {espec["signal"]} is specified'
-            idxparser=None
             if 'record_index' in espec:
-                idxparser=StringParser({'record_index':espec['record_index']},typemap).parse
+                sigparser.add_fields({'record_index':espec['record_index']})
+            sigparse=sigparser.parse
+            terparser=BaseRecordParser({'blank':['String',[12,80]]},typemap).parse
             if type(espec['record_format'])==str:
                 embedfmt=format_dict.get(espec['record_format'],{})
                 assert embedfmt!={},f'Record {self.key} contains an embedded_records specification with an invalid record format [{espec["record_format"]}]'
@@ -173,9 +186,12 @@ class PDBRecord(BaseRecord):
                 embedfmt=espec['record_format']
             skiplines=espec.get('skiplines',0)
             tokenize=espec.get('tokenize',{})
+            header=embedfmt.get('header',{})
             if tokenize:
                 self.tokens={}
-                tokenparser=StringParser({'token':tokenize['from']},typemap).parse
+                tokenparser=BaseRecordParser({'token':tokenize['from']},typemap).parse
+            # if header:
+            #     headerparser=
             key=base_key
             embedkey=base_key
             idx=-1
@@ -184,15 +200,17 @@ class PDBRecord(BaseRecord):
             capturing=False
             for record in self.__dict__[embedfrom]:
                 # check for signal
-                if not triggered and sigparser(record).signal==espec['value']:
+
+                sigrec=sigparse(record)
+                if not triggered and sigrec.signal==espec['value']:
                     # this is a signal-line
                     triggered=True
                     if not skiplines and not tokenize:
                         capturing=True
                     embedkey=f'{base_key}.{ename}'
-                    if idxparser:
-                        idx=idxparser(record).record_index
-                        embedkey=f'{base_key}.{ename}.{idx}'
+                    if hasattr(sigrec,'record_index'):
+                        idx=sigrec.record_index
+                        embedkey=f'{base_key}.{ename}.{idx}' # this separates biomolecules
                     # print(f'initiating capture for key {key} using {embedkey}')
                 elif triggered and not capturing:
                     if skiplines:
@@ -210,10 +228,27 @@ class PDBRecord(BaseRecord):
                         else:
                             capturing=True
                 elif capturing:
-                    if sigparser(record).signal=='':
-                        # print(f'Terminate embed capture for {embedkey}')
+                    if(terparser(record).blank==''):
+                        # print(f'Terminate embed capture for {embedkey} from record  {record}')
                         break # blank line ends the subrecord
                     # print(f'Parsing "{record}"')
+                    # we may hit a token line in the middle of the table
+                    if tokenize:
+                        tokenrec=tokenparser(record)
+                        tokenstr=tokenrec.token
+                        # print(f'Checking non-data line for tokenization "{tokenstr}"')
+                        if tokenize['d'] in tokenstr:
+                            k,v=tokenstr.split(tokenize['d'])
+                            # print(f'while capturing encountered token line: {k} {v}')
+                            if k in self.tokens:
+                                if type(self.tokens[k])!=list:
+                                    self.tokens[k]=[self.tokens[k]]
+                                self.tokens[k].append(v)
+                            else:
+                                self.tokens[k]=v
+                            # we are done with this record
+                            # print(f'We are done with {record}')
+                            continue
                     new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
                     key=new_record.key
                     record_format=new_record.format
@@ -226,9 +261,45 @@ class PDBRecord(BaseRecord):
                 # print(f'continuing record for {key}')
                         root_record=new_records[key]
                         root_record.continue_record(new_record,record_format)
-                else:
-                    pass
+                # else:
                     # print(f'Ingoring {record}')
                         
         # print(f'embed rec new keys',new_records)
         return new_records
+
+    def parse_tables(self,typemap):
+        fmt=self.format
+        self.tables={}
+        scanbegin=0
+        for tname,table in fmt['tables'].items():
+            # print(f'{key} will acquire a table {tname} from line {scanbegin}')
+            sigparser=BaseRecordParser({'signal':table['signal']},typemap).parse
+            sigval=table['value']
+            skiplines=table.get('skiplines',0)
+            rowparser=BaseRecordParser(table['fields'],typemap).parse
+            self.tables[tname]=[]
+            scanfield=table['from']
+            triggered=False
+            capturing=False
+            lskip=0
+            for i in range(scanbegin,len(self.__dict__[scanfield])):
+                # check for signal
+                l=self.__dict__[scanfield][i]
+                if not triggered and sigparser(l).signal==sigval:
+                    # this is a signal-line
+                    triggered=True
+                    if not skiplines:
+                        capturing=True
+                elif triggered and not capturing:
+                    if skiplines:
+                        lskip+=1
+                        if lskip==skiplines:
+                            capturing=True
+                elif capturing:
+                    if sigparser(l).signal=='':
+                        # print(f'Terminate table {tname}')
+                        scanbegin=i+1
+                        break
+                    parsedrow=rowparser(l)
+                    if not all([x=='' for x in parsedrow.__dict__.values()]):
+                        self.tables[tname].append(parsedrow)

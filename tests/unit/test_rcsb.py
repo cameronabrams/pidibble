@@ -37,7 +37,7 @@ def test_custom_formats():
     expected_resnames=['HIS','HIS','HIS','HIS','LEU','THR','THR','TRP','HOH','HOH','HOH']
     assert expected_resnames==[r.resName for r in s.residues]
 
-class TestParse(unittest.TestCase):
+class Test4zmj(unittest.TestCase):
 
     def setUp(self):
         self.P=PDBParser(PDBcode='4zmj').parse()
@@ -67,6 +67,7 @@ class TestParse(unittest.TestCase):
         self.assertEqual('ENVELOPE GLYCOPROTEIN GP160',m1.MOLECULE)
         self.assertEqual('YES',m1.MUTATION)
         self.assertEqual(['G'],m1.CHAIN)
+        self.assertEqual({'MOL_ID.1': ['G'], 'MOL_ID.2': ['B']},rec.get_token('CHAIN'))
 
     def test_source(self):
         q=self.P
@@ -452,15 +453,6 @@ class TestParse(unittest.TestCase):
                                         ])))
         self.assertTrue(np.array_equal(Tlist[1],np.array([107.18,185.64121,0.0])))
 
-        """test_remark_290 
-                          - rowName
-                  - replNum
-                  - m1
-                  - m2
-                  - m3
-                  - t
-        """
-
     def test_remark_465(self):
         rec=self.P.parsed['REMARK.465']
         self.assertTrue(hasattr(rec,'tables'))
@@ -588,3 +580,82 @@ class TestParse(unittest.TestCase):
         self.assertEqual(r.modelNum,'')
         self.assertEqual(r.omega,-134.45)        
 
+class Test4tvp(unittest.TestCase):
+    def setUp(self) -> None:
+        self.P=PDBParser(PDBcode='4tvp').parse()
+        return super().setUp()
+    
+    def test_title(self):
+        p=self.P.parsed
+        self.assertEqual(p['TITLE'].title,'CRYSTAL STRUCTURE OF THE HIV-1 BG505 SOSIP.664 ENV TRIMER ECTODOMAIN, COMPRISING ATOMIC-LEVEL DEFINITION OF PRE-FUSION GP120 AND GP41, IN COMPLEX WITH HUMAN ANTIBODIES PGT122 AND 35O22')
+
+    def test_remark_350(self):
+        self.assertTrue('REMARK.350' in self.P.parsed)
+        self.assertTrue(hasattr(self.P.parsed['REMARK.350'],'tokens'))
+        rec=self.P.parsed['REMARK.350']
+        # self.assertEqual(rec.tokens['APPLY THE FOLLOWING TO CHAINS'],[' G, B, L, H, D, E, A, C, F, I,', ' G, B, L, H, D, E, A, C, F, I,'])
+        self.assertTrue('REMARK.350.BIOMOLECULE.1' in self.P.parsed)
+        rec=self.P.parsed['REMARK.350.BIOMOLECULE.1']
+        print(rec)
+        Mlist,Tlist=get_symm_ops(rec)
+        self.assertEqual(len(Mlist),3)
+        self.assertTrue(np.array_equal(Mlist[0],np.identity(3)))
+        self.assertTrue(np.array_equal(Mlist[1],
+                                       np.array(
+                                        [
+                                            [-0.500000,-0.866025,0.000000],
+                                            [ 0.866025,-0.500000,0.000000],
+                                            [ 0.00000,  0.000000,1.000000]
+                                        ])))
+        self.assertTrue(np.array_equal(Tlist[1],np.array([-515.56,0.0,0.0])))
+
+    def test_remark_375(self):
+        self.assertTrue('REMARK.375' in self.P.parsed)
+        rec=self.P.parsed['REMARK.375']
+        self.assertTrue(hasattr(rec,'tables'))
+        tables=rec.tables
+        self.assertTrue('SPECIAL_POSITIONS' in tables)
+        t=tables['SPECIAL_POSITIONS']
+        self.assertEqual(len(t),4)
+        r=t[0]
+        self.assertEqual(r.atomname,'S')
+        self.assertEqual(r.residue.resName,'SO4')
+        self.assertEqual(r.residue.chainID,'G')
+        self.assertEqual(r.residue.seqNum,606)
+        self.assertEqual(r.residue.iCode,'')
+    
+    def test_remark_650(self):
+        self.assertTrue('REMARK.650' in self.P.parsed)
+        rec=self.P.parsed['REMARK.650']
+        self.assertTrue(hasattr(rec,'tokengroups'))
+        tg=rec.tokengroups
+        self.assertTrue('freetext' in tg)
+        t=tg['freetext']
+        d=rec.tokengroups['freetext']['HELIX'].HELIX
+        self.assertEqual(d,'AUTHOR DETERMINED')
+
+    def test_remark_700(self):
+        self.assertTrue('REMARK.700' in self.P.parsed)
+        rec=self.P.parsed['REMARK.700']
+        self.assertTrue(hasattr(rec,'tokengroups'))
+        tg=rec.tokengroups
+        self.assertTrue('freetext' in tg)
+        t=tg['freetext']
+        d=rec.tokengroups['freetext']['SHEET'].SHEET
+        self.assertEqual(d,'AUTHOR DETERMINED')
+        self.assertEqual(rec.get_token('SHEET'),'AUTHOR DETERMINED')
+    def test_remark_280(self):
+        self.assertTrue('REMARK.280' in self.P.parsed)
+        rec=self.P.parsed['REMARK.280']
+        self.assertTrue(hasattr(rec,'tokengroups'))
+        tg=rec.tokengroups
+        self.assertTrue('freetext' in tg)
+        t=tg['freetext']
+        d=rec.tokengroups['freetext']['SOLV_CONT'].SOLV_CONT
+        self.assertEqual(d,72.34)
+        d=rec.tokengroups['freetext']['MATT_COEF'].MATT_COEF
+        self.assertEqual(d,4.45)
+        v=rec.get_token('MATT_COEF')
+        self.assertEqual(v,4.45)
+        v=rec.get_token('CRYS_COND')
+        self.assertEqual(v,'16% ISOPROPANOL, 5.32% PEG1500, 0.2M LISO4, 0.1M SODIUM ACETATE PH 5.5, VAPOR DIFFUSION, HANGING DROP, TEMPERATURE 293K')

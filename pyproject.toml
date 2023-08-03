@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pidibble"
-version = "1.0.7"
+version = "1.0.7.1"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]

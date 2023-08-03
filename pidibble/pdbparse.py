@@ -13,6 +13,7 @@ import yaml
 import numpy as np
 from . import resources
 from .baseparsers import StringParser, ListParsers, ListParser
+from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
 
 logger=logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class PDBParser:
         cformat_dict=self.pdb_format_dict.get('custom_formats',{})
         for cname,cformat in cformat_dict.items():
             if not cname in self.mappers:
-                self.mappers[cname]=StringParser(cformat,PDBParser.mappers).parse
+                self.mappers[cname]=BaseRecordParser(cformat,PDBParser.mappers).parse
             
     def fetch(self):
         self.filename=f'{self.pdb_code}.pdb'
@@ -153,46 +154,12 @@ class PDBParser:
                         q.parse_tokens(self.mappers)
 
     def parse_tables(self):
-        for key,rec in self.parsed.items():
-            if type(rec)==list:
+        for key,p in self.parsed.items():
+            if type(p)==list:
                 continue # don't expect to read a table from a multiple-record entry
-            fmt=rec.format
-            if 'tables' in fmt:
-                rec.tables={}
-                scanbegin=0
-                for tname,table in fmt['tables'].items():
-                    # print(f'{key} will acquire a table {tname} from line {scanbegin}')
-                    sigparser=StringParser({'signal':table['signal']},self.mappers).parse
-                    sigval=table['value']
-                    skiplines=table.get('skiplines',0)
-                    rowparser=StringParser(table['fields'],self.mappers).parse
-                    rec.tables[tname]=[]
-                    scanfield=table['from']
-                    triggered=False
-                    capturing=False
-                    lskip=0
-                    for i in range(scanbegin,len(rec.__dict__[scanfield])):
-                        # check for signal
-                        l=rec.__dict__[scanfield][i]
-                        if not triggered and sigparser(l).signal==sigval:
-                            # this is a signal-line
-                            triggered=True
-                            if not skiplines:
-                                capturing=True
-                        elif triggered and not capturing:
-                            if skiplines:
-                                lskip+=1
-                                if lskip==skiplines:
-                                    capturing=True
-                        elif capturing:
-                            if sigparser(l).signal=='':
-                                # print(f'Terminate table {tname}')
-                                scanbegin=i+1
-                                break
-                            parsedrow=rowparser(l)
-                            if not all([x=='' for x in parsedrow.__dict__.values()]):
-                                rec.tables[tname].append(parsedrow)
-                        
+            rf=p.format
+            if 'tables' in rf:
+                p.parse_tables(self.mappers)                        
 
     def parse(self):
         self.fetch()
