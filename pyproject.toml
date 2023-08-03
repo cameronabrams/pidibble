@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pidibble"
-version = "1.0.7.1"
+version = "1.0.7.2"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -20,5 +20,6 @@ dependencies = [
     "pyyaml>=6"
 ]
 [project.urls]
-"Homepage" = "https://github.com/cameronabrams/pidibble"
+"Source" = "https://github.com/cameronabrams/pidibble"
+"Documentation" = "https://pidibble.readthedocs.io/en/latest/"
 "Bug Tracker" = "https://github.com/cameronabrams/pidibble/issues"

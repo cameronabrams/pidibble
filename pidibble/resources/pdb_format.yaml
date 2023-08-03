@@ -780,6 +780,17 @@ record_formats:
               tokenize:  # lines between the signal line and the embedded record data header are tokenized if a delimiter is found
                 d: ':'
                 from: [String,[12,80]]
+              headers:
+                divlabel: TRANSFORM
+                formats:
+                  mainline:
+                    format: [String,[12,40]]
+                    signalvalue: APPLY THE FOLLOWING TO CHAINS
+                  andline:
+                    format: [String,[31,40]]
+                    signalvalue: AND CHAINS
+                  value:
+                    format: [String,[43,80]]
               record_format:
                 fields:
                   rowName: [SList,[14,19]]

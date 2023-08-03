@@ -186,12 +186,14 @@ class PDBRecord(BaseRecord):
                 embedfmt=espec['record_format']
             skiplines=espec.get('skiplines',0)
             tokenize=espec.get('tokenize',{})
-            header=embedfmt.get('header',{})
+            headers=espec.get('headers',{})
+            token_hold={}
+            header_hold=[]
             if tokenize:
-                self.tokens={}
                 tokenparser=BaseRecordParser({'token':tokenize['from']},typemap).parse
-            # if header:
-            #     headerparser=
+                if headers:
+                    headertokenparse=BaseRecordParser({k:v['format'] for k,v in headers['formats'].items()},typemap).parse
+                    headernum=0
             key=base_key
             embedkey=base_key
             idx=-1
@@ -200,58 +202,77 @@ class PDBRecord(BaseRecord):
             capturing=False
             for record in self.__dict__[embedfrom]:
                 # check for signal
-
                 sigrec=sigparse(record)
                 if not triggered and sigrec.signal==espec['value']:
                     # this is a signal-line
                     triggered=True
-                    if not skiplines and not tokenize:
+                    if not skiplines and not tokenize and not headers:
                         capturing=True
                     embedkey=f'{base_key}.{ename}'
                     if hasattr(sigrec,'record_index'):
                         idx=sigrec.record_index
-                        embedkey=f'{base_key}.{ename}.{idx}' # this separates biomolecules
-                    # print(f'initiating capture for key {key} using {embedkey}')
-                elif triggered and not capturing:
+                        embedkey=f'{base_key}.{ename}{idx}'
+                    savkey=embedkey
+                    continue
+                if triggered and not capturing:
+                    # we can skip lines or we can gather tokens
                     if skiplines:
                         # print(f'Skipping {record}')
                         lskip+=1
                         if lskip==skiplines:
                             capturing=True
-                    elif tokenize:
-                        tokenrec=tokenparser(record)
-                        tokenstr=tokenrec.token
-                        # print(f'Checking non-data line for tokenization "{tokenstr}"')
+                        continue
+                    if tokenize:
+                        tokenstr=tokenparser(record).token
                         if tokenize['d'] in tokenstr:
                             k,v=tokenstr.split(tokenize['d'])
-                            self.tokens[k]=v
-                        else:
-                            capturing=True
+                            header_hold=header_check(record,headers,headertokenparse,header_hold)
+                            # print('header_hold',header_hold)
+                            if not header_hold:
+                                token_hold=gather_token(k,v,token_hold)
+                            continue
+                        # if we are tokenizing after the trigger, then 
+                        # the first occurrence of a line that is not token-containing
+                        # turns on capturing
+                        capturing=True
                 elif capturing:
+                    # if we are capturing, the first occurrence of a blank line
+                    # terminates the search for embedded records
                     if(terparser(record).blank==''):
                         # print(f'Terminate embed capture for {embedkey} from record  {record}')
-                        break # blank line ends the subrecord
+                        break
                     # print(f'Parsing "{record}"')
-                    # we may hit a token line in the middle of the table
+                    # capturing can capture embedded records or tokens
                     if tokenize:
-                        tokenrec=tokenparser(record)
-                        tokenstr=tokenrec.token
-                        # print(f'Checking non-data line for tokenization "{tokenstr}"')
-                        if tokenize['d'] in tokenstr:
+                        tokenstr=tokenparser(record).token
+                        if tokenize['d'] in tokenstr: # for sure this is a token
+                            if not header_hold:
+                                embedkey=savkey
                             k,v=tokenstr.split(tokenize['d'])
-                            # print(f'while capturing encountered token line: {k} {v}')
-                            if k in self.tokens:
-                                if type(self.tokens[k])!=list:
-                                    self.tokens[k]=[self.tokens[k]]
-                                self.tokens[k].append(v)
-                            else:
-                                self.tokens[k]=v
+                            header_hold=header_check(record,headers,headertokenparse,header_hold)
+                            if not header_hold:
+                                token_hold=gather_token(k,v,token_hold)
+                            continue
                             # we are done with this record
                             # print(f'We are done with {record}')
-                            continue
+                    # if there is either a token_hold or a header_hold, and
+                    # we have made it this far (so we know we are parsing a true subrecord
+                    # line), we hand the holds off to the new record, and reset them
+                    if header_hold:
+                        headernum+=1
+                        savkey=embedkey
+                        embedkey=f'{embedkey}.{headers["divlabel"]}{headernum}'
+                        # print(f'header hold updates key to {embedkey}')
+                    # print(f'record to {embedkey}')
                     new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
                     key=new_record.key
                     record_format=new_record.format
+                    if header_hold:
+                        new_record.header=header_hold
+                        header_hold=[]
+                    if token_hold:
+                        new_record.tokens=token_hold
+                        token_hold={}
                     # print(f'new record has key {key}')
                     if not key in new_records:
                 # print(f'new record for {key}')
@@ -261,6 +282,11 @@ class PDBRecord(BaseRecord):
                 # print(f'continuing record for {key}')
                         root_record=new_records[key]
                         root_record.continue_record(new_record,record_format)
+                        if hasattr(new_record,'tokens'):
+                            if hasattr(root_record,'tokens'):
+                                root_record.tokens.update(new_record.tokens)
+                            else:
+                                root_record.tokens=new_record.tokens
                 # else:
                     # print(f'Ingoring {record}')
                         
@@ -303,3 +329,23 @@ class PDBRecord(BaseRecord):
                     parsedrow=rowparser(l)
                     if not all([x=='' for x in parsedrow.__dict__.values()]):
                         self.tables[tname].append(parsedrow)
+
+def header_check(record,headers,parse,hold=[]):
+    r=parse(record)
+    if r.mainline==headers['formats']['mainline']['signalvalue']:
+        hold=[x.strip() for x in r.value.strip().split(',')]
+        if '' in hold:
+            hold.remove('')
+    elif r.andline==headers['formats']['andline']['signalvalue']:
+        hold.extend([x.strip() for x in r.value.strip().split(',')])
+    return hold
+
+def gather_token(k,v,hold={}):
+    if k in hold:
+        if not type(hold[k])==list:
+            hold[k]=[hold[k],v]
+        else:
+            hold[k].append(v)
+    else:
+        hold[k]=v
+    return hold

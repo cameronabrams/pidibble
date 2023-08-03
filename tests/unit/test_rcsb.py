@@ -436,11 +436,12 @@ class Test4zmj(unittest.TestCase):
     
     def test_remark_350(self):
         self.assertTrue('REMARK.350' in self.P.parsed)
-        self.assertTrue(hasattr(self.P.parsed['REMARK.350'],'tokens'))
+        # self.assertTrue(hasattr(self.P.parsed['REMARK.350'],'tokens'))
         rec=self.P.parsed['REMARK.350']
-        self.assertEqual(rec.tokens['APPLY THE FOLLOWING TO CHAINS'],' G, B, A, C, D')
-        self.assertTrue('REMARK.350.BIOMOLECULE.1' in self.P.parsed)
-        rec=self.P.parsed['REMARK.350.BIOMOLECULE.1']
+        # self.assertEqual(rec.tokens['APPLY THE FOLLOWING TO CHAINS'],' G, B, A, C, D')
+        # self.assertTrue('REMARK.350.BIOMOLECULE1' in self.P.parsed)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in self.P.parsed)
+        rec=self.P.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
         Mlist,Tlist=get_symm_ops(rec)
         self.assertEqual(len(Mlist),3)
         self.assertTrue(np.array_equal(Mlist[0],np.identity(3)))
@@ -591,23 +592,27 @@ class Test4tvp(unittest.TestCase):
 
     def test_remark_350(self):
         self.assertTrue('REMARK.350' in self.P.parsed)
-        self.assertTrue(hasattr(self.P.parsed['REMARK.350'],'tokens'))
         rec=self.P.parsed['REMARK.350']
-        # self.assertEqual(rec.tokens['APPLY THE FOLLOWING TO CHAINS'],[' G, B, L, H, D, E, A, C, F, I,', ' G, B, L, H, D, E, A, C, F, I,'])
-        self.assertTrue('REMARK.350.BIOMOLECULE.1' in self.P.parsed)
-        rec=self.P.parsed['REMARK.350.BIOMOLECULE.1']
-        print(rec)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in self.P.parsed)
+        rec=self.P.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+        self.assertEqual(rec.header,['G', 'B', 'L', 'H', 'D', 'E', 'A', 'C', 'F', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
         Mlist,Tlist=get_symm_ops(rec)
-        self.assertEqual(len(Mlist),3)
+        self.assertEqual(len(Mlist),1)
+        self.assertTrue(np.array_equal(Tlist[0],np.array([0.0,0.0,0.0])))
         self.assertTrue(np.array_equal(Mlist[0],np.identity(3)))
-        self.assertTrue(np.array_equal(Mlist[1],
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM2' in self.P.parsed)
+        rec=self.P.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
+        self.assertEqual(rec.header,['G', 'B', 'L', 'H', 'D', 'E', 'A', 'C', 'F', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
+        Mlist,Tlist=get_symm_ops(rec)
+        self.assertEqual(len(Mlist),1)
+        self.assertTrue(np.array_equal(Mlist[0],
                                        np.array(
                                         [
                                             [-0.500000,-0.866025,0.000000],
                                             [ 0.866025,-0.500000,0.000000],
                                             [ 0.00000,  0.000000,1.000000]
                                         ])))
-        self.assertTrue(np.array_equal(Tlist[1],np.array([-515.56,0.0,0.0])))
+        self.assertTrue(np.array_equal(Tlist[0],np.array([-515.56,0.0,0.0])))
 
     def test_remark_375(self):
         self.assertTrue('REMARK.375' in self.P.parsed)
