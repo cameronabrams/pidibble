@@ -8,11 +8,11 @@ Unlike parsers like that found in packages like `BioPython <https://biopython.or
 Once installed, the user has access to the ``PDBParser`` class in the ``pidibble.pdbparser`` module.
 
 Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
+on :ref:`installation` of the packge.
 
 .. note::
 
-   This project is under active development.
+   Pidibble is under active development.
 
 Contents
 --------
