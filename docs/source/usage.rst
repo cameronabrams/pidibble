@@ -16,14 +16,17 @@ Usage Example
 -------------
 
 Let's parse the PDB entry '4ZMJ', which is a trimeric ectodomain construct of the HIV-1 envelope glycoprotein:
+
 >>> from pidibble.pdbparse import PDBParser
 >>> p=PDBParser(PDBcode='4zmj').parse()
 
 We can easily ask what record types were parsed:
+
 >>> list(sorted(list(p.parsed.keys())))
 ['ANISOU', 'ATOM', 'AUTHOR', 'CISPEP', 'COMPND', 'CONECT', 'CRYST1', 'DBREF', 'END', 'EXPDTA', 'FORMUL', 'HEADER', 'HELIX', 'HET', 'HETATM', 'HETNAM', 'JRNL.AUTH', 'JRNL.DOI', 'JRNL.PMID', 'JRNL.REF', 'JRNL.REFN', 'JRNL.TITL', 'KEYWDS', 'LINK', 'MASTER', 'ORIGX1', 'ORIGX2', 'ORIGX3', 'REMARK.100', 'REMARK.2', 'REMARK.200', 'REMARK.280', 'REMARK.290', 'REMARK.290.CRYSTSYMMTRANS', 'REMARK.3', 'REMARK.300', 'REMARK.350', 'REMARK.350.BIOMOLECULE1.TRANSFORM1', 'REMARK.4', 'REMARK.465', 'REMARK.500', 'REVDAT', 'SCALE1', 'SCALE2', 'SCALE3', 'SEQADV', 'SEQRES', 'SHEET', 'SOURCE', 'SSBOND', 'TER', 'TITLE']
 
 The `pstr()` method can be used to see the contents of any record:
+
 >>> header=p.parsed['HEADER']
 >>> print(header.pstr())
 HEADER
@@ -32,11 +35,13 @@ HEADER
               idCode: 4ZMJ
 
 PDB records that are "single-line-multiple-occurrence", like ATOMs, HETATMs, SSBONDs, etc., are resolved as *lists* of pdbrecords:
+
 >>> atoms=p.parsed['ATOM']
 >>> len(atoms)
 4518
 
 Have a look at the first atom:
+
 >>> print(atoms[0].pstr())
 ATOM
               serial: 1
@@ -52,6 +57,7 @@ ATOM
               charge: 
 
 Pidibble also parses any transformations needed to generate biological assemblies:
+
 >>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
 >>> print(b.pstr())
 REMARK.350.BIOMOLECULE1.TRANSFORM1
@@ -72,6 +78,7 @@ CHANGE IN SOLVENT FREE ENERGY:  81.0 KCAL/MOL
 
 The `header` for any transform subrecord in a type-350 REMARK is the list of chains to which all transform(s) are
 applied to generate this biological assembly.  If we send that record to the accessory method `get_symm_ops`, we can get `numpy.array()` versions of any matrices:
+
 >>> from pidibble.pdbparse import get_symm_ops
 >>> Mlist,Tlist=get_symm_ops(b)
 >>> for m in Mlist:
