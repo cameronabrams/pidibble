@@ -12,7 +12,7 @@ import logging
 import yaml
 import numpy as np
 from . import resources
-from .baseparsers import StringParser, ListParsers, ListParser
+from .baseparsers import ListParsers, ListParser
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
 
@@ -24,6 +24,15 @@ class PDBParser:
     comment_lines=[]
     comment_chars=['#']
     def __init__(self,**options):
+        loglevel=options.get('loglevel','INFO')
+        logfile=options.get('logfile','pidibble.log')
+        loglevel_numeric=getattr(logging,loglevel.upper())
+        logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
+        console=logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        formatter=logging.Formatter('%(levelname)s> %(message)s')
+        console.setFormatter(formatter)
+        logging.getLogger('').addHandler(console)
         self.parsed={}
         self.pdb_code=options.get('PDBcode','')
         # print(self.pdb_code)
@@ -34,8 +43,9 @@ class PDBParser:
         if os.path.exists(self.pdb_format_file):
             with open(self.pdb_format_file,'r') as f:
                 self.pdb_format_dict=yaml.safe_load(f)
+                logger.info(f'Pestifer reads {self.pdb_format_file}')
         else:
-            logger.fatal(f'{self.pdb_format_file}: not found.')
+            logger.fatal(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
         delimiter_dict=self.pdb_format_dict.get('delimiters',{})
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
@@ -55,6 +65,8 @@ class PDBParser:
                 urllib.request.urlretrieve(target_url,self.filename)
             except:
                 logger.warning(f'Could not fetch {self.filename}')
+                return False
+        return True
 
     def read(self):
         self.pdb_lines=[]
@@ -162,10 +174,12 @@ class PDBParser:
                 p.parse_tables(self.mappers)                        
 
     def parse(self):
-        self.fetch()
-        self.read()
-        self.parse_base()
-        self.post_process()
+        if self.fetch():
+            self.read()
+            self.parse_base()
+            self.post_process()
+        else:
+            logger.warning(f'No data.')
         return self
             
 def get_symm_ops(rec:PDBRecord):

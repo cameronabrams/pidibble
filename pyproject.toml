@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pidibble"
-version = "1.0.7.3"
+version = "1.0.7.4"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -23,3 +23,5 @@ dependencies = [
 "Source" = "https://github.com/cameronabrams/pidibble"
 "Documentation" = "https://pidibble.readthedocs.io/en/latest/"
 "Bug Tracker" = "https://github.com/cameronabrams/pidibble/issues"
+[tool.pytest.ini_options]
+log_cli = true

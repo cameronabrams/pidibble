@@ -172,8 +172,6 @@ record_formats:
             type: String
           OTHER_DETAILS: 
             type: String
-          A_FAKE_TOKEN:
-            type: String
         determinants:
           - MOL_ID
   EXPDTA:

@@ -7,6 +7,8 @@
 
 """
 from .baseparsers import StringParser
+import logging
+logger=logging.getLogger(__name__)
 
 def rstr(d,excludes,pad):
     retstr=''

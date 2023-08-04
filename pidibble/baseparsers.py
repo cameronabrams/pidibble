@@ -31,15 +31,15 @@ ListParsers={
 
 cols="""
          1         2         3         4         5         6         7         8
-12345678901234567890123456789012345678901234567890123456789012345678901234567890
-"""
+12345678901234567890123456789012345678901234567890123456789012345678901234567890"""
 class StringParser:
     def __init__(self,fmtdict,typemap,allowed={}):
         self.typemap=typemap
         self.fields={k:v for k,v in fmtdict.items()}
         self.allowed=allowed
     def parse(self,record):
-        if len(record)<=80:
+        if len(record)>80:
+            logger.warning('The following record exceeds 80 bytes in length:')
             self.report_record_error(record)
         assert len(record)<=80,f'Record is too long; something wrong with your PDB file?'
         input_dict={}
@@ -52,6 +52,8 @@ class StringParser:
             fieldstring=record[byte_range[0]-1:byte_range[1]]
             fieldstring=fieldstring.strip()
             try:
+                # if len(fieldstring)>0 and not typ==str:
+                #     fieldstring=''
                 input_dict[k]='' if fieldstring=='' else typ(fieldstring)
             except:
                 self.report_field_error(record,k)
@@ -61,12 +63,14 @@ class StringParser:
             if fieldstring in self.allowed:
                 assert input_dict[k] in self.allowed[fieldstring],f'Value {input_dict[k]} is not allowed for field {k}; allowed values are {self.allowed[fieldstring]}'
         return input_dict
-    def report_record_error(self,record):
-        logger.info(cols)
-        logger.info(record)
+    
+    def report_record_error(self,record,byte_range=[]):
+        if byte_range:
+            record=record[:byte_range[0]-1]+'\033[91m'+record[byte_range[0]:byte_range[1]+1]+'\033[0m'+record[byte_range[1]+1:]
+        repstr=cols+'\n'+record
+        logger.warning(repstr)
         
     def report_field_error(self,record,k):
-        logger.info(f'ERROR: Could not parse field {k}:')
-        self.report_record_error(record)
         byte_range=self.fields[k][1]
-        logger.info(f'{" "*byte_range[0]}{"-"*(byte_range[1]+1-byte_range[0])}')
+        logger.warning(f'Could not parse field {k} from bytes {byte_range}:')
+        self.report_record_error(record,byte_range=byte_range)
