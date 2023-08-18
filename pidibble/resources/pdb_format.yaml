@@ -19,17 +19,17 @@ record_types:
   6: other
 custom_formats:
   Residue10:
-    resName: [String,[1,3]]
+    resName: [String,[1,4]]
     chainID: [String,[5,5]]
     seqNum:  [Integer,[6,9]]
     iCode:  [String,[10,10]]
   Residue11:
-    resName: [String,[1,3]]
+    resName: [String,[1,4]]
     chainID: [String,[5,5]]
     seqNum:  [Integer,[7,10]]
     iCode:  [String,[11,11]]
   Residue12:
-    resName: [String,[1,3]]
+    resName: [String,[1,4]]
     chainID: [String,[5,5]]
     seqNum:  [Integer,[7,11]]
     iCode:  [String,[12,12]]

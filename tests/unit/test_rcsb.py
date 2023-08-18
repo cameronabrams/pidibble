@@ -107,7 +107,7 @@ class Test4zmj(unittest.TestCase):
         rec=self.P.parsed['CONECT']
         self.assertEqual(len(rec),378)
         arec=rec[-8]
-        self.assertEqual(arec.serial,4851)
+        self.assertEqual(aResidue10rec.serial,4851)
         self.assertEqual(arec.partners,[4852,4853,4858])
 
 # DBREF  4ZMJ G   31   507  UNP    Q2N0S6   Q2N0S6_9HIV1    30    504             
@@ -580,6 +580,13 @@ class Test4zmj(unittest.TestCase):
         self.assertEqual(r.residueC.iCode,'')
         self.assertEqual(r.modelNum,'')
         self.assertEqual(r.omega,-134.45)        
+
+class TestFourLetterResNames(unittest.TestCase):
+    def test_four(self):
+        P=PDBParser(PDBcode='4zmj-newresnames').parse()
+        atoms=P.parsed['ATOM']
+        an_atom=atoms[9590]
+        self.assertEqual(an_atom.residue.resName,'BGNA')
 
 class Test4tvp(unittest.TestCase):
     def setUp(self) -> None:
