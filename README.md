@@ -69,8 +69,10 @@ REMARK.350.BIOMOLECULE.1
 ```
 ## Release History
 
-* 1.0.7.5
-    * bug fix: leading whitespace in resname field of Residue10 record sometime ignored
+* 1.0.7.7
+    * cleaned up logging
+* 1.0.7.6
+    * bug fix: leading whitespace in resname field of Residue10 record sometimes ignored
 * 1.0.7.5
     * support for four-letter residue names
 * 1.0.7.4

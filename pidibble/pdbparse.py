@@ -24,15 +24,10 @@ class PDBParser:
     comment_lines=[]
     comment_chars=['#']
     def __init__(self,**options):
-        loglevel=options.get('loglevel','INFO')
+        loglevel=options.get('loglevel','info')
         logfile=options.get('logfile','pidibble.log')
         loglevel_numeric=getattr(logging,loglevel.upper())
         logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
-        console=logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        formatter=logging.Formatter('%(levelname)s> %(message)s')
-        console.setFormatter(formatter)
-        logging.getLogger('').addHandler(console)
         self.parsed={}
         self.pdb_code=options.get('PDBcode','')
         # print(self.pdb_code)
@@ -43,9 +38,10 @@ class PDBParser:
         if os.path.exists(self.pdb_format_file):
             with open(self.pdb_format_file,'r') as f:
                 self.pdb_format_dict=yaml.safe_load(f)
-                logger.info(f'Pestifer reads {self.pdb_format_file}')
+                logger.info(f'Pidibble uses the installed config file:')
+                logger.info(self.pdb_format_file)
         else:
-            logger.fatal(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
+            logger.error(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
         delimiter_dict=self.pdb_format_dict.get('delimiters',{})
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
