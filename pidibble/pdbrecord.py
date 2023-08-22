@@ -53,6 +53,7 @@ class PDBRecord(BaseRecord):
     
     @classmethod
     def newrecord(cls,base_key:str,pdbrecordline:str,record_format:dict,typemap:dict):
+        # logger.debug(f'newrecord pdbrecordline "{pdbrecordline}"')
         while len(pdbrecordline)<80:
             pdbrecordline+=' '
         input_dict,current_key,current_format=PDBRecord.base_parse(base_key,pdbrecordline,record_format,typemap)
@@ -104,7 +105,7 @@ class PDBRecord(BaseRecord):
         if not 'token_formats' in record_format:
             return
         attr_w_tokens=record_format['token_formats']
-        logger.debug(self.key,list(attr_w_tokens.keys()))
+        logger.debug(f'{self.key} {list(attr_w_tokens.keys())}')
         self.tokengroups={} # one tokengroup per attribute in attr_w_tokens
         for a in attr_w_tokens.keys():
             obj=self.__dict__[a] # expect to be a list
@@ -112,14 +113,14 @@ class PDBRecord(BaseRecord):
             tdict=attr_w_tokens[a]['tokens']
             determinants=attr_w_tokens[a].get('determinants',[])
             assert len(determinants) in [0,1],f'Token group for field {a} of {self.key} may not have more than one determinant'
-            logger.debug('token names',list(tdict.keys()),'determinants',determinants)
+            logger.debug(f'token names {list(tdict.keys())} determinants {determinants}')
             self.tokengroups[a]={}
             current_tokengroup=None
             for i in range(len(self.__dict__[a])):
                 pt=self.__dict__[a][i]
                 toks=[x.strip() for x in pt.split(':')]
                 if len(toks)!=2: # this is not a token-bearing string
-                    logger.debug('ignoring tokenstring:',toks)
+                    logger.debug(f'ignoring tokenstring: {toks}')
                     continue
                 tokkey=None
                 try:
@@ -150,7 +151,7 @@ class PDBRecord(BaseRecord):
                 if tokkey in determinants:
                     detrank=determinants.index(tokkey)
                     if detrank==0:
-                        logger.debug('new det tokgroup',tokkey,tokvalue)
+                        logger.debug('new det tokgroup {tokkey} {tokvalue}')
                         new_tokengroup=tokengroup(tokkey,tokvalue)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                         current_tokengroup=self.tokengroups[a][new_tokengroup.label]
@@ -161,7 +162,7 @@ class PDBRecord(BaseRecord):
                     if not current_tokengroup:
                         # we have not encoutered the determinant token 
                         # so we assume there is not one
-                        logger.debug('new nondet tokgroup',tokkey,tokvalue)
+                        logger.debug('new nondet tokgroup {tokkey} {tokvalue}')
                         new_tokengroup=tokengroup(tokkey,tokvalue,determinant=False)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                     else:
@@ -232,7 +233,7 @@ class PDBRecord(BaseRecord):
                         if tokenize['d'] in tokenstr:
                             k,v=tokenstr.split(tokenize['d'])
                             header_hold=header_check(record,headers,headertokenparse,header_hold)
-                            logger.debug('header_hold',header_hold)
+                            logger.debug(f'header_hold {header_hold}')
                             if not header_hold:
                                 token_hold=gather_token(k,v,token_hold)
                             continue
@@ -244,7 +245,7 @@ class PDBRecord(BaseRecord):
                     # if we are capturing, the first occurrence of a blank line
                     # terminates the search for embedded records
                     if(terparse(record).blank==''):
-                        logger.debug(f'Terminate embed capture for {embedkey} from record  {record}')
+                        logger.debug(f'Terminate embed capture for {embedkey} from record {record}')
                         break
                     logger.debug(f'Parsing "{record}"')
                     # capturing can capture embedded records or tokens
@@ -295,7 +296,7 @@ class PDBRecord(BaseRecord):
                 else:
                     logger.debug(f'Ingoring {record}')
                         
-        logger.debug(f'embed rec new keys',new_records)
+        logger.debug(f'embed rec new keys {new_records}')
         return new_records
 
     def parse_tables(self,typemap):

@@ -50,7 +50,7 @@ class StringParser:
             assert byte_range[1]<=len(record),f'{record} {byte_range}'
             # using columns beginning with "1" not "0"
             fieldstring=record[byte_range[0]-1:byte_range[1]]
-            fieldstring=fieldstring.strip()
+            fieldstring=fieldstring.rstrip()
             try:
                 # if len(fieldstring)>0 and not typ==str:
                 #     fieldstring=''

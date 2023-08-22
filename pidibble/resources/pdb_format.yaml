@@ -322,6 +322,20 @@ record_formats:
       tempFactor: [Float,[61,66]]
       element: [String,[77,78]]
       charge: [Float,[79,80]] # String?
+  HETATM:
+    type: 3
+    fields:
+      serial: [Integer,[7,11]]
+      name: [String,[13,16]]
+      altLoc: [String,[17,17]]
+      residue: [Residue10,[18,27]]
+      x: [Float,[31,38]]
+      y: [Float,[39,46]]
+      z: [Float,[47,54]]
+      occupancy: [Float,[55,60]]
+      tempFactor: [Float,[61,66]]
+      element: [String,[77,78]]
+      charge: [Float,[79,80]] # String?
   CISPEP:
     type: 3
     fields:
@@ -405,20 +419,6 @@ record_formats:
       residue: [Residue11,[8,18]]
       numHetAtoms: [Integer,[21,25]]
       text: [String,[31,70]]
-  HETATM:
-    type: 3
-    fields:
-      serial: [Integer,[7,11]]
-      name: [String,[13,16]]
-      altLoc: [String,[17,17]]
-      residue: [Residue10,[18,27]]
-      x: [Float,[31,38]]
-      y: [Float,[39,46]]
-      z: [Float,[47,54]]
-      occupancy: [Float,[55,60]]
-      tempFactor: [Float,[61,66]]
-      element: [String,[77,78]]
-      charge: [Float,[79,80]] # String?
   LINK:
     type: 3
     fields:
