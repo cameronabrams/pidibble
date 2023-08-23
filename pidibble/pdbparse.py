@@ -179,20 +179,19 @@ class PDBParser:
         return self
             
 def get_symm_ops(rec:PDBRecord):
-    # assert rec.key=='REMARK.290.CRYSTSYMMTRANS'
-    # TODO: infer attribute names from rec.format
     M=np.identity(3)
     T=np.array([0.,0.,0.])
-    Mlist=[]
-    Tlist=[]
-    for r,i,c1,c2,c3,t in zip(rec.rowName,rec.replNum,rec.m1,rec.m2,rec.m3,rec.t):
-        row=int(r[-1])-1
-        M[row][0]=c1
-        M[row][1]=c2
-        M[row][2]=c3
-        T[row]=t
-        if row==2:
-            Mlist.append(M.copy())
-            Tlist.append(T.copy())
-            M=np.identity(3)
-    return Mlist,Tlist
+    # Mlist=[]
+    # Tlist=[]
+    assert len(rec.row)==3,f'a transformation matrix record should not have more than 3 rows'
+    for l,c,t,r in zip(rec.label,rec.coordinate,rec.divnumber,rec.row):
+        row=c-1
+        M[row][0]=r.m1
+        M[row][1]=r.m2
+        M[row][2]=r.m3
+        T[row]=r.t
+        # if row==2:
+        #     Mlist.append(M.copy())
+        #     Tlist.append(T.copy())
+        #     M=np.identity(3)
+    return M,T

@@ -33,6 +33,12 @@ custom_formats:
     chainID: [String,[5,5]]
     seqNum:  [Integer,[7,11]]
     iCode:  [String,[12,12]]
+  Biomtrow:
+    m1: [Float,[1,10]]
+    m2: [Float,[11,20]]
+    m3: [Float,[21,30]]
+    t:  [Float,[36,45]]
+
 record_formats:
   HEADER:
     type: 1
@@ -745,19 +751,15 @@ record_formats:
               skiplines: 3
               record_format:
                 fields:
-                  rowName: [SList,[14,19]]
-                  replNum: [Integer,[21,23]]
-                  m1: [Float,[24,33]]
-                  m2: [Float,[34,43]]
-                  m3: [Float,[44,53]]
-                  t:  [Float,[59,68]]
+                  label: [SList,[14,18]]
+                  coordinate: [Integer,[19,19]]
+                  divnumber: [Integer,[21,23]]
+                  row: [Biomtrow,[24,69]]
                 continues:
-                  - rowName
-                  - replNum
-                  - m1
-                  - m2
-                  - m3
-                  - t
+                  - label
+                  - coordinate
+                  - divnumber
+                  - row
         300:
           fields:
             freetext: [LList,[12,80]]
@@ -791,19 +793,15 @@ record_formats:
                     format: [String,[43,80]]
               record_format:
                 fields:
-                  rowName: [SList,[14,19]]
-                  replNum: [Integer,[21,23]]
-                  m1: [Float,[24,33]]
-                  m2: [Float,[34,43]]
-                  m3: [Float,[44,53]]
-                  t:  [Float,[59,68]]
+                  label: [SList,[14,18]]
+                  coordinate: [Integer,[19,19]]
+                  divnumber: [Integer,[21,23]]
+                  row: [Biomtrow,[24,69]]
                 continues:
-                  - rowName
-                  - replNum
-                  - m1
-                  - m2
-                  - m3
-                  - t
+                  - label
+                  - coordinate
+                  - divnumber
+                  - row
         375:
           fields:
             freetext: [LList,[1,80]]

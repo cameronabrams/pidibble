@@ -19,8 +19,13 @@ def rstr(d,excludes,pad):
             if type(v)==dict:
                 retstr+='\n'
                 retstr+=rstr(v,excludes,pad+5)
-            else:
-                retstr+=f' {v}'+'\n'
+            elif hasattr(v,'__len__') and not type(v)==str:
+                ch=['','']
+                if hasattr(v[0],'__dict__'):
+                    ch=['[',']']
+                retstr+=' '+', '.join([f'{ch[0]}{str(x)}{ch[1]}' for x in v])+'\n'
+            else: # type(v)==str:
+                retstr+=f' {str(v)}'+'\n'
     return retstr    
 
 class BaseRecord:

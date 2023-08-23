@@ -89,13 +89,11 @@ Pidibble also parses any transformations needed to generate biological assemblie
 >>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
 >>> print(b.pstr())
 REMARK.350.BIOMOLECULE1.TRANSFORM1
-             rowName: ['BIOMT2', 'BIOMT3', 'BIOMT1', 'BIOMT2', 'BIOMT3', 'BIOMT1', 'BIOMT2', 'BIOMT3']
-             replNum: [1, 1, 2, 2, 2, 3, 3, 3]
-                  m1: [0.0, 0.0, -0.5, 0.866025, 0.0, -0.5, -0.866025, 0.0]
-                  m2: [1.0, 0.0, -0.866025, -0.5, 0.0, 0.866025, -0.5, 0.0]
-                  m3: [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
-                   t: [0.0, 0.0, 107.18, 185.64121, 0.0, -107.18, 185.64121, 0.0]
-              header: ['G', 'B', 'A', 'C', 'D']
+               label: BIOMT, BIOMT, BIOMT
+          coordinate: 1, 2, 3
+           divnumber: 1, 1, 1
+                 row: [m1: 1.0; m2: 0.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 1.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0]
+              header: G, B, A, C, D
               tokens:
 AUTHOR DETERMINED BIOLOGICAL UNIT:  HEXAMERIC
 SOFTWARE DETERMINED QUATERNARY STRUCTURE:  HEXAMERIC
@@ -108,18 +106,28 @@ The ``header`` instance attribute for any transform subrecord in a type-350 REMA
 applied to generate this biological assembly.  If we send that record to the accessory method ``get_symm_ops()``, we can get ``numpy.array()`` versions of any matrices:
 
 >>> from pidibble.pdbparse import get_symm_ops
->>> Mlist,Tlist=get_symm_ops(b)
->>> for m in Mlist:
-...     print(str(m))
-... 
+>>> M,T=get_symm_ops(b)
+>>> print(str(M))
 [[1. 0. 0.]
  [0. 1. 0.]
  [0. 0. 1.]]
+>>> print(str(T))
+[0. 0. 0.]
+>>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
+>>> M,T=get_symm_ops(b)
+>>> print(str(M))
 [[-0.5      -0.866025  0.      ]
  [ 0.866025 -0.5       0.      ]
  [ 0.        0.        1.      ]]
+>>> print(str(T))
+[107.18    185.64121   0.     ]
+>>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM3']
+>>> M,T=get_symm_ops(b)
+>>> print(str(M))
 [[-0.5       0.866025  0.      ]
  [-0.866025 -0.5       0.      ]
  [ 0.        0.        1.      ]]
+>>> print(str(T))
+[-107.18     185.64121    0.     ]
 
-You may recognize these rotation matrices as those that generate an object C3v symmetry.  Each rotation is also accompanied by a translation, here in the ``Tlist`` object.
+You may recognize these rotation matrices as those that generate an object with C3v symmetry.  Each rotation is also accompanied by a translation, here in the ``Tlist`` object.

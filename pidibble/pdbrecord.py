@@ -151,7 +151,7 @@ class PDBRecord(BaseRecord):
                 if tokkey in determinants:
                     detrank=determinants.index(tokkey)
                     if detrank==0:
-                        logger.debug('new det tokgroup {tokkey} {tokvalue}')
+                        logger.debug(f'new det tokgroup {tokkey} {tokvalue}')
                         new_tokengroup=tokengroup(tokkey,tokvalue)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                         current_tokengroup=self.tokengroups[a][new_tokengroup.label]
@@ -162,12 +162,13 @@ class PDBRecord(BaseRecord):
                     if not current_tokengroup:
                         # we have not encoutered the determinant token 
                         # so we assume there is not one
-                        logger.debug('new nondet tokgroup {tokkey} {tokvalue}')
+                        logger.debug(f'new nondet tokgroup {tokkey} {tokvalue}')
                         new_tokengroup=tokengroup(tokkey,tokvalue,determinant=False)
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                     else:
                         current_tokengroup.add_token(tokkey,tokvalue)
     def parse_embedded(self,format_dict,typemap):
+        logger.debug(f'Parsing embedded')
         new_records={}
         record_format=self.format 
         if not 'embedded_records' in record_format:
@@ -175,6 +176,7 @@ class PDBRecord(BaseRecord):
         base_key=self.key
         embedspec=record_format.get('embedded_records',{})
         for ename,espec in embedspec.items():
+            logger.debug(f'Embedded {ename}')
             embedfrom=espec['from']
             assert embedfrom in self.__dict__,f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
             assert 'signal' in espec,f'Record {self.key} has an embed spec {ename} for which no signal is specified'
@@ -198,14 +200,15 @@ class PDBRecord(BaseRecord):
             if tokenize:
                 tokenparser=BaseRecordParser({'token':tokenize['from']},typemap).parse
                 if headers:
-                    headertokenparse=BaseRecordParser({k:v['format'] for k,v in headers['formats'].items()},typemap).parse
-                    headernum=0
-            key=base_key
+                    headertokenparser=BaseRecordParser({k:v['format'] for k,v in headers['formats'].items()},typemap).parse
             embedkey=base_key
             idx=-1
             lskip=0
-            triggered=False
-            capturing=False
+            triggered=False # True when an embedded_record signal is encountered
+            capturing=False # True once we have skipped the desired number of lines
+                            # after the signal OR if we are tokenizing and encounter
+                            # the FIRST non-tokenizable line
+            current_division=0
             for record in self.__dict__[embedfrom]:
                 # check for signal
                 sigrec=sigparse(record)
@@ -218,8 +221,8 @@ class PDBRecord(BaseRecord):
                     embedkey=f'{base_key}.{ename}'
                     if idx:
                         embedkey=f'{base_key}.{ename}{idx}'
-                    savkey=embedkey
-                    continue
+                    # savkey=embedkey
+                    continue # go to next record
                 if triggered and not capturing:
                     # we can skip lines or we can gather tokens
                     if skiplines:
@@ -228,71 +231,35 @@ class PDBRecord(BaseRecord):
                         if lskip==skiplines:
                             capturing=True
                         continue
+                    logger.debug(f'Parsing "{record}"')
                     if tokenize:
-                        tokenstr=tokenparser(record).token
-                        if tokenize['d'] in tokenstr:
-                            k,v=tokenstr.split(tokenize['d'])
-                            header_hold=header_check(record,headers,headertokenparse,header_hold)
-                            logger.debug(f'header_hold {header_hold}')
-                            if not header_hold:
-                                token_hold=gather_token(k,v,token_hold)
+                        is_ht=header_or_token(record,tokenize['d'],headers,tokenparser,headertokenparser,token_hold,header_hold)
+                        if is_ht:
+                            continue # go to next record
+                        else:
+                            # if it not a token, it must be a record described by record_format
+                            capturing=True
+                            new_div=capture_record(record,embedfmt,typemap,embedkey,headers,header_hold,token_hold,current_division,new_records)
+                            if new_div:
+                                current_division+=1
+                                logger.debug(f'First capture into division {current_division}')
                             continue
-                        # if we are tokenizing after the trigger, then 
-                        # the first occurrence of a line that is not token-containing
-                        # turns on capturing
-                        capturing=True
                 elif capturing:
                     # if we are capturing, the first occurrence of a blank line
                     # terminates the search for embedded records
                     if(terparse(record).blank==''):
                         logger.debug(f'Terminate embed capture for {embedkey} from record {record}')
-                        break
+                        break # finished!
                     logger.debug(f'Parsing "{record}"')
                     # capturing can capture embedded records or tokens
                     if tokenize:
-                        tokenstr=tokenparser(record).token
-                        if tokenize['d'] in tokenstr: # for sure this is a token
-                            if not header_hold:
-                                embedkey=savkey
-                            k,v=tokenstr.split(tokenize['d'])
-                            header_hold=header_check(record,headers,headertokenparse,header_hold)
-                            if not header_hold:
-                                token_hold=gather_token(k,v,token_hold)
+                        is_ht=header_or_token(record,tokenize['d'],headers,tokenparser,headertokenparser,token_hold,header_hold)
+                        if is_ht:
                             continue
-                            # we are done with this record
-                            logger.debug(f'We are done with {record}')
-                    # if there is either a token_hold or a header_hold, and
-                    # we have made it this far (so we know we are parsing a true subrecord
-                    # line), we hand the holds off to the new record, and reset them
-                    if header_hold:
-                        headernum+=1
-                        savkey=embedkey
-                        embedkey=f'{embedkey}.{headers["divlabel"]}{headernum}'
-                        logger.debug(f'header hold updates key to {embedkey}')
-                    logger.debug(f'record to {embedkey}')
-                    new_record=PDBRecord.newrecord(embedkey,record,embedfmt,typemap)
-                    key=new_record.key
-                    record_format=new_record.format
-                    if header_hold:
-                        new_record.header=header_hold
-                        header_hold=[]
-                    if token_hold:
-                        new_record.tokens=token_hold
-                        token_hold={}
-                    logger.debug(f'new record has key {key}')
-                    if not key in new_records:
-                        logger.debug(f'new record for {key}')
-                        new_records[key]=new_record
-                    else:
-                # this must be a continuation record
-                        logger.debug(f'continuing record for {key}')
-                        root_record=new_records[key]
-                        root_record.continue_record(new_record,record_format)
-                        if hasattr(new_record,'tokens'):
-                            if hasattr(root_record,'tokens'):
-                                root_record.tokens.update(new_record.tokens)
-                            else:
-                                root_record.tokens=new_record.tokens
+                    new_div=capture_record(record,embedfmt,typemap,embedkey,headers,header_hold,token_hold,current_division,new_records)
+                    if new_div:
+                        current_division+=1
+                    continue
                 else:
                     logger.debug(f'Ingoring {record}')
                         
@@ -339,12 +306,12 @@ class PDBRecord(BaseRecord):
 def header_check(record,headers,parse,hold=[]):
     r=parse(record)
     if r.mainline==headers['formats']['mainline']['signalvalue']:
-        hold=[x.strip() for x in r.value.strip().split(',')]
+        assert len(hold)==0
+        hold.extend([x.strip() for x in r.value.strip().split(',')])
         if '' in hold:
             hold.remove('')
     elif r.andline==headers['formats']['andline']['signalvalue']:
         hold.extend([x.strip() for x in r.value.strip().split(',')])
-    return hold
 
 def gather_token(k,v,hold={}):
     if k in hold:
@@ -354,4 +321,82 @@ def gather_token(k,v,hold={}):
             hold[k].append(v)
     else:
         hold[k]=v
-    return hold
+
+def header_or_token(rec,d,hdrs,tp,htp,th,hh):
+    # check to see if the record is tokenizable either as
+    # a generic tokenstring or a header
+    # rec: record
+    # d: delimiter
+    # hdrs: headers dict from the embedded_records entry
+    # tp: token parser
+    # htp: header token parser
+    # th: token holder
+    # hth: header token holder
+    # returns True if a token or headertoken was parsed
+    # False otherwise
+    tokenstr=tp(rec).token
+    if d in tokenstr:
+        k,v=tokenstr.split(d)
+        # check to see if this a special "header" line
+        header_check(rec,hdrs,htp,hh)
+        logger.debug(f'header_hold {hh}')
+        if not hh:
+            gather_token(k,v,th)
+        return True
+    return False
+
+def capture_record(rec,fmt,typemap,key,hdrs,hh,th,divno,rh):
+    # rec: the record
+    # fmt: format
+    # typemap
+    # key: current base key
+    # hdrs: headers dict from the embedded_records entry
+    # hh: header holder
+    # th: token holder
+    # divno: current division number
+    # rh: record holder
+    new_division=False
+    embedkey=key
+    if hh:
+        divno+=1
+        logger.debug(f'Capture inherits a header hold; currdivno {divno}')
+        new_division=True
+    # if we are not holding headers, we still could encounter a new division
+    # of the data if the record's divnumber is not the current divnumber
+    if hdrs:
+        embedkey=f'{key}.{hdrs["divlabel"]}{divno}'
+    logger.debug(f'record to {embedkey}')
+    new_record=PDBRecord.newrecord(embedkey,rec,fmt,typemap)
+    if hasattr(new_record,'divnumber'):
+        mydivno=new_record.divnumber
+        if mydivno==divno+1:
+            logger.debug(f'New division detected {divno} -> {mydivno}')
+            new_division=True
+        divlabel=hdrs.get('divlabel','')
+        embedkey=f'{key}.{divlabel}{mydivno}'
+        new_record.key=embedkey
+    thiskey=new_record.key
+    record_format=new_record.format
+    if hh:
+        new_record.header=hh.copy()
+        while hh:
+            hh.pop(0)
+    if th:
+        new_record.tokens=th.copy()
+        keys=list(th.keys())
+        for k in keys:
+            del th[k]
+    logger.debug(f'new record has key {thiskey}')
+    if not thiskey in rh:
+        logger.debug(f'new record for {thiskey}')
+        rh[thiskey]=new_record
+    else:
+        logger.debug(f'continuing record for {thiskey}')
+        root_record=rh[thiskey]
+        root_record.continue_record(new_record,record_format)
+        if hasattr(new_record,'tokens'):
+            if hasattr(root_record,'tokens'):
+                root_record.tokens.update(new_record.tokens)
+            else:
+                root_record.tokens=new_record.tokens
+    return new_division

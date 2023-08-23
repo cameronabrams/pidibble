@@ -42,33 +42,12 @@ ATOM
           tempFactor: 137.71
              element: N
               charge: 
->>> b=p.parsed['REMARK.350.BIOMOLECULE.1']
->>> print(b.pstr())
-REMARK.350.BIOMOLECULE.1
-             rowName: ['BIOMT2', 'BIOMT3', 'BIOMT1', 'BIOMT2', 'BIOMT3', 'BIOMT1', 'BIOMT2', 'BIOMT3']
-             replNum: [1, 1, 2, 2, 2, 3, 3, 3]
-                  m1: [0.0, 0.0, -0.5, 0.866025, 0.0, -0.5, -0.866025, 0.0]
-                  m2: [1.0, 0.0, -0.866025, -0.5, 0.0, 0.866025, -0.5, 0.0]
-                  m3: [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
-                   t: [0.0, 0.0, 107.18, 185.64121, 0.0, -107.18, 185.64121, 0.0]
 
->>> from pidibble.pdbparse import get_symm_ops
->>> Mlist,Tlist=get_symm_ops(b)
->>> for m in Mlist:
-...     print(str(m))
-... 
-[[1. 0. 0.]
- [0. 1. 0.]
- [0. 0. 1.]]
-[[-0.5      -0.866025  0.      ]
- [ 0.866025 -0.5       0.      ]
- [ 0.        0.        1.      ]]
-[[-0.5       0.866025  0.      ]
- [-0.866025 -0.5       0.      ]
- [ 0.        0.        1.      ]]
 ```
 ## Release History
 
+* 1.0.8
+    * bug fix: handle variations in how symmetry operation matrices are represented
 * 1.0.7.7
     * cleaned up logging
 * 1.0.7.6
