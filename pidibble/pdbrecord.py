@@ -1,7 +1,7 @@
 """
 
 .. module:: pdbrecord
-   :synopsis: defines the PDBRecrrd class
+   :synopsis: defines the PDBRecord class
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 

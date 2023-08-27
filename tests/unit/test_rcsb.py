@@ -588,6 +588,66 @@ class Test4zmj(unittest.TestCase):
         self.assertEqual(r.modelNum,'')
         self.assertEqual(r.omega,-134.45)        
 
+    def test_cif(self):
+        p=PDBParser(input_format='mmCIF',PDBcode='4zmj').parse()
+        o=PDBParser(input_format='PDB',PDBcode='4zmj').parse()
+        self.assertTrue(p is not None)
+        for ats in ['ATOM','HETATM']:
+            print(ats)
+            patoms=p.parsed[ats]
+            oatoms=o.parsed[ats]
+            self.assertEqual(len(patoms),len(oatoms))
+            pn_atom=patoms[0]
+            on_atom=oatoms[0]
+            # serial numbers in PDB files may not match those in CIF files because
+            # PDB files may have TER records that have a serial number just like an atom
+            # self.assertEqual(pn_atom.serial,on_atom.serial)
+            self.assertEqual(pn_atom.name,on_atom.name)
+            self.assertEqual(pn_atom.altLoc,on_atom.altLoc)
+            self.assertEqual(pn_atom.residue.chainID,on_atom.residue.chainID)
+            self.assertEqual(pn_atom.residue.resName,on_atom.residue.resName)
+            self.assertEqual(pn_atom.residue.seqNum,on_atom.residue.seqNum)
+            self.assertEqual(pn_atom.residue.iCode,on_atom.residue.iCode)
+            self.assertEqual(pn_atom.x,on_atom.x)
+            self.assertEqual(pn_atom.y,on_atom.y)
+            self.assertEqual(pn_atom.z,on_atom.z)
+            self.assertEqual(pn_atom.occupancy,on_atom.occupancy)
+            self.assertEqual(pn_atom.tempFactor,on_atom.tempFactor)
+            self.assertEqual(pn_atom.element,on_atom.element)
+            self.assertEqual(pn_atom.charge,on_atom.charge)
+        plinks=p.parsed['LINK']
+        olinks=o.parsed['LINK']
+        self.assertEqual(len(plinks),len(olinks))
+        # do they have the same order though?
+        pn_link=plinks[0]
+        on_link=olinks[0]
+        self.assertEqual(pn_link.name1,on_link.name1)
+        self.assertEqual(pn_link.altLoc1,on_link.altLoc1)
+        self.assertEqual(pn_link.residue1.chainID,on_link.residue1.chainID)
+        self.assertEqual(pn_link.residue1.resName,on_link.residue1.resName)
+        self.assertEqual(pn_link.residue1.seqNum,on_link.residue1.seqNum)
+        self.assertEqual(pn_link.residue1.iCode,on_link.residue1.iCode)
+        self.assertEqual(pn_link.name2,on_link.name2)
+        self.assertEqual(pn_link.altLoc2,on_link.altLoc2)
+        self.assertEqual(pn_link.residue2.chainID,on_link.residue2.chainID)
+        self.assertEqual(pn_link.residue2.resName,on_link.residue2.resName)
+        self.assertEqual(pn_link.residue2.seqNum,on_link.residue2.seqNum)
+        self.assertEqual(pn_link.residue2.iCode,on_link.residue2.iCode)
+
+        pssbonds=p.parsed['SSBOND']
+        ossbonds=o.parsed['SSBOND']
+        self.assertEqual(len(pssbonds),len(ossbonds))
+        p_ss=pssbonds[0]
+        o_ss=ossbonds[0]
+        self.assertEqual(p_ss.residue1.chainID,o_ss.residue1.chainID)
+        self.assertEqual(p_ss.residue1.resName,o_ss.residue1.resName)
+        self.assertEqual(p_ss.residue1.seqNum,o_ss.residue1.seqNum)
+        self.assertEqual(p_ss.residue1.iCode,o_ss.residue1.iCode)
+
+        p_missing=p.parsed['REMARK.465']
+        o_missing=o.parsed['REMARK.465']
+        self.assertEqual(len(p_missing),len(o_missing))
+
 class TestFourLetterResNames(unittest.TestCase):
     def test_four(self):
         P=PDBParser(PDBcode='4zmj-newresnames').parse()

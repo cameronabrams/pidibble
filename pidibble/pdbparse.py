@@ -11,10 +11,12 @@ import os
 import logging
 import yaml
 import numpy as np
+from mmcif.io.IoAdapterCore import IoAdapterCore
 from . import resources
 from .baseparsers import ListParsers, ListParser
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
+from .mmcif_parse import mmCIF_parser
 
 logger=logging.getLogger(__name__)
 
@@ -23,18 +25,23 @@ class PDBParser:
     mappers.update(ListParsers)
     comment_lines=[]
     comment_chars=['#']
+    default_input_format='PDB'
     def __init__(self,**options):
         loglevel=options.get('loglevel','info')
         logfile=options.get('logfile','pidibble.log')
         loglevel_numeric=getattr(logging,loglevel.upper())
         logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
         self.parsed={}
+        self.input_format=options.get('input_format','PDB')
         self.pdb_code=options.get('PDBcode','')
         # print(self.pdb_code)
         self.overwrite=options.get('overwrite',False)
         self.pdb_format_file=options.get('pdb_format_file',os.path.join(
             os.path.dirname(resources.__file__),
             'pdb_format.yaml'))
+        self.mmcif_format_file=options.get('mmcif_format_file',os.path.join(
+            os.path.dirname(resources.__file__),
+            'mmcif_format.yaml'))
         if os.path.exists(self.pdb_format_file):
             with open(self.pdb_format_file,'r') as f:
                 self.pdb_format_dict=yaml.safe_load(f)
@@ -42,6 +49,13 @@ class PDBParser:
                 logger.info(self.pdb_format_file)
         else:
             logger.error(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
+        if os.path.exists(self.mmcif_format_file):
+            with open(self.mmcif_format_file,'r') as f:
+                self.mmcif_format_dict=yaml.safe_load(f)
+                logger.info(f'Pidibble uses the installed config file:')
+                logger.info(self.mmcif_format_file)
+        else:
+            logger.error(f'{self.mmcif_format_file}: not found. You have a bad installation of pidibble.')
         delimiter_dict=self.pdb_format_dict.get('delimiters',{})
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
@@ -53,25 +67,54 @@ class PDBParser:
                 self.mappers[cname]=BaseRecordParser(cformat,PDBParser.mappers).parse
             
     def fetch(self):
-        self.filename=f'{self.pdb_code}.pdb'
+        # TODO: allow for back-defaulting to mmCIF format
+        # if PDB is not available
+        if self.input_format=='PDB':
+            self.filepath=f'{self.pdb_code}.pdb'
+        elif self.input_format=='mmCIF':
+            self.filepath=f'{self.pdb_code}.cif'
+        else:
+            logger.warning(f'Input format {self.input_format} not recognized; using PDB')
+            self.filepath=f'{self.pdb_code}.pdb'
         BASE_URL=self.pdb_format_dict['BASE_URL']
-        target_url=os.path.join(BASE_URL,self.filename)
-        if not os.path.exists(self.filename) or self.overwrite:
+        target_url=os.path.join(BASE_URL,self.filepath)
+        if not os.path.exists(self.filepath) or self.overwrite:
             try:
-                urllib.request.urlretrieve(target_url,self.filename)
+                urllib.request.urlretrieve(target_url,self.filepath)
             except:
-                logger.warning(f'Could not fetch {self.filename}')
+                logger.warning(f'Could not fetch {self.filepath}')
                 return False
         return True
 
-    def read(self):
+    def read_PDB(self):
         self.pdb_lines=[]
-        with open(self.filename,'r') as f:
+        with open(self.filepath,'r') as f:
             self.pdb_lines=f.read().split('\n')
             if self.pdb_lines[-1]=='':
                 self.pdb_lines=self.pdb_lines[:-1]
-        
+    def read_mmCIF(self):
+        io=IoAdapterCore()
+        l_dc=io.readFile(self.filepath)
+        self.cif_data=l_dc[0]
+    def read(self):
+        self.pdb_lines=[]
+        self.cif_data=None
+        if self.input_format=='mmCIF':
+            self.read_mmCIF()
+        else:
+            self.read_PDB()
+
     def parse_base(self):
+        if self.input_format=='mmCIF':
+            self.parse_mmCIF()
+        else:
+            self.parse_PDB()
+
+    def parse_mmCIF(self):
+        pdb_record_formats=self.pdb_format_dict['record_formats']
+        self.parsed=mmCIF_parser(self.cif_data,pdb_record_formats,self.mmcif_format_dict)
+
+    def parse_PDB(self):
         record_formats=self.pdb_format_dict['record_formats']
         key=''
         record_format={}
@@ -124,9 +167,10 @@ class PDBParser:
 
 
     def post_process(self):
-        self.parse_embedded_records()
-        self.parse_tokens()
-        self.parse_tables()
+        if self.input_format!='mmCIF':
+            self.parse_embedded_records()
+            self.parse_tokens()
+            self.parse_tables()
 
     def parse_embedded_records(self):
         new_parsed_records={}
@@ -181,8 +225,6 @@ class PDBParser:
 def get_symm_ops(rec:PDBRecord):
     M=np.identity(3)
     T=np.array([0.,0.,0.])
-    # Mlist=[]
-    # Tlist=[]
     assert len(rec.row)==3,f'a transformation matrix record should not have more than 3 rows'
     for l,c,t,r in zip(rec.label,rec.coordinate,rec.divnumber,rec.row):
         row=c-1
@@ -190,8 +232,4 @@ def get_symm_ops(rec:PDBRecord):
         M[row][1]=r.m2
         M[row][2]=r.m3
         T[row]=r.t
-        # if row==2:
-        #     Mlist.append(M.copy())
-        #     Tlist.append(T.copy())
-        #     M=np.identity(3)
     return M,T
