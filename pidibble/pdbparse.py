@@ -16,7 +16,7 @@ from . import resources
 from .baseparsers import ListParsers, ListParser
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
-from .mmcif_parse import mmCIF_parser
+from .mmcif_parse import MMCIF_Parser
 
 logger=logging.getLogger(__name__)
 
@@ -111,8 +111,8 @@ class PDBParser:
             self.parse_PDB()
 
     def parse_mmCIF(self):
-        pdb_record_formats=self.pdb_format_dict['record_formats']
-        self.parsed=mmCIF_parser(self.cif_data,pdb_record_formats,self.mmcif_format_dict)
+        mmcif_parser=MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'])
+        self.parsed=mmcif_parser.parse(self.cif_data)
 
     def parse_PDB(self):
         record_formats=self.pdb_format_dict['record_formats']
@@ -226,7 +226,7 @@ def get_symm_ops(rec:PDBRecord):
     M=np.identity(3)
     T=np.array([0.,0.,0.])
     assert len(rec.row)==3,f'a transformation matrix record should not have more than 3 rows'
-    for l,c,t,r in zip(rec.label,rec.coordinate,rec.divnumber,rec.row):
+    for c,r in zip(rec.coordinate,rec.row):
         row=c-1
         M[row][0]=r.m1
         M[row][1]=r.m2

@@ -644,9 +644,12 @@ class Test4zmj(unittest.TestCase):
         self.assertEqual(p_ss.residue1.seqNum,o_ss.residue1.seqNum)
         self.assertEqual(p_ss.residue1.iCode,o_ss.residue1.iCode)
 
-        p_missing=p.parsed['REMARK.465']
-        o_missing=o.parsed['REMARK.465']
+        p_missing=p.parsed['REMARK.465'].tables['MISSING']
+        o_missing=o.parsed['REMARK.465'].tables['MISSING']
         self.assertEqual(len(p_missing),len(o_missing))
+        pn_missing=p_missing[0]
+        on_missing=o_missing[0]
+        self.assertEqual(pn_missing.modelNum,on_missing.modelNum)
 
 class TestFourLetterResNames(unittest.TestCase):
     def test_four(self):
