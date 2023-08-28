@@ -98,12 +98,11 @@ class MMCIF_Parser:
                                 if k==spawns_on:
                                     if type(val)==str and ',' in val:
                                         val=[rectify(x) for x in val.split(',')]
-                                    # else:
-                                    #     val
                                 if k in map_values:
                                     mapper=self.global_maps[map_values[k]]
                                     if type(val)==list:
-                                        val=[mapper[x] for x in val]
+                                        val=list(set([mapper[x] for x in val]))
+                                        val.sort()
                                     else:
                                         val=mapper[val]
                         idict[k]=val
@@ -190,7 +189,9 @@ class MMCIF_Parser:
                 if reckey in recdict:
                     if not type(recdict[reckey])==list:
                         recdict[reckey]=[recdict[reckey]]
+                    idict['key']=reckey
                     recdict[reckey].append(PDBRecord(idict))
                 else:
+                    idict['key']=reckey
                     recdict[reckey]=PDBRecord(idict)
         return recdict

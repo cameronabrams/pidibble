@@ -131,3 +131,22 @@ applied to generate this biological assembly.  If we send that record to the acc
 [-107.18     185.64121    0.     ]
 
 You may recognize these rotation matrices as those that generate an object with C3v symmetry.  Each rotation is also accompanied by a translation, here in the ``Tlist`` object.
+
+Because many entries in the RCSB do not have "legacy" PDB files and instead only have the (now standard) mmCIF/PDBx format files, ``pidibble`` can also generate parsed objects from these files.  This is activated by specifying a value of ``mmCIF`` to the ``input_format`` keyword argument to the ``PDBParser`` generator:
+
+>>> from pidibble.pdbparse import PDBParser
+>>> p=PDBParser(PDBcode='4tvp',input_format='mmCIF').parse()
+>>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+>>> print(b.pstr())
+REMARK.350.BIOMOLECULE1.TRANSFORM1
+               label: BIOMT, BIOMT, BIOMT
+          coordinate: 1, 2, 3
+           divnumber: 1, 1, 1
+                 row: [m1: 1.0; m2: 0.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 1.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0]
+              header: G, B, L, H, D, E, A, C, F, I, J, K, M, N, O, P, Q, R, S, T
+              tokens:
+AUTHOR DETERMINED BIOLOGICAL UNIT:  OCTADECAMERIC
+
+Currently, only ``ATOM``, ``HETATM``, ``SEQADV``, ``REMARK 350``, and ``REMARK 465`` records are translated from a ``mmCIF``-format file.  
+
+>>> print(', '.join(list(p.parsed.keys())))
