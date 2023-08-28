@@ -46,6 +46,9 @@ ATOM
 ```
 ## Release History
 
+* 1.0.9
+   * added limited functionality to parse mmCIF files, in particular to generate any
+     ATOM, HETATM, SSBOND, LINK, SEQADV, REMARK 350, and REMARK 465 records
 * 1.0.8
     * bug fix: handle variations in how symmetry operation matrices are represented
 * 1.0.7.7
