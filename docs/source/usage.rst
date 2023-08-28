@@ -132,21 +132,41 @@ applied to generate this biological assembly.  If we send that record to the acc
 
 You may recognize these rotation matrices as those that generate an object with C3v symmetry.  Each rotation is also accompanied by a translation, here in the ``Tlist`` object.
 
-Because many entries in the RCSB do not have "legacy" PDB files and instead only have the (now standard) mmCIF/PDBx format files, ``pidibble`` can also generate parsed objects from these files.  This is activated by specifying a value of ``mmCIF`` to the ``input_format`` keyword argument to the ``PDBParser`` generator:
+Because many entries in the RCSB do not have "legacy" PDB files and instead only have the (now standard) mmCIF/PDBx format files, ``pidibble`` can also generate parsed objects from these files.  This is activated by specifying a value ``mmCIF`` for the ``input_format`` keyword argument to the ``PDBParser`` generator:
 
 >>> from pidibble.pdbparse import PDBParser
 >>> p=PDBParser(PDBcode='4tvp',input_format='mmCIF').parse()
->>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+>>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
 >>> print(b.pstr())
-REMARK.350.BIOMOLECULE1.TRANSFORM1
+REMARK.350.BIOMOLECULE1.TRANSFORM2
+         BIOMOLECULE: 1
+           tmp_label: BIOMOLECULE1.TRANSFORM2
+              header: A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T
+           divnumber: 2
+           TRANSFORM: 2
+                row1: m1: -0.5; m2: -0.8660254038; m3: 0.0; t: -515.56
+                row2: m1: 0.8660254038; m2: -0.5; m3: 0.0; t: 0.0
+                row3: m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0
+                 row: [m1: -0.5; m2: -0.8660254038; m3: 0.0; t: -515.56], [m1: 0.8660254038; m2: -0.5; m3: 0.0; t: 0.0], [m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0]
+          coordinate: 1, 2, 3
+
+We can compare this to the ``REMARK.350.BIOMOLECULE1.TRANSFORM2`` record from the analogous PDB file:
+
+>>> p=PDBParser(PDBcode='4tvp',input_format='PDB').parse()
+>>> b=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
+>>> print(b.pstr())
+REMARK.350.BIOMOLECULE1.TRANSFORM2
                label: BIOMT, BIOMT, BIOMT
           coordinate: 1, 2, 3
-           divnumber: 1, 1, 1
-                 row: [m1: 1.0; m2: 0.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 1.0; m3: 0.0; t: 0.0], [m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0]
+           divnumber: 2, 2, 2
+                 row: [m1: -0.5; m2: -0.866025; m3: 0.0; t: -515.56], [m1: 0.866025; m2: -0.5; m3: 0.0; t: 0.0], [m1: 0.0; m2: 0.0; m3: 1.0; t: 0.0]
               header: G, B, L, H, D, E, A, C, F, I, J, K, M, N, O, P, Q, R, S, T
-              tokens:
-AUTHOR DETERMINED BIOLOGICAL UNIT:  OCTADECAMERIC
 
-Currently, only ``ATOM``, ``HETATM``, ``SEQADV``, ``REMARK 350``, and ``REMARK 465`` records are translated from a ``mmCIF``-format file.  
+Note that the important attributes of ``row`` and ``header`` are the same (in ``header``'s case, the lists are in different orders but they have the same elements).  Note the greater precision in the floating-point values for the record read in from the ``mmCIF`` file.
 
->>> print(', '.join(list(p.parsed.keys())))
+Currently, only ``ATOM``, ``HETATM``, ``SEQADV``, ``REMARK 350``, and ``REMARK 465`` records are translated from a ``mmCIF``-format file: 
+
+>>> ', '.join(list(p.parsed.keys()))
+'ATOM, HETATM, LINK, SSBOND, SEQADV, REMARK.350.BIOMOLECULE1.TRANSFORM1, REMARK.350.BIOMOLECULE1.TRANSFORM2, REMARK.350.BIOMOLECULE1.TRANSFORM3, REMARK.465'
+
+These records are the bare minimum needed to generate (say) input coordinate and topology files for an MD simulation.  Future versions of ``pidibble`` will provide complete PDB-like parsings of ``mmCIF`` files.  This is probably not useful.
