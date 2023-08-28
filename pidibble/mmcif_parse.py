@@ -4,7 +4,10 @@ import logging
 logger=logging.getLogger(__name__)
 
 def split_ri(ri):
-    if ri[-1].isdigit(): # there is no insertion code
+    if type(ri)==int: # this is no insertion code
+        r=ri
+        i=''
+    elif ri[-1].isdigit(): # there is no insertion code
         r=int(ri)
         i=''
     else:
@@ -26,11 +29,12 @@ def rectify(val):
     return val
 
 class MMCIF_Parser:
-    def __init__(self,mmcif_formats,pdb_formats):
+    def __init__(self,mmcif_formats,pdb_formats,cif_data):
         self.formats=mmcif_formats
         self.pdb_formats=pdb_formats
         self.global_maps={}
         self.global_ids={}
+        self.cif_data=cif_data
 
     def update_maps(self,maps,cifrec,idx):
         for mapname,mapspec in maps.items():
@@ -51,122 +55,142 @@ class MMCIF_Parser:
             if not thisid in self.global_ids[idname]:
                 self.global_ids[idname].append(thisid)
 
-    def gen_dict(self,cifrec,idx,**kwargs):
+    def gen_dict(self,mapspec):
         idicts=[]
-        attr_map=kwargs.get('attr_map',{})
-        splits=kwargs.get('splits',[])
-        indexes=kwargs.get('indexes',None)
-        spawns_on=kwargs.get('spawns_on',None)
-        map_values=kwargs.get('map_values',{})
-        spawn_data=kwargs.get('spawn_data',{})
-        tables=kwargs.get('tables',{})
-        list_attr=kwargs.get('list_attr',{})
-        idict={}
-        for k,v in attr_map.items():
-            if type(v)==dict:
-                val=PDBRecord(self.gen_dict(v,cifrec,idx))
-            elif type(v)==list:
-                val=[rectify(cifrec.getValue(x,idx)) for x in v]
-            else:
-                val=rectify(cifrec.getValue(v,idx))
-                if k=='resseqnumi':
-                    seqNum,iCode=split_ri(val)
-                    val={'seqNum':int(seqNum),'iCode':iCode}
-                else:
-                    if k in splits and ',' in val:
-                        val=[rectify(x) for x in val.split(',')]
-                    if k==spawns_on and ',' in val:
-                        val=[rectify(x) for x in val.split(',')]
-                    if k in map_values:
-                        mapper=self.global_maps[map_values[k]]
-                        if type(val)==list:
-                            val=[mapper(x) for x in val]
+        attr_map=mapspec.get('attr_map',{})
+        splits=mapspec.get('splits',[])
+        spawns_on=mapspec.get('spawns_on',None)
+        indexes=mapspec.get('indexes',None)
+        map_values=mapspec.get('map_values',{})
+        tables=mapspec.get('tables',{})
+        spawn_data=mapspec.get('spawn_data',{})
+        tables=mapspec.get('tables',{})
+        list_attr=mapspec.get('list_attr',{})
+        sigattr=mapspec.get('signal_attr',None)
+        sigval=mapspec.get('signal_value',None)
+        use_signal=(sigattr!=None)
+        global_maps=mapspec.get('global_maps',{})
+        global_ids=mapspec.get('global_ids',{})
+        spawns_on=mapspec.get('spawns_on',None)
+        allcaps=mapspec.get('allcaps',[])
+        cifrec=self.cif_data.getObj(mapspec['data_obj'])
+        if not tables:
+            for idx in range(len(cifrec)):
+                if not use_signal or (cifrec.getValue(sigattr,idx)==sigval):
+                    if global_maps:
+                        self.update_maps(global_maps,cifrec,idx)
+                    if global_ids:
+                        self.update_ids(global_ids,cifrec,idx)
+                    idict={}
+                    for k,v in attr_map.items():
+                        if type(v)==dict:
+                            resdict={kk:rectify(cifrec.getValue(o,idx)) for kk,o in v.items()}
+                            if 'resseqnumi' in resdict:
+                                resdict['seqNum'],resdict['iCode']=split_ri(resdict['resseqnumi'])
+                            val=PDBRecord(resdict)
                         else:
-                            val=mapper(val)
-            idict[k]=val
-        return [idict]
+                            val=rectify(cifrec.getValue(v,idx))
+                            if k=='resseqnumi':
+                                idict['seqNum'],idict['iCode']=split_ri(val)
+                            else:
+                                if k in splits and ',' in val:
+                                    val=[rectify(x) for x in val.split(',')]
+                                if k==spawns_on:
+                                    if type(val)==str and ',' in val:
+                                        val=[rectify(x) for x in val.split(',')]
+                                    # else:
+                                    #     val
+                                if k in map_values:
+                                    mapper=self.global_maps[map_values[k]]
+                                    if type(val)==list:
+                                        val=[mapper[x] for x in val]
+                                    else:
+                                        val=mapper[val]
+                        idict[k]=val
+                        if k==indexes:
+                            idict['tmp_label']=f'{k}{val}'
+                    for la,vn in list_attr.items():
+                        from_existing=all([x in idict for x in vn])
+                        if from_existing:
+                            idict[la]=[idict[x] for x in vn]
+                        else:
+                            idict[la]=vn
+                    if spawns_on:
+                        spdicts=self.gen_dict(mapspec['spawn_data'])
+                        if type(idict[spawns_on])==list:
+                            spawned_dicts=[]
+                            for v in idict[spawns_on]:
+                                sd=idict.copy()
+                                sd[spawns_on]=v
+                                for sp in spdicts:
+                                    if sp['spawn_idx']==v:
+                                        break
+                                else:
+                                    raise Exception(f'(list) cannot find spawn index for {spawns_on} = {v}; spdicts: {spdicts}')
+                                spc=sp.copy()
+                                del spc['spawn_idx']
+                                spclabel=spc.get('tmp_label','')
+                                if 'tmp_label' in spc:
+                                    del spc['tmp_label']
+                                sd.update(spc)
+                                if 'tmp_label' in sd and spclabel!='':
+                                    sd['tmp_label']=f'{sd["tmp_label"]}.{spclabel}'
+                                spawned_dicts.append(sd)
+                            idicts.extend(spawned_dicts)
+                        else:
+                            spawned_dicts=[]
+                            v=idict[spawns_on]
+                            for sp in spdicts:
+                                if sp['spawn_idx']==v:
+                                    break
+                            else:
+                                raise Exception(f'cannot find spawn index for {spawns_on} = {v}')
+                            spc=sp.copy()
+                            del spc['spawn_idx']
+                            spclabel=spc.get('tmp_label','')
+                            if 'tmp_label' in spc:
+                                del spc['tmp_label']
+                            idict.update(spc)
+                            if 'tmp_label' in idict and spclabel!='':
+                                idict['tmp_label']=f'{idict["tmp_label"]}.{spclabel}'
+                            idicts.append(idict)
+                    else:
+                        idicts.append(idict)
+        else:
+            tabledict={}
+            for tname,tspec in tables.items():
+                tabledict[tname]=[]
+                attr_map=tspec['row_attr_map']
+                bisv=tspec.get('blank_if_single_valued',[])
+                for i in range(len(cifrec)):
+                    tdict={}
+                    for k,v in attr_map.items():
+                        tdict[k]=rectify(cifrec.getValue(v,i))
+                        if k in bisv:
+                            if len(self.global_ids[k])<2:
+                                tdict[k]=''
+                    tabledict[tname].append(BaseRecord(tdict))
+            udict={'tables':tabledict}
+            idicts.append(udict)
 
-    def parse(self,data):
+        if allcaps:
+            for idict in idicts:
+                for k,v in idict.items():
+                    if k in allcaps:
+                        idict[k]=v.upper()
+        return idicts
+
+    def parse(self):
         recdict={}
         for rectype,mapspec in self.formats.items():
-            rectypeparts=rectype.split('.')
-            baserectype=rectypeparts[0]
-            pdb_format=self.pdb_formats[baserectype]
-            if len(rectypeparts)>1:
-                subrectype=rectypeparts[1]
-                if subrectype.isdigit():
-                    subrectype=int(subrectype)
-                subrecfmt=pdb_format['subrecords']['formats'][subrectype]
-                if len(rectypeparts)>2:
-                    embedtype=rectypeparts[2]
-                    embedfmt=subrecfmt['embedded_records'][embedtype]
-            cifrec=data.getObj(mapspec['data_obj'])
-            sigattr=mapspec.get('signal_attr',None)
-            sigval=mapspec.get('signal_value',None)
-            global_maps=mapspec.get('global_maps',{})
-            global_ids=mapspec.get('global_ids',{})
-            splits=mapspec.get('splits',[])
-            spawns_on=mapspec.get('spawns_on',None)
-            indexes=mapspec.get('indexes',None)
-            map_values=mapspec.get('map_values',{})
-            tables=mapspec.get('tables',{})
-            use_signal=(sigattr!=None)
-            attr_map=mapspec.get('attr_map',{})
-            for i in range(len(cifrec)):
-                if self.global_maps:
-                    self.update_maps(global_maps,cifrec,i)
-                if self.global_ids:
-                    self.update_ids(global_ids,cifrec,i)
-                if not use_signal or (cifrec.getValue(sigattr,i)==sigval):
-                    idicts=self.gen_dict(cifrec,i,attr_map=attr_map,splits=splits,spawns_on=spawns_on,map_values=map_values,indexes=indexes,tables=tables)
-                    for idict in idicts:
-                        recdict[rectype].append(PDBRecord(idict))
-
-            cifndata=len(cifrec)
-            if cifndata==1:
-                idict={}
-                for k,v in attr_map.items():
-                    val=rectify(cifrec.getValue(v,0))
-                    if k in splits and ',' in val:
-                        val=[rectify(x) for x in val.split(',')]
-                    if k==spawns_on and ',' in k:
-                        val=[rectify(x) for x in val.split(',')]
-                    if k in map_values:
-                        mapper=self.global_maps[map_values[k]]
-                        if type(val)==list:
-                            val=[mapper(x) for x in val]
-                        else:
-                            val=mapper(val)
-                    idict[k]=val
-                if spawns_on and type(idict[spawns_on])==list:
-                    if not rectype in recdict:
-                        recdict[rectype]=[]
-                    for val in idict[spawns_on]:
-                        jdict=idict.copy()
-                        jdict[spawns_on]=val
-
-
-                if indexes:
-                    rectype=f'{rectype}{idict[indexes]}'
-                recdict[rectype]=PDBRecord(idict)                    
-            else:
-                if not rectype in recdict:
-                    recdict[rectype]=[]
-                if not tables:
+            idicts=self.gen_dict(mapspec)
+            for idict in idicts:
+                this_key=idict.get('tmp_label','')
+                reckey=rectype if not this_key else f'{rectype}.{this_key}'
+                if reckey in recdict:
+                    if not type(recdict[reckey])==list:
+                        recdict[reckey]=[recdict[reckey]]
+                    recdict[reckey].append(PDBRecord(idict))
                 else:
-                    tabledict={}
-                    for tname,tspec in tables.items():
-                        tabledict[tname]=[]
-                        attr_map=tspec['row_attr_map']
-                        bisv=tspec.get('blank_if_single_valued',[])
-                        for i in range(cifndata):
-                            idict={}
-                            for k,v in attr_map.items():
-                                idict[k]=rectify(cifrec.getValue(v,i))
-                                if k in bisv:
-                                    if len(self.global_ids[k])<2:
-                                        idict[k]=''
-                            tabledict[tname].append(BaseRecord(idict))
-                    udict={'tables':tabledict}
-                    recdict[rectype]=PDBRecord(udict)
+                    recdict[reckey]=PDBRecord(idict)
         return recdict

@@ -34,7 +34,6 @@ class PDBParser:
         self.parsed={}
         self.input_format=options.get('input_format','PDB')
         self.pdb_code=options.get('PDBcode','')
-        # print(self.pdb_code)
         self.overwrite=options.get('overwrite',False)
         self.pdb_format_file=options.get('pdb_format_file',os.path.join(
             os.path.dirname(resources.__file__),
@@ -111,8 +110,8 @@ class PDBParser:
             self.parse_PDB()
 
     def parse_mmCIF(self):
-        mmcif_parser=MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'])
-        self.parsed=mmcif_parser.parse(self.cif_data)
+        mmcif_parser=MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'],self.cif_data)
+        self.parsed=mmcif_parser.parse()
 
     def parse_PDB(self):
         record_formats=self.pdb_format_dict['record_formats']
@@ -188,21 +187,14 @@ class PDBParser:
 
     def parse_tokens(self):
         for key,p in self.parsed.items():
-            # print(key)
             if type(p)==PDBRecord:
                 rf=p.format
-                # if key=='REMARK.300':
-                #     print('nonlist remark300',rf)
                 if 'token_formats' in rf:
-                    # print('non-list',p.key,rf)
                     p.parse_tokens(self.mappers)
             elif type(p)==list:
                 for q in p:
                     rf=q.format
                     if 'token_formats' in rf:
-                        # if key=='REMARK.300':
-                        #     print('list remark300',rf)
-                        # print('list',q.key,rf)
                         q.parse_tokens(self.mappers)
 
     def parse_tables(self):

@@ -1,35 +1,5 @@
 # just a minimal specification to translate links, disulfides, atoms, missing residues, and biomolecular assembly instructions
-LINK: # works!
-  data_obj: struct_conn
-  signal_attr: conn_type_id
-  signal_value: covale
-  attr_map: 
-    name1: ptnr1_label_atom_id
-    altLoc1: pdbx_ptnr1_label_alt_id
-    residue1:
-      chainID: ptnr1_auth_asym_id 
-      resName: ptnr1_auth_comp_id
-      resseqnumi: ptnr1_auth_seq_id
-    name2: ptnr2_label_atom_id
-    altLoc2: pdbx_ptnr2_label_alt_id
-    residue2:
-      chainID: ptnr2_auth_asym_id
-      resName: ptnr2_auth_comp_id
-      resseqnumi: ptnr2_auth_seq_id
-SSBOND: # works!
-  data_obj: struct_conn
-  signal_attr: conn_type_id
-  signal_value: disulf
-  attr_map: 
-    residue1:
-      chainID: ptnr1_auth_asym_id
-      resName: ptnr1_auth_comp_id
-      resseqnumi: ptnr1_auth_seq_id
-    residue2:
-      chainID: ptnr2_auth_asym_id
-      resName: ptnr2_auth_comp_id
-      resseqnumi: ptnr2_auth_seq_id
-ATOM: # works!
+ATOM:
   data_obj: atom_site
   signal_attr: group_PDB
   signal_value: ATOM
@@ -55,7 +25,7 @@ ATOM: # works!
     tempFactor: B_iso_or_equiv
     element: type_symbol
     charge: pdbx_formal_charge
-HETATM: # works!
+HETATM:
   data_obj: atom_site
   signal_attr: group_PDB
   signal_value: HETATM
@@ -81,24 +51,74 @@ HETATM: # works!
     tempFactor: B_iso_or_equiv
     element: type_symbol
     charge: pdbx_formal_charge
-REMARK.350.BIOMOLECULE:
+LINK:
+  data_obj: struct_conn
+  signal_attr: conn_type_id
+  signal_value: covale
+  attr_map: 
+    name1: ptnr1_label_atom_id
+    altLoc1: pdbx_ptnr1_label_alt_id
+    residue1:
+      chainID: ptnr1_auth_asym_id 
+      resName: ptnr1_auth_comp_id
+      seqNum: ptnr1_auth_seq_id
+      iCode: pdbx_ptnr1_PDB_ins_code
+    name2: ptnr2_label_atom_id
+    altLoc2: pdbx_ptnr2_label_alt_id
+    residue2:
+      chainID: ptnr2_auth_asym_id
+      resName: ptnr2_auth_comp_id
+      seqNum: ptnr2_auth_seq_id
+      iCode: pdbx_ptnr2_PDB_ins_code
+SSBOND:
+  data_obj: struct_conn
+  signal_attr: conn_type_id
+  signal_value: disulf
+  attr_map: 
+    residue1:
+      chainID: ptnr1_auth_asym_id
+      resName: ptnr1_auth_comp_id
+      seqNum: ptnr1_auth_seq_id
+      iCode: pdbx_ptnr1_PDB_ins_code
+    residue2:
+      chainID: ptnr2_auth_asym_id
+      resName: ptnr2_auth_comp_id
+      seqNum: ptnr2_auth_seq_id
+      iCode: pdbx_ptnr2_PDB_ins_code
+SEQADV:
+  data_obj: struct_ref_seq_dif
+  attr_map:
+    idCode: pdbx_pdb_id_code
+    residue:
+      chainID: pdbx_pdb_strand_id
+      resName: mon_id
+      seqNum: pdbx_auth_seq_num
+      iCode: pdbx_pdb_ins_code
+    database: pdbx_seq_db_name
+    dbAccession: pdbx_seq_db_accession_code
+    dbRes: db_mon_id
+    dbSeq: pdbx_seq_db_seq_num
+    conflict: details
+  allcaps:
+    - conflict
+REMARK.350:
   data_obj: pdbx_struct_assembly_gen
   attr_map:
-    index: assembly_id
+    BIOMOLECULE: assembly_id
     header: asym_id_list
     divnumber: oper_expression
   splits:
     - header
   spawns_on: divnumber
-  indexes: index
+  indexes: BIOMOLECULE
   map_values:
     header: chainmap
   spawn_data:
     data_obj: pdbx_struct_oper_list
-    spawn_idx: id
     indexes: TRANSFORM
     attr_map:
-      TRANSFORM: symmetry_operation
+      spawn_idx: id
+      TRANSFORM: id
       row1: 
         m1: matrix[1][1]
         m2: matrix[1][2]

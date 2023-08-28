@@ -589,67 +589,127 @@ class Test4zmj(unittest.TestCase):
         self.assertEqual(r.omega,-134.45)        
 
     def test_cif(self):
-        p=PDBParser(input_format='mmCIF',PDBcode='4zmj').parse()
-        o=PDBParser(input_format='PDB',PDBcode='4zmj').parse()
+        p=PDBParser(input_format='mmCIF',PDBcode='4tvp').parse()
+        o=PDBParser(input_format='PDB',PDBcode='4tvp').parse()
         self.assertTrue(p is not None)
         for ats in ['ATOM','HETATM']:
-            print(ats)
+            # print(ats)
             patoms=p.parsed[ats]
             oatoms=o.parsed[ats]
             self.assertEqual(len(patoms),len(oatoms))
-            pn_atom=patoms[0]
-            on_atom=oatoms[0]
-            # serial numbers in PDB files may not match those in CIF files because
-            # PDB files may have TER records that have a serial number just like an atom
-            # self.assertEqual(pn_atom.serial,on_atom.serial)
-            self.assertEqual(pn_atom.name,on_atom.name)
-            self.assertEqual(pn_atom.altLoc,on_atom.altLoc)
-            self.assertEqual(pn_atom.residue.chainID,on_atom.residue.chainID)
-            self.assertEqual(pn_atom.residue.resName,on_atom.residue.resName)
-            self.assertEqual(pn_atom.residue.seqNum,on_atom.residue.seqNum)
-            self.assertEqual(pn_atom.residue.iCode,on_atom.residue.iCode)
-            self.assertEqual(pn_atom.x,on_atom.x)
-            self.assertEqual(pn_atom.y,on_atom.y)
-            self.assertEqual(pn_atom.z,on_atom.z)
-            self.assertEqual(pn_atom.occupancy,on_atom.occupancy)
-            self.assertEqual(pn_atom.tempFactor,on_atom.tempFactor)
-            self.assertEqual(pn_atom.element,on_atom.element)
-            self.assertEqual(pn_atom.charge,on_atom.charge)
+            for i in range(len(patoms)):
+                pn_atom=patoms[i]
+                on_atom=oatoms[i]
+                # serial numbers in PDB files may not match those in CIF files because
+                # PDB files may have TER records that have a serial number just like an atom
+                # self.assertEqual(pn_atom.serial,on_atom.serial)
+                self.assertEqual(pn_atom.name,on_atom.name)
+                self.assertEqual(pn_atom.altLoc,on_atom.altLoc)
+                self.assertEqual(pn_atom.residue.chainID,on_atom.residue.chainID)
+                self.assertEqual(pn_atom.residue.resName,on_atom.residue.resName)
+                self.assertEqual(pn_atom.residue.seqNum,on_atom.residue.seqNum)
+                self.assertEqual(pn_atom.residue.iCode,on_atom.residue.iCode)
+                self.assertEqual(pn_atom.x,on_atom.x)
+                self.assertEqual(pn_atom.y,on_atom.y)
+                self.assertEqual(pn_atom.z,on_atom.z)
+                self.assertEqual(pn_atom.occupancy,on_atom.occupancy)
+                self.assertEqual(pn_atom.tempFactor,on_atom.tempFactor)
+                self.assertEqual(pn_atom.element,on_atom.element)
+                self.assertEqual(pn_atom.charge,on_atom.charge)
         plinks=p.parsed['LINK']
         olinks=o.parsed['LINK']
         self.assertEqual(len(plinks),len(olinks))
         # do they have the same order though?
-        pn_link=plinks[0]
-        on_link=olinks[0]
-        self.assertEqual(pn_link.name1,on_link.name1)
-        self.assertEqual(pn_link.altLoc1,on_link.altLoc1)
-        self.assertEqual(pn_link.residue1.chainID,on_link.residue1.chainID)
-        self.assertEqual(pn_link.residue1.resName,on_link.residue1.resName)
-        self.assertEqual(pn_link.residue1.seqNum,on_link.residue1.seqNum)
-        self.assertEqual(pn_link.residue1.iCode,on_link.residue1.iCode)
-        self.assertEqual(pn_link.name2,on_link.name2)
-        self.assertEqual(pn_link.altLoc2,on_link.altLoc2)
-        self.assertEqual(pn_link.residue2.chainID,on_link.residue2.chainID)
-        self.assertEqual(pn_link.residue2.resName,on_link.residue2.resName)
-        self.assertEqual(pn_link.residue2.seqNum,on_link.residue2.seqNum)
-        self.assertEqual(pn_link.residue2.iCode,on_link.residue2.iCode)
+        for i in range(len(plinks)):
+            pn_link=plinks[i]
+            on_link=olinks[i]
+            self.assertEqual(pn_link.name1,on_link.name1)
+            self.assertEqual(pn_link.altLoc1,on_link.altLoc1)
+            self.assertEqual(pn_link.residue1.chainID,on_link.residue1.chainID)
+            self.assertEqual(pn_link.residue1.resName,on_link.residue1.resName)
+            self.assertEqual(pn_link.residue1.seqNum,on_link.residue1.seqNum)
+            self.assertEqual(pn_link.residue1.iCode,on_link.residue1.iCode)
+            self.assertEqual(pn_link.name2,on_link.name2)
+            self.assertEqual(pn_link.altLoc2,on_link.altLoc2)
+            self.assertEqual(pn_link.residue2.chainID,on_link.residue2.chainID)
+            self.assertEqual(pn_link.residue2.resName,on_link.residue2.resName)
+            self.assertEqual(pn_link.residue2.seqNum,on_link.residue2.seqNum)
+            self.assertEqual(pn_link.residue2.iCode,on_link.residue2.iCode)
 
         pssbonds=p.parsed['SSBOND']
         ossbonds=o.parsed['SSBOND']
         self.assertEqual(len(pssbonds),len(ossbonds))
-        p_ss=pssbonds[0]
-        o_ss=ossbonds[0]
-        self.assertEqual(p_ss.residue1.chainID,o_ss.residue1.chainID)
-        self.assertEqual(p_ss.residue1.resName,o_ss.residue1.resName)
-        self.assertEqual(p_ss.residue1.seqNum,o_ss.residue1.seqNum)
-        self.assertEqual(p_ss.residue1.iCode,o_ss.residue1.iCode)
+        for i in range(len(pssbonds)):
+            p_ss=pssbonds[i]
+            o_ss=ossbonds[i]
+            self.assertEqual(p_ss.residue1.chainID,o_ss.residue1.chainID)
+            self.assertEqual(p_ss.residue1.resName,o_ss.residue1.resName)
+            self.assertEqual(p_ss.residue1.seqNum,o_ss.residue1.seqNum)
+            self.assertEqual(p_ss.residue1.iCode,o_ss.residue1.iCode)
 
         p_missing=p.parsed['REMARK.465'].tables['MISSING']
         o_missing=o.parsed['REMARK.465'].tables['MISSING']
         self.assertEqual(len(p_missing),len(o_missing))
-        pn_missing=p_missing[0]
-        on_missing=o_missing[0]
-        self.assertEqual(pn_missing.modelNum,on_missing.modelNum)
+        for i in range(len(p_missing)):
+            pn_missing=p_missing[i]
+            on_missing=o_missing[i]
+            self.assertEqual(pn_missing.modelNum,on_missing.modelNum)
+            self.assertEqual(pn_missing.resName,on_missing.resName)
+            self.assertEqual(pn_missing.chainID,on_missing.chainID)
+            self.assertEqual(pn_missing.seqNum,on_missing.seqNum)
+            self.assertEqual(pn_missing.iCode,on_missing.iCode)
+
+        # for k in p.parsed.keys():
+        #     print(k)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in p.parsed)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in o.parsed)
+        prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+        orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+        pM,pT=get_symm_ops(prec)
+        oM,oT=get_symm_ops(orec)
+        self.assertTrue(np.allclose(pM,oM))
+        self.assertTrue(np.allclose(pT,oT))
+
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM2' in p.parsed)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM2' in o.parsed)
+        prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
+        orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
+        pM,pT=get_symm_ops(prec)
+        oM,oT=get_symm_ops(orec)
+        # print(f'cif {pM} {pT}')
+        # print(f'pdb {oM} {oT}')
+        self.assertTrue(np.allclose(pM,oM))
+        self.assertTrue(np.allclose(pT,oT))
+        
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM3' in p.parsed)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM3' in o.parsed)
+        prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM3']
+        orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM3']
+        pM,pT=get_symm_ops(prec)
+        oM,oT=get_symm_ops(orec)
+        self.assertTrue(np.allclose(pM,oM))
+        self.assertTrue(np.allclose(pT,oT))
+
+        self.assertFalse('REMARK.350.BIOMOLECULE1.TRANSFORM4' in p.parsed)
+        
+        prec=p.parsed['SEQADV']
+        orec=o.parsed['SEQADV']
+        self.assertEqual(len(prec),len(orec))
+        for i in range(len(prec)):
+            psa=prec[i]
+            osa=orec[i]
+            self.assertEqual(psa.idCode,osa.idCode)
+            self.assertEqual(psa.residue.chainID,osa.residue.chainID)
+            self.assertEqual(psa.residue.resName,osa.residue.resName)
+            self.assertEqual(psa.residue.seqNum,osa.residue.seqNum)
+            self.assertEqual(psa.residue.iCode,osa.residue.iCode)
+            self.assertEqual(psa.database,osa.database)
+            self.assertEqual(psa.dbAccession,osa.dbAccession)
+            self.assertEqual(psa.dbRes,osa.dbRes)
+            self.assertEqual(psa.dbSeq,osa.dbSeq)
+            self.assertEqual(psa.conflict,osa.conflict)
+
+        # self.assertTrue(False)
 
 class TestFourLetterResNames(unittest.TestCase):
     def test_four(self):
