@@ -25,6 +25,10 @@ ATOM:
     tempFactor: B_iso_or_equiv
     element: type_symbol
     charge: pdbx_formal_charge
+    label_atom_id: label_atom_id
+    label_comp_id: label_comp_id
+    label_asym_id: label_asym_id
+    label_seq_id: label_seq_id
 HETATM:
   data_obj: atom_site
   signal_attr: group_PDB
@@ -51,11 +55,18 @@ HETATM:
     tempFactor: B_iso_or_equiv
     element: type_symbol
     charge: pdbx_formal_charge
+    label_atom_id: label_atom_id
+    label_comp_id: label_comp_id
+    label_asym_id: label_asym_id
+    label_seq_id: label_seq_id
 LINK:
   data_obj: struct_conn
   signal_attr: conn_type_id
   signal_value: covale
   attr_map: 
+    sym1: ptnr1_symmetry
+    sym2: ptnr2_symmetry
+    length: pdbx_dist_value
     name1: ptnr1_label_atom_id
     altLoc1: pdbx_ptnr1_label_alt_id
     residue1:
@@ -63,6 +74,10 @@ LINK:
       resName: ptnr1_auth_comp_id
       seqNum: ptnr1_auth_seq_id
       iCode: pdbx_ptnr1_PDB_ins_code
+    ptnr1_label_atom_id: ptnr1_label_atom_id
+    ptnr1_label_comp_id: ptnr1_label_comp_id
+    ptnr1_label_asym_id: ptnr1_label_asym_id
+    ptnr1_label_seq_id: ptnr1_label_seq_id
     name2: ptnr2_label_atom_id
     altLoc2: pdbx_ptnr2_label_alt_id
     residue2:
@@ -70,21 +85,37 @@ LINK:
       resName: ptnr2_auth_comp_id
       seqNum: ptnr2_auth_seq_id
       iCode: pdbx_ptnr2_PDB_ins_code
+    ptnr2_label_atom_id: ptnr2_label_atom_id
+    ptnr2_label_comp_id: ptnr2_label_comp_id
+    ptnr2_label_asym_id: ptnr2_label_asym_id
+    ptnr2_label_seq_id: ptnr2_label_seq_id
 SSBOND:
   data_obj: struct_conn
   signal_attr: conn_type_id
   signal_value: disulf
   attr_map: 
+    serNum: id
+    sym1: ptnr1_symmetry
+    sym2: ptnr2_symmetry
+    length: pdbx_dist_value
     residue1:
       chainID: ptnr1_auth_asym_id
       resName: ptnr1_auth_comp_id
       seqNum: ptnr1_auth_seq_id
       iCode: pdbx_ptnr1_PDB_ins_code
+    ptnr1_label_atom_id: ptnr1_label_atom_id
+    ptnr1_label_comp_id: ptnr1_label_comp_id
+    ptnr1_label_asym_id: ptnr1_label_asym_id
+    ptnr1_label_seq_id: ptnr1_label_seq_id
     residue2:
       chainID: ptnr2_auth_asym_id
       resName: ptnr2_auth_comp_id
       seqNum: ptnr2_auth_seq_id
       iCode: pdbx_ptnr2_PDB_ins_code
+    ptnr2_label_atom_id: ptnr2_label_atom_id
+    ptnr2_label_comp_id: ptnr2_label_comp_id
+    ptnr2_label_asym_id: ptnr2_label_asym_id
+    ptnr2_label_seq_id: ptnr2_label_seq_id
 SEQADV:
   data_obj: struct_ref_seq_dif
   attr_map:
