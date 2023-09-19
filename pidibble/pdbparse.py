@@ -17,8 +17,11 @@ from .baseparsers import ListParsers, ListParser
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
 from .mmcif_parse import MMCIF_Parser
-
+from pidibble import resources
 logger=logging.getLogger(__name__)
+import importlib.metadata
+
+__version__ = importlib.metadata.version("pidibble")
 
 class PDBParser:
     mappers={'Integer':int,'String':str,'Float':float}
@@ -27,10 +30,11 @@ class PDBParser:
     comment_chars=['#']
     default_input_format='PDB'
     def __init__(self,**options):
-        loglevel=options.get('loglevel','info')
-        logfile=options.get('logfile','pidibble.log')
-        loglevel_numeric=getattr(logging,loglevel.upper())
-        logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
+        logger.info(f'Pidibble v {__version__}')
+        # loglevel=options.get('loglevel','info')
+        # logfile=options.get('logfile','pidibble.log')
+        # loglevel_numeric=getattr(logging,loglevel.upper())
+        # logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
         self.parsed={}
         self.input_format=options.get('input_format','PDB')
         self.pdb_code=options.get('PDBcode','')
@@ -44,15 +48,15 @@ class PDBParser:
         if os.path.exists(self.pdb_format_file):
             with open(self.pdb_format_file,'r') as f:
                 self.pdb_format_dict=yaml.safe_load(f)
-                logger.info(f'Pidibble uses the installed config file:')
-                logger.info(self.pdb_format_file)
+                logger.debug(f'Pidibble uses the installed config file:')
+                logger.debug(self.pdb_format_file)
         else:
             logger.error(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
         if os.path.exists(self.mmcif_format_file):
             with open(self.mmcif_format_file,'r') as f:
                 self.mmcif_format_dict=yaml.safe_load(f)
-                logger.info(f'Pidibble uses the installed config file:')
-                logger.info(self.mmcif_format_file)
+                logger.debug(f'Pidibble uses the installed config file:')
+                logger.debug(self.mmcif_format_file)
         else:
             logger.error(f'{self.mmcif_format_file}: not found. You have a bad installation of pidibble.')
         delimiter_dict=self.pdb_format_dict.get('delimiters',{})

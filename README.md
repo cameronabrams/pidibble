@@ -45,7 +45,8 @@ ATOM
 
 ```
 ## Release History
-
+* 1.1.0
+   * version detection
 * 1.0.9.1
    * added limited functionality to parse mmCIF files, in particular to generate any
      ATOM, HETATM, SSBOND, LINK, SEQADV, REMARK 350, and REMARK 465 records
