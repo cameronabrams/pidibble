@@ -1,5 +1,5 @@
 Welcome to Pidibble's documentation!
-===================================
+====================================
 
 **Pidibble** is a Python package for parsing standard Protein Data Bank (PDB) files.  It conforms to the `most recent standard <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>`_ (v.3.3 Atomic Coordinate Entry Format, ca. 2011).
 
@@ -13,6 +13,10 @@ on :ref:`installation` of the packge.
 .. note::
 
    Pidibble is under active development.
+
+.. note::
+
+   Pidibble is used in `pestifer <https://pypi.org/project/pestifer>`_
 
 Contents
 --------
