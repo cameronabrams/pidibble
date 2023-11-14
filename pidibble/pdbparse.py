@@ -30,7 +30,7 @@ class PDBParser:
     comment_chars=['#']
     default_input_format='PDB'
     def __init__(self,**options):
-        logger.info(f'Pidibble v {__version__}')
+        logger.debug(f'Pidibble v. {__version__}')
         # loglevel=options.get('loglevel','info')
         # logfile=options.get('logfile','pidibble.log')
         # loglevel_numeric=getattr(logging,loglevel.upper())

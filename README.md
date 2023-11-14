@@ -45,7 +45,7 @@ ATOM
 
 ```
 ## Release History
-* 1.1.0
+* 1.1.1
    * version detection
 * 1.0.9.1
    * added limited functionality to parse mmCIF files, in particular to generate any
