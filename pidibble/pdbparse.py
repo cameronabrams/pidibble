@@ -20,6 +20,7 @@ from .mmcif_parse import MMCIF_Parser
 from pidibble import resources
 logger=logging.getLogger(__name__)
 import importlib.metadata
+import json
 
 __version__ = importlib.metadata.version("pidibble")
 
@@ -39,6 +40,7 @@ class PDBParser:
         self.input_format=options.get('input_format','PDB')
         self.pdb_code=options.get('PDBcode','')
         self.overwrite=options.get('overwrite',False)
+        self.alphafold=options.get('alphafold','')
         self.pdb_format_file=options.get('pdb_format_file',os.path.join(
             os.path.dirname(resources.__file__),
             'pdb_format.yaml'))
@@ -72,22 +74,43 @@ class PDBParser:
     def fetch(self):
         # TODO: allow for back-defaulting to mmCIF format
         # if PDB is not available
-        if self.input_format=='PDB':
-            self.filepath=f'{self.pdb_code}.pdb'
-        elif self.input_format=='mmCIF':
-            self.filepath=f'{self.pdb_code}.cif'
-        else:
-            logger.warning(f'Input format {self.input_format} not recognized; using PDB')
-            self.filepath=f'{self.pdb_code}.pdb'
-        BASE_URL=self.pdb_format_dict['BASE_URL']
-        target_url=os.path.join(BASE_URL,self.filepath)
-        if not os.path.exists(self.filepath) or self.overwrite:
+        assert self.pdb_code!='' or self.alphafold!=''
+        if self.pdb_code!='':
+            if self.input_format=='PDB':
+                self.filepath=f'{self.pdb_code}.pdb'
+            elif self.input_format=='mmCIF':
+                self.filepath=f'{self.pdb_code}.cif'
+            else:
+                logger.warning(f'Input format {self.input_format} not recognized; using PDB')
+                self.filepath=f'{self.pdb_code}.pdb'
+            BASE_URL=self.pdb_format_dict['BASE_URL']
+            target_url=os.path.join(BASE_URL,self.filepath)
+            if not os.path.exists(self.filepath) or self.overwrite:
+                try:
+                    urllib.request.urlretrieve(target_url,self.filepath)
+                except:
+                    logger.warning(f'Could not fetch {self.filepath}')
+                    return False
+            return True
+        elif self.alphafold!='':
+            self.filepath=f'{self.alphafold}.pdb'
+            BASE_URL=self.pdb_format_dict['ALPHAFOLD_API_URL']
+            target_url=os.path.join(BASE_URL,self.alphafold)
             try:
-                urllib.request.urlretrieve(target_url,self.filepath)
+                urllib.request.urlretrieve(target_url,f'{self.alphafold}.json')
             except:
-                logger.warning(f'Could not fetch {self.filepath}')
+                logger.warning(f'Could not fetch metadata for entry with accession code {self.alphafold} from AlphaFold')
                 return False
-        return True
+            with open(f'{self.alphafold}.json') as f:
+                result=json.load(f)
+            try:
+                urllib.request.urlretrieve(result[0]['pdbUrl'],self.filepath)
+            except:
+                logger.warning(f'Could not retrieve {result[0]["pdbUrl"]}')
+                return False
+            return True
+        else:
+            pass # assert statement at top of method body should suppress this branch
 
     def read_PDB(self):
         self.pdb_lines=[]

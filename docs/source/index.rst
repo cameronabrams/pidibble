@@ -7,8 +7,10 @@ Unlike parsers like that found in packages like `BioPython <https://biopython.or
 
 Once installed, the user has access to the ``PDBParser`` class in the ``pidibble.pdbparser`` module.
 
+Pidibble can fetch coordinate files from the RSCB PDB and from the AlphaFold model database.
+
 Check out the :doc:`usage` section for further information, including
-on :ref:`installation` of the packge.
+on :ref:`installation` of the package.
 
 .. note::
 

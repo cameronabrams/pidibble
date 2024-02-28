@@ -44,7 +44,34 @@ ATOM
               charge: 
 
 ```
+
+# Example downloading from AlphaFold
+
+```
+>>> from pidibble.pdbparse import PDBParser
+>>> p=PDBParser(alphafold='O46077').parse()
+>>> p.parsed['TITLE'].title
+'ALPHAFOLD MONOMER V2.0 PREDICTION FOR ODORANT RECEPTOR 2A (O46077)'
+>>> print(p.parsed['ATOM'][0].pstr())
+ATOM
+              serial: 1
+                name: N
+              altLoc: 
+             residue: resName: MET; chainID: A; seqNum: 1; iCode: 
+                   x: -0.553
+                   y: 26.513
+                   z: 23.174
+           occupancy: 1.0
+          tempFactor: 39.74
+             element: N
+              charge: 
+
+
+```
+
 ## Release History
+* 1.1.2
+   * Added ability to retrieve pdbs from AlphaFold database
 * 1.1.1
    * version detection
 * 1.0.9.1

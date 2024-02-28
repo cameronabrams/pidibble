@@ -26,7 +26,13 @@ Let's parse the PDB entry '4ZMJ', which is a trimeric ectodomain construct of th
 >>> from pidibble.pdbparse import PDBParser
 >>> p=PDBParser(PDBcode='4zmj').parse()
 
-The ``PDBParser()`` call creates a new ``PDBParser`` object, and the member function ``parse()`` executes (optionally) downloading the PDB file of the code entered with the ``PDBcode`` keyword argument to ``PDBParser()``, followed by parsing into a member dictionary ``parsed``.
+The ``PDBParser()`` call creates a new ``PDBParser`` object, and the member function ``parse()`` executes (optionally) downloading the PDB file of the code entered with the ``PDBcode`` keyword argument to ``PDBParser()``, followed by parsing into a member dictionary ``parsed``.  (The file is downloaded from the RSCB only if it is not found in the current working directory.)
+
+Alternatively, a ``PDBParser()`` invocation can fetch from the AlphaFold model database by providing the accession code with the ``alphafold`` keyword:
+
+>>> p=PDBParser(alphafold='O46077').parse()
+
+(Note that this fetches a model for the odor receptor OR2a from *D. melanogaster*.  For the rest of this example, we'll work with the HIV-1 Env trimer 4zmj above.)
 
 >>> type(p.parsed)
 <class 'dict'>
