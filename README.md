@@ -70,6 +70,8 @@ ATOM
 ```
 
 ## Release History
+* 1.1.3
+   * Added ability to group into models for multiple-model entries
 * 1.1.2
    * Added ability to retrieve pdbs from AlphaFold database
 * 1.1.1

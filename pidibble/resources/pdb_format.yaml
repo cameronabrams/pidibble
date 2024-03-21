@@ -303,6 +303,7 @@ record_formats:
       - sidCodes
   ANISOU:
     type: 3
+    groupby: MODEL.serial
     fields:
       serial: [Integer,[7,11]]
       name: [String,[13,16]]
@@ -318,6 +319,7 @@ record_formats:
       charge: [Float,[79,80]] # String?      
   ATOM:
     type: 3
+    groupby: MODEL.serial
     fields:
       serial: [Integer,[7,11]]
       name: [String,[13,16]]
@@ -332,6 +334,7 @@ record_formats:
       charge: [Float,[79,80]] # String?
   HETATM:
     type: 3
+    groupby: MODEL.serial
     fields:
       serial: [Integer,[7,11]]
       name: [String,[13,16]]
@@ -593,9 +596,11 @@ record_formats:
     type: 5
   MODEL:
     type: 5
+    groupuntil: ENDMDL
     fields:
       serial: [Integer,[11,14]]
   TER:
+    groupby: MODEL.serial
     type: 5
     fields:
       serial: [Integer,[7,11]]

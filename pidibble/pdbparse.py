@@ -144,6 +144,7 @@ class PDBParser:
         record_formats=self.pdb_format_dict['record_formats']
         key=''
         record_format={}
+        group_open_record=None
         for i,pdbrecord_line in enumerate(self.pdb_lines):
             tc=pdbrecord_line[0]
             if tc in PDBParser.comment_chars:
@@ -167,6 +168,18 @@ class PDBParser:
             elif record_type in [3,4,5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
+                    if 'groupuntil' in record_format:
+                        group_open_record=new_record
+                        logger.debug(f'opening group {group_open_record.serial} until {group_open_record.format["groupuntil"]}')
+                    if group_open_record!=None and key==group_open_record.format['groupuntil']:
+                        logger.debug(f'closing group {group_open_record.serial}')
+                        group_open_record=None
+                    if 'groupby' in record_format:
+                        tok=new_record.format['groupby'].split('.')
+                        if group_open_record!=None:
+                            if tok[0]==group_open_record.key:
+                                groupid=getattr(group_open_record,tok[1])
+                                setattr(new_record,group_open_record.key.lower(),groupid)
                     self.parsed[key]=[new_record]
                 else:
                     # this is either
@@ -189,8 +202,19 @@ class PDBParser:
                         root_record.continue_record(new_record,record_format)
                     else:
                         # case (b)
+                        if 'groupuntil' in record_format:
+                            group_open_record=new_record
+                            logger.debug(f'opening group {group_open_record.serial} until {group_open_record.format["groupuntil"]}')
+                        if group_open_record!=None and key==group_open_record.format['groupuntil']:
+                            logger.debug(f'closing group {group_open_record.serial}')
+                            group_open_record=None
+                        if 'groupby' in record_format:
+                            tok=new_record.format['groupby'].split('.')
+                            if group_open_record!=None:
+                                if tok[0]==group_open_record.key:
+                                    groupid=getattr(group_open_record,tok[1])
+                                    setattr(new_record,group_open_record.key.lower(),groupid)
                         self.parsed[key].append(new_record)
-
 
     def post_process(self):
         if self.input_format!='mmCIF':
@@ -198,6 +222,12 @@ class PDBParser:
             self.parse_tokens()
             self.parse_tables()
 
+    # def parse_models(self):
+    #     n_models=self.parsed.get('NUMMDL',1)
+    #     for i in range(n_models):
+    #         self.parsed['MODEL'][i+1]={}
+    #         # in progress
+        
     def parse_embedded_records(self):
         new_parsed_records={}
         for key,p in self.parsed.items():
