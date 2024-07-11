@@ -70,6 +70,8 @@ ATOM
 ```
 
 ## Release History
+* 1.1.4
+   * Added ability to read hexadecimal atom indices for files with > 99999 atoms
 * 1.1.3
    * Added ability to group into models for multiple-model entries
 * 1.1.2

@@ -3,11 +3,11 @@
 # -- Project information
 
 project = 'Pidibble'
-copyright = '2023, Cameron F. Abrams'
+copyright = '2023-2024, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
 release = '1.1'
-version = '1.1.2'
+version = '1.1.4'
 
 # -- General configuration
 

@@ -1,7 +1,6 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
 import unittest
-import pytest
 import logging
 logger=logging.getLogger(__name__)
 def test_pdbformat():

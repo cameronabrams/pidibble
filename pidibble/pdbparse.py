@@ -21,11 +21,13 @@ from pidibble import resources
 logger=logging.getLogger(__name__)
 import importlib.metadata
 import json
+from .hex import int_or_hex
 
 __version__ = importlib.metadata.version("pidibble")
 
 class PDBParser:
-    mappers={'Integer':int,'String':str,'Float':float}
+    # mappers={'Integer':int,'String':str,'Float':float}
+    mappers={'Integer':int_or_hex,'String':str,'Float':float}
     mappers.update(ListParsers)
     comment_lines=[]
     comment_chars=['#']
