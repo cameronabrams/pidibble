@@ -26,7 +26,7 @@ from .hex import str2atomSerial, hex_reset
 __version__ = importlib.metadata.version("pidibble")
 
 def str2int_sig(arg):
-    if not arg.isnumeric(): return -1
+    if not arg.strip().isnumeric(): return -1
     return int(arg)
 
 class PDBParser:
@@ -205,7 +205,7 @@ class PDBParser:
                                 break
                     if root_record:
                         # case (a)
-                        assert root_record.continuation<new_record.continuation,f'continuation parsing error'
+                        assert root_record.continuation<new_record.continuation,f'continuation parsing error {record_type}'
                         root_record.continue_record(new_record,record_format)
                     else:
                         # case (b)

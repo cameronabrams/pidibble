@@ -70,7 +70,7 @@ ATOM
 ```
 
 ## Release History
-* 1.1.7
+* 1.1.8
    * Allow unstructured REMARK records (thanks a lot, packmol) to be parsed as REMARK.-1
 * 1.1.6
    * bugfix: detection of hex when no abcdef present based on a trip
