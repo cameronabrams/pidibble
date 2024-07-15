@@ -70,6 +70,12 @@ ATOM
 ```
 
 ## Release History
+* 1.1.7
+   * Allow unstructured REMARK records (thanks a lot, packmol) to be parsed as REMARK.-1
+* 1.1.6
+   * bugfix: detection of hex when no abcdef present based on a trip
+* 1.1.5
+   * bugfix: allow for ONLY atom serial numbers to be hex-or-int
 * 1.1.4
    * Added ability to read hexadecimal atom indices for files with > 99999 atoms
 * 1.1.3

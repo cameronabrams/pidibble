@@ -21,13 +21,17 @@ from pidibble import resources
 logger=logging.getLogger(__name__)
 import importlib.metadata
 import json
-from .hex import int_or_hex
+from .hex import str2atomSerial, hex_reset
 
 __version__ = importlib.metadata.version("pidibble")
 
+def str2int_sig(arg):
+    if not arg.isnumeric(): return -1
+    return int(arg)
+
 class PDBParser:
     # mappers={'Integer':int,'String':str,'Float':float}
-    mappers={'Integer':int_or_hex,'String':str,'Float':float}
+    mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':float}
     mappers.update(ListParsers)
     comment_lines=[]
     comment_chars=['#']
@@ -143,6 +147,7 @@ class PDBParser:
         self.parsed=mmcif_parser.parse()
 
     def parse_PDB(self):
+        hex_reset()
         record_formats=self.pdb_format_dict['record_formats']
         key=''
         record_format={}
