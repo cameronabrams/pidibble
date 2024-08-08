@@ -23,6 +23,11 @@ import importlib.metadata
 import json
 from .hex import str2atomSerial, hex_reset
 
+def safe_float(x):
+    if x=='nan':
+        return 0.0
+    return float(x)
+
 __version__ = importlib.metadata.version("pidibble")
 
 def str2int_sig(arg):
@@ -31,7 +36,7 @@ def str2int_sig(arg):
 
 class PDBParser:
     # mappers={'Integer':int,'String':str,'Float':float}
-    mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':float}
+    mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':safe_float}
     mappers.update(ListParsers)
     comment_lines=[]
     comment_chars=['#']
