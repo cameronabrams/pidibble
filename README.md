@@ -70,6 +70,8 @@ ATOM
 ```
 
 ## Release History
+* 1.1.9
+   * gently handles any nan values or '*' fillers
 * 1.1.8
    * Allow unstructured REMARK records (thanks a lot, packmol) to be parsed as REMARK.-1
 * 1.1.6
