@@ -70,6 +70,10 @@ ATOM
 ```
 
 ## Release History
+* 1.2.1:
+   * bugfix: hex issues AGAIN
+* 1.2.0
+   * bugfix: hex issues again
 * 1.1.9
    * gently handles any nan values or '*' fillers
 * 1.1.8

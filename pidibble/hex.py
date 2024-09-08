@@ -4,7 +4,7 @@ def str2atomSerial(arg):
     assert type(arg)==str
     if arg=='nan':
         return_object=0
-    elif __hex_tripped__ or any([(x in arg) for x in 'abcdef']):
+    elif __hex_tripped__ or any([(x in arg) for x in 'abcdefABCDEF']):
         return_object=int(arg,16)
     elif '*' in arg:
         return_object=0

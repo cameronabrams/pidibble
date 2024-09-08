@@ -23,17 +23,17 @@ custom_formats:
   Residue10:
     resName: [String,[1,4]]
     chainID: [String,[5,5]]
-    seqNum:  [HxInteger,[6,9]]
+    seqNum:  [Integer,[6,9]]
     iCode:  [String,[10,10]]
   Residue11:
     resName: [String,[1,4]]
     chainID: [String,[5,5]]
-    seqNum:  [HxInteger,[7,10]]
+    seqNum:  [Integer,[7,10]]
     iCode:  [String,[11,11]]
   Residue12:
     resName: [String,[1,4]]
     chainID: [String,[5,5]]
-    seqNum:  [HxInteger,[7,11]]
+    seqNum:  [Integer,[7,11]]
     iCode:  [String,[12,12]]
   Biomtrow:
     m1: [Float,[1,10]]
@@ -85,16 +85,16 @@ record_formats:
     type: 1
     fields:
       numRemark: [Integer,[11,15]]
-      numHet: [HxInteger,[21,25]]
+      numHet: [Integer,[21,25]]
       numHelix: [Integer,[26,30]]
       numSheet: [Integer,[31,35]]
       numTurn: [Integer,[36,40]]
       numSite: [Integer,[41,45]]
       numXform: [Integer,[46,50]]
-      numCoord: [HxInteger,[51,55]]
+      numCoord: [Integer,[51,55]]
       numTer: [Integer,[56,60]]
-      numConect: [HxInteger,[61,65]]
-      numSeq: [HxInteger,[66,70]]
+      numConect: [Integer,[61,65]]
+      numSeq: [Integer,[66,70]]
   ORIGX1:
     type: 1
     fields:
@@ -350,7 +350,7 @@ record_formats:
   CISPEP:
     type: 3
     fields:
-      serNum: [HxInteger,[8,10]]
+      serNum: [Integer,[8,10]]
       residue1: [Residue11,[12,22]]
       residue2: [Residue11,[26,36]]
       modNum: [Integer,[44,46]]
@@ -374,24 +374,24 @@ record_formats:
     fields:
       idCode: [String,[8,11]]
       chainID: [String,[13,13]]
-      seqBegin: [HxInteger,[15,18]]
+      seqBegin: [Integer,[15,18]]
       insertBegin: [String,[19,19]]
-      seqEnd: [HxInteger,[21,24]]
+      seqEnd: [Integer,[21,24]]
       insertEnd: [String,[25,25]]
       database: [String,[27,32]]
       dbAccession: [String,[34,41]]
       dbIdCode: [String,[43,54]]
-      dbseqBegin: [HxInteger,[56,60]]
+      dbseqBegin: [Integer,[56,60]]
       dbinsBegin: [String,[61,61]]
-      dbseqEnd: [HxInteger,[63,67]]
+      dbseqEnd: [Integer,[63,67]]
       dbinsEnd: [String,[68,68]]
   DBREF1:
     fields:
       idCode: [String,[8,11]]
       chainID: [String,[13,13]]
-      seqBegin: [HxInteger,[15,18]]
+      seqBegin: [Integer,[15,18]]
       insertBegin: [String,[19,19]]
-      seqEnd: [HxInteger,[21,24]]
+      seqEnd: [Integer,[21,24]]
       insertEnd: [String,[25,25]]
       database: [String,[27,32]]
       dbIdCode: [String,[48,67]]
@@ -400,12 +400,12 @@ record_formats:
       idCode: [String,[8,11]]
       chainID: [String,[13,13]]
       dbAccession: [String,[19,40]]
-      seqBegin: [HxInteger,[46,55]]
-      seqEnd: [HxInteger,[58,67]]
+      seqBegin: [Integer,[46,55]]
+      seqEnd: [Integer,[58,67]]
   HELIX:
     type: 3
     fields:
-      serNum: [HxInteger,[8,10]]
+      serNum: [Integer,[8,10]]
       helixID: [String,[12,14]]
       initRes: [Residue11,[16,26]]
       endRes: [Residue11,[28,38]]
@@ -846,7 +846,7 @@ record_formats:
                 modelNum: [Integer,[13,14]]
                 resName: [String,[16,18]]
                 chainID: [String,[20,20]]
-                seqNum: [HxInteger,[22,26]]
+                seqNum: [Integer,[22,26]]
                 iCode: [String,[27,27]]
         470:
           fields:
