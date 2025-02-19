@@ -1,6 +1,7 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
 import unittest
+from itertools import product
 import logging
 logger=logging.getLogger(__name__)
 def test_pdbformat():
@@ -587,7 +588,9 @@ class Test4zmj(unittest.TestCase):
         self.assertEqual(r.modelNum,'')
         self.assertEqual(r.omega,-134.45)        
 
-    def test_cif(self):
+class Test_mmCIF(unittest.TestCase):
+
+    def test_cif_pdb_correspondence(self):
         p=PDBParser(input_format='mmCIF',PDBcode='4tvp').parse()
         o=PDBParser(input_format='PDB',PDBcode='4tvp').parse()
         self.assertTrue(p is not None)
@@ -709,6 +712,23 @@ class Test4zmj(unittest.TestCase):
             self.assertEqual(psa.conflict,osa.conflict)
 
         # self.assertTrue(False)
+
+    def test_cif_fetch(self):
+        p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed
+        self.assertEqual(len(p['ATOM']),14466)
+        self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in p)
+        rec=p['REMARK.350.BIOMOLECULE1.TRANSFORM1']
+        digits=[chr(ord('0')+x) for x in range(10)]
+        L=[chr(ord('A')+x) for x in range(26)]
+        l=[chr(ord('a')+x) for x in range(26)]
+        DL=[''.join(x[::-1]) for x in product(L,L)]
+        nc=len(rec.header)
+        ML=L+l+digits+DL
+        TL=ML[:nc]
+        bad_idx=TL.index('q')
+        TL[bad_idx]='OA'
+        TL.sort()
+        self.assertEqual(rec.header,TL)
 
 class TestFourLetterResNames(unittest.TestCase):
     def test_four(self):

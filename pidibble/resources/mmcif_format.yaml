@@ -74,6 +74,10 @@ LINK:
       resName: ptnr1_auth_comp_id
       seqNum: ptnr1_auth_seq_id
       iCode: pdbx_ptnr1_PDB_ins_code
+    residue1_label:
+      chainID: ptnr1_label_asym_id 
+      resName: ptnr1_label_comp_id
+      seqNum: ptnr1_label_seq_id
     ptnr1_label_atom_id: ptnr1_label_atom_id
     ptnr1_label_comp_id: ptnr1_label_comp_id
     ptnr1_label_asym_id: ptnr1_label_asym_id
@@ -85,6 +89,10 @@ LINK:
       resName: ptnr2_auth_comp_id
       seqNum: ptnr2_auth_seq_id
       iCode: pdbx_ptnr2_PDB_ins_code
+    residue2_label:
+      chainID: ptnr2_label_asym_id 
+      resName: ptnr2_label_comp_id
+      seqNum: ptnr2_label_seq_id
     ptnr2_label_atom_id: ptnr2_label_atom_id
     ptnr2_label_comp_id: ptnr2_label_comp_id
     ptnr2_label_asym_id: ptnr2_label_asym_id
@@ -103,6 +111,10 @@ SSBOND:
       resName: ptnr1_auth_comp_id
       seqNum: ptnr1_auth_seq_id
       iCode: pdbx_ptnr1_PDB_ins_code
+    residue1_label:
+      chainID: ptnr1_label_asym_id
+      resName: ptnr1_label_comp_id
+      seqNum: ptnr1_label_seq_id
     ptnr1_label_atom_id: ptnr1_label_atom_id
     ptnr1_label_comp_id: ptnr1_label_comp_id
     ptnr1_label_asym_id: ptnr1_label_asym_id
@@ -112,6 +124,10 @@ SSBOND:
       resName: ptnr2_auth_comp_id
       seqNum: ptnr2_auth_seq_id
       iCode: pdbx_ptnr2_PDB_ins_code
+    residue2_label:
+      chainID: ptnr2_label_asym_id
+      resName: ptnr2_label_comp_id
+      seqNum: ptnr2_label_seq_id
     ptnr2_label_atom_id: ptnr2_label_atom_id
     ptnr2_label_comp_id: ptnr2_label_comp_id
     ptnr2_label_asym_id: ptnr2_label_asym_id

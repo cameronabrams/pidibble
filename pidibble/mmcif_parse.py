@@ -101,8 +101,15 @@ class MMCIF_Parser:
                                 if k in map_values:
                                     mapper=self.global_maps[map_values[k]]
                                     if type(val)==list:
-                                        val=list(set([mapper[x] for x in val]))
-                                        val.sort()
+                                        logger.debug(f'mapper {mapper}')
+                                        logger.debug(f'list before mapping {val}')
+                                        mapped_val=list(set([str(mapper[x]) for x in val]))
+                                        logger.debug(f'list after mapping {mapped_val}')
+                                        try:
+                                            mapped_val.sort()
+                                            val=mapped_val
+                                        except:
+                                            raise TypeError(f'could not sort list {mapped_val} at key {k}')
                                     else:
                                         val=mapper[val]
                         idict[k]=val

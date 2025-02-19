@@ -6,8 +6,8 @@ project = 'Pidibble'
 copyright = '2023-2024, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
-release = '1.1'
-version = '1.1.4'
+release = '1.3'
+version = '1.3.0'
 
 # -- General configuration
 

@@ -176,3 +176,5 @@ Currently, only ``ATOM``, ``HETATM``, ``SEQADV``, ``REMARK 350``, and ``REMARK 4
 'ATOM, HETATM, LINK, SSBOND, SEQADV, REMARK.350.BIOMOLECULE1.TRANSFORM1, REMARK.350.BIOMOLECULE1.TRANSFORM2, REMARK.350.BIOMOLECULE1.TRANSFORM3, REMARK.465'
 
 These records are the bare minimum needed to generate (say) input coordinate and topology files for an MD simulation.  Future versions of ``pidibble`` will provide complete PDB-like parsings of ``mmCIF`` files.  This is probably not useful.
+
+Importantly:  ``pidibble`` parses mmCIF input to generate a structure that is the equivalent of the PDB format; that is, it uses ``auth`` fields instead of ``label`` fields.  
