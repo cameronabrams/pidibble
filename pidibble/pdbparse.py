@@ -30,8 +30,12 @@ def safe_float(x):
 
 __version__ = importlib.metadata.version("pidibble")
 
-def str2int_sig(arg):
-    if not arg.strip().isnumeric(): return -1
+def str2int_sig(arg:str):
+    if not arg.strip().isnumeric():
+        if arg.strip()[0]=='1':
+            return int(arg)
+        else:
+            return -1
     return int(arg)
 
 class PDBParser:

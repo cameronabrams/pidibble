@@ -1,3 +1,4 @@
+from collections import UserDict
 from .pdbrecord import PDBRecord
 from .baserecord import BaseRecord
 import logging
@@ -27,6 +28,27 @@ def rectify(val):
     except:
         pass
     return val
+
+def resolve(key,aDict):
+    pass
+
+class MMCIFDict(UserDict):
+    def __init__(self,data,linkers={},blankers=[' ','','?']):
+        self.data=data
+        self.linkers=linkers
+        self.blankers=blankers
+    
+    def get(self,key):
+        val=self[key]
+        if val in self.blankers:
+            return ''
+        
+        key_link=self.linkers.get(val,None)
+        if key_link:
+            if key_link in self.keys():
+                val=self[key_link]
+        return val
+
 
 class MMCIF_Parser:
     def __init__(self,mmcif_formats,pdb_formats,cif_data):
@@ -73,6 +95,7 @@ class MMCIF_Parser:
         global_ids=mapspec.get('global_ids',{})
         spawns_on=mapspec.get('spawns_on',None)
         allcaps=mapspec.get('allcaps',[])
+        if_dot_replace_with=mapspec.get('if_dot_replace_with',{})
         cifrec=self.cif_data.getObj(mapspec['data_obj'])
         if not tables:
             for idx in range(len(cifrec)):
