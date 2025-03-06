@@ -32,7 +32,7 @@ __version__ = importlib.metadata.version("pidibble")
 
 def str2int_sig(arg:str):
     if not arg.strip().isnumeric():
-        if arg.strip()[0]=='1':
+        if arg.strip()[0]=='-':
             return int(arg)
         else:
             return -1
