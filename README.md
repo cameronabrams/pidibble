@@ -72,7 +72,6 @@ ATOM
 
 ```
 
-
 ## Release History
 * 1.2.3:
    * bugfix: negative resids allowed
