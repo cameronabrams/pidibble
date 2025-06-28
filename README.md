@@ -1,4 +1,7 @@
-# Pidibble - a complete PDB parser
+# Pidibble 
+> a complete PDB-file parser
+
+[![PyPI Downloads](https://static.pepy.tech/badge/pidibble)](https://pepy.tech/projects/pidibble)
 
 Pidibble is a Python package for parsing standard Protein Data Bank (PDB) files.  It conforms to the [most recent standard](https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html) (v.3.3 Atomic Coordinate Entry Format, ca. 2011).
 
@@ -68,6 +71,7 @@ ATOM
 
 
 ```
+
 
 ## Release History
 * 1.2.3:
