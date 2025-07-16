@@ -1,23 +1,6 @@
 Usage
 =====
 
-.. _installation:
-
-Installation
-------------
-
-To use Pidibble, install it from PyPI:
-
-.. code-block:: console
-
-   (.venv) $ pip install pidibble
-
-Pidibble is also available via ``conda``: 
-
-.. code-block:: console
-
-   (conda-env) $ conda install -c conda-forge pidibble
-
 Usage Example
 -------------
 

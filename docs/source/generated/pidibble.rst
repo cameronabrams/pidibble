@@ -1,6 +1,0 @@
-﻿pidibble
-========
-
-.. automodule:: pidibble
-
-   

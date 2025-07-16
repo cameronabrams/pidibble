@@ -1,6 +1,7 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
 
-.. module:: rcsb
+.. module:: pdbparse
    :synopsis: Defines the PDBParser class
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
@@ -13,7 +14,7 @@ import yaml
 import numpy as np
 from mmcif.io.IoAdapterCore import IoAdapterCore
 from . import resources
-from .baseparsers import ListParsers, ListParser
+from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord
 from .mmcif_parse import MMCIF_Parser
@@ -23,72 +24,100 @@ import importlib.metadata
 import json
 from .hex import str2atomSerial, hex_reset
 
-def safe_float(x):
-    if x=='nan':
-        return 0.0
-    return float(x)
 
 __version__ = importlib.metadata.version("pidibble")
 
-def str2int_sig(arg:str):
-    if not arg.strip().isnumeric():
-        if arg.strip()[0]=='-':
-            return int(arg)
-        else:
-            return -1
-    return int(arg)
-
 class PDBParser:
-    # mappers={'Integer':int,'String':str,'Float':float}
-    mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':safe_float}
-    mappers.update(ListParsers)
-    comment_lines=[]
-    comment_chars=['#']
-    default_input_format='PDB'
-    def __init__(self,**options):
+    """
+    A class for parsing PDB files and extracting structured data.
+    This class handles fetching PDB files, reading them, and parsing their contents into structured records
+    based on predefined formats.
+
+    Attributes
+    ----------
+    
+    parsed : dict
+        A dictionary to store parsed records, where keys are record types and values are lists of :class:`.pdbrecord.PDBRecord` instances. Empty if no input file is provided.
+
+    mappers : dict
+        A dictionary of mappers for parsing different data types, including custom formats and delimiters.
+
+    pdb_lines : list
+        A list of lines read from the PDB file. Empty if no input file is provided.
+
+    cif_data : dict
+        A dictionary containing the parsed mmCIF data. Empty if no input file is provided.
+    """
+    def __init__(self,
+                 input_format='PDB',
+                 overwrite=False,
+                 alphafold='',
+                 mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':safe_float},
+                 pdbcode_synonyms=['PDBcode','pdb_code','pdbCode','pdbcode','pdbID','pdb_id','pdbid','PDBID','PDBId','PDBid'],
+                 comment_chars=['#'],
+                 pdb_format_file='pdb_format.yaml',
+                 mmcif_format_file='mmcif_format.yaml',
+                 **kwargs):
         logger.debug(f'Pidibble v. {__version__}')
-        # loglevel=options.get('loglevel','info')
-        # logfile=options.get('logfile','pidibble.log')
-        # loglevel_numeric=getattr(logging,loglevel.upper())
-        # logging.basicConfig(filename=logfile,filemode='w',format='%(asctime)s %(name)s.%(funcName)s %(levelname)s> %(message)s',level=loglevel_numeric)
+        self.input_format=input_format
+        self.overwrite=overwrite
+        self.alphafold=alphafold
+        self.mappers=mappers
+        self.mappers.update(ListParsers)
+        self.pdb_code=''
+        for k in pdbcode_synonyms:
+            if k in kwargs:
+                self.pdb_code=kwargs[k]
+                break
+        self.comment_chars=comment_chars
+        self.pdb_lines=[]
+        self.cif_data={}
+
         self.parsed={}
-        self.input_format=options.get('input_format','PDB')
-        self.pdb_code=options.get('PDBcode','')
-        self.overwrite=options.get('overwrite',False)
-        self.alphafold=options.get('alphafold','')
-        self.pdb_format_file=options.get('pdb_format_file',os.path.join(
-            os.path.dirname(resources.__file__),
-            'pdb_format.yaml'))
-        self.mmcif_format_file=options.get('mmcif_format_file',os.path.join(
-            os.path.dirname(resources.__file__),
-            'mmcif_format.yaml'))
+        self.pdb_format_file=pdb_format_file
+        if not os.path.isfile(self.pdb_format_file):
+            # if pdb_format_file is not a file in the CWD, assume it is a relative path to the resources directory
+            # this is useful for testing
+            self.pdb_format_file=os.path.join(os.path.dirname(resources.__file__),pdb_format_file)
+        self.mmcif_format_file=mmcif_format_file
+        if not os.path.isfile(self.mmcif_format_file):
+            # if mmcif_format_file is not a file in the CWD, assume it is a relative path to the resources directory
+            # this is useful for testing
+            self.mmcif_format_file=os.path.join(os.path.dirname(resources.__file__),mmcif_format_file)
         if os.path.exists(self.pdb_format_file):
             with open(self.pdb_format_file,'r') as f:
                 self.pdb_format_dict=yaml.safe_load(f)
-                logger.debug(f'Pidibble uses the installed config file:')
-                logger.debug(self.pdb_format_file)
+                logger.debug(f'Pidibble uses the installed config file {self.pdb_format_file}')
         else:
-            logger.error(f'{self.pdb_format_file}: not found. You have a bad installation of pidibble.')
+            raise FileNotFoundError(f'{self.pdb_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
         if os.path.exists(self.mmcif_format_file):
             with open(self.mmcif_format_file,'r') as f:
                 self.mmcif_format_dict=yaml.safe_load(f)
-                logger.debug(f'Pidibble uses the installed config file:')
-                logger.debug(self.mmcif_format_file)
+                logger.debug(f'Pidibble uses the installed config file {self.mmcif_format_file}')
         else:
-            logger.error(f'{self.mmcif_format_file}: not found. You have a bad installation of pidibble.')
+            raise FileNotFoundError(f'{self.mmcif_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
+
+        # update mappers with delimiters and custom formats
         delimiter_dict=self.pdb_format_dict.get('delimiters',{})
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
                 self.mappers[map]=ListParser(d).parse
-        # define mappers for custom formats of substrings
         cformat_dict=self.pdb_format_dict.get('custom_formats',{})
         for cname,cformat in cformat_dict.items():
             if not cname in self.mappers:
-                self.mappers[cname]=BaseRecordParser(cformat,PDBParser.mappers).parse
+                self.mappers[cname]=BaseRecordParser(cformat,self.mappers).parse
             
     def fetch(self):
-        # TODO: allow for back-defaulting to mmCIF format
-        # if PDB is not available
+        """
+        Fetch the PDB file based on the provided PDB code or AlphaFold ID.
+        This method checks if the PDB code or AlphaFold ID is provided, constructs the appropriate file path,
+        and attempts to download the file from the PDB or AlphaFold API.
+        
+        Returns
+        -------
+        bool
+            True if the file was successfully fetched, False otherwise.
+        """
         assert self.pdb_code!='' or self.alphafold!=''
         if self.pdb_code!='':
             if self.input_format=='PDB':
@@ -128,34 +157,64 @@ class PDBParser:
             pass # assert statement at top of method body should suppress this branch
 
     def read_PDB(self):
-        self.pdb_lines=[]
+        """
+        Read the PDB file and store its lines in :attr:`PDBParser.pdb_lines`.
+        This method opens the PDB file, reads its contents, and splits it into lines.
+        If the last line is empty, it removes it from the list of lines.
+        """
         with open(self.filepath,'r') as f:
             self.pdb_lines=f.read().split('\n')
             if self.pdb_lines[-1]=='':
                 self.pdb_lines=self.pdb_lines[:-1]
+
     def read_mmCIF(self):
+        """
+        Read the mmCIF file and store its data in :attr:`PDBParser.cif_data`.
+        This method uses the :class:`mmcif.io.IoAdapterCore.IoAdapterCore` to read the
+        mmCIF file and store the data in :attr:`PDBParser.cif_data`.
+        """
         io=IoAdapterCore()
         l_dc=io.readFile(self.filepath)
         self.cif_data=l_dc[0]
+
     def read(self):
-        self.pdb_lines=[]
-        self.cif_data=None
+        """
+        Read the PDB or mmCIF file based on the input format.
+        This method checks the input format and calls the appropriate read method.
+        """
         if self.input_format=='mmCIF':
             self.read_mmCIF()
         else:
             self.read_PDB()
 
     def parse_base(self):
+        """
+        Parse the base records from the PDB or mmCIF file.
+        This method initializes the parsing process based on the input format.
+        If the input format is mmCIF, it uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data.
+        If the input format is PDB, it uses the :class:`.pdbrecord.PDBRecord` class to parse the PDB lines.
+        """
         if self.input_format=='mmCIF':
             self.parse_mmCIF()
         else:
             self.parse_PDB()
 
     def parse_mmCIF(self):
+        """
+        Parse the mmCIF data and generate a dictionary of :class:`.pdbrecord.PDBRecord` instances.
+        This method uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data and store the parsed records
+        in :attr:`PDBParser.parsed`.
+        """
         mmcif_parser=MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'],self.cif_data)
         self.parsed=mmcif_parser.parse()
 
     def parse_PDB(self):
+        """
+        Parse the PDB lines and generate a dictionary of :class:`.pdbrecord.PDBRecord` instances.
+        This method iterates through the PDB lines, identifies the record type based on the first character,
+        and creates a new :class:`.pdbrecord.PDBRecord` instance for each record.
+        It handles different record types, including continuation records and grouped records.
+        """
         hex_reset()
         record_formats=self.pdb_format_dict['record_formats']
         key=''
@@ -163,7 +222,7 @@ class PDBParser:
         group_open_record=None
         for i,pdbrecord_line in enumerate(self.pdb_lines):
             tc=pdbrecord_line[0]
-            if tc in PDBParser.comment_chars:
+            if tc in self.comment_chars:
                 continue
             pdbrecord_line+=' '*(80-len(pdbrecord_line))
             base_key=pdbrecord_line[:6].strip()
@@ -233,6 +292,11 @@ class PDBParser:
                         self.parsed[key].append(new_record)
 
     def post_process(self):
+        """
+        Post-process the parsed records to handle embedded records, tokens, and tables.
+        This method checks if the input format is mmCIF and processes the records accordingly.
+        If the input format is PDB, it processes the records to handle embedded records, tokens, and tables.
+        """
         if self.input_format!='mmCIF':
             self.parse_embedded_records()
             self.parse_tokens()
@@ -245,6 +309,12 @@ class PDBParser:
     #         # in progress
         
     def parse_embedded_records(self):
+        """
+        Parse embedded records within the parsed records.
+        This method iterates through the parsed records and checks if any record has embedded records.
+        If an embedded record is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_embedded` method to parse the embedded records.
+        It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
+        """
         new_parsed_records={}
         for key,p in self.parsed.items():
             if type(p)==PDBRecord:
@@ -259,6 +329,12 @@ class PDBParser:
         self.parsed.update(new_parsed_records)
 
     def parse_tokens(self):
+        """
+        Parse tokens within the parsed records.
+        This method iterates through the parsed records and checks if any record has token formats.
+        If a token format is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_tokens` method to parse the tokens.
+        It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
+        """
         for key,p in self.parsed.items():
             if type(p)==PDBRecord:
                 rf=p.format
@@ -271,6 +347,12 @@ class PDBParser:
                         q.parse_tokens(self.mappers)
 
     def parse_tables(self):
+        """
+        Parse tables within the parsed records.
+        This method iterates through the parsed records and checks if any record has table formats.
+        If a table format is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_tables` method to parse the tables.
+        It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
+        """
         for key,p in self.parsed.items():
             if type(p)==list:
                 continue # don't expect to read a table from a multiple-record entry
@@ -279,6 +361,18 @@ class PDBParser:
                 p.parse_tables(self.mappers)                        
 
     def parse(self):
+        """
+        Parse the PDB or mmCIF file and generate a dictionary of :class:`.pdbrecord.PDBRecord` instances.
+        This method first fetches the PDB or mmCIF file based on the provided PDB code or AlphaFold ID.
+        It then reads the file and parses its contents into structured records.
+        If the input format is mmCIF, it uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data.
+        If the input format is PDB, it uses the :class:`.pdbrecord.PDBRecord` class to parse the PDB lines.
+
+        Returns
+        -------
+        self : PDBParser
+            The instance of :class:`.pdbrecord.PDBRecord` containing the parsed records.
+        """
         if self.fetch():
             self.read()
             self.parse_base()
@@ -288,6 +382,22 @@ class PDBParser:
         return self
             
 def get_symm_ops(rec:PDBRecord):
+    """
+    Extract the symmetry operations from a PDB record.
+    This function processes the symmetry operations from a PDB record and returns the transformation matrix and translation vector.
+
+    Parameters
+    ----------
+    rec : :class:`.pdbrecord.PDBRecord`
+        The PDBRecord instance containing the symmetry operations.
+
+    Returns
+    -------
+    M : :class:`numpy.ndarray`
+        The 3x3 transformation matrix.
+    T : :class:`numpy.ndarray`
+        The 3x1 translation vector.
+    """
     M=np.identity(3)
     T=np.array([0.,0.,0.])
     assert len(rec.row)==3,f'a transformation matrix record should not have more than 3 rows'

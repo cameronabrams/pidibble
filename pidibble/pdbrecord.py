@@ -1,3 +1,4 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
 
 .. module:: pdbrecord
@@ -13,19 +14,60 @@ import logging
 logger=logging.getLogger(__name__)
 
 class tokengroup:
+    """
+    A class to represent a group of tokens with a label and a method to add tokens.
+    """
     def __init__(self,tokname,tokval,determinant=True):
         if determinant:
             self.label=f'{tokname}.{tokval}'
         else:
             self.label=f'{tokname}'
             self.add_token(tokname,tokval)
+
     def add_token(self,tokname,tokval):
+        """
+        Add a token to the token group.
+        
+        Parameters
+        ----------
+        tokname : str
+            The name of the token.
+        tokval : str
+            The value of the token.
+        """
         self.__dict__[tokname]=tokval
 
 class PDBRecord(BaseRecord):
+    """
+    A class representing a PDB record, inheriting from :class:`.baserecord.BaseRecord`.
+    It provides methods for parsing and handling PDB records, including embedded records and tokens.
+    """
     continuation='0'
     @classmethod
     def base_parse(cls,current_key,pdbrecordline:str,current_format:dict,typemap:dict):
+        """
+        Parse a PDB record line based on the provided format and type mapping.
+            
+        This method handles the parsing of the PDB record line according to the specified format.
+        It extracts fields, subrecords, allowed values, and concatenated fields based on the format
+        and type mapping provided. It also checks for subrecords and handles them accordingly.
+
+        Parameters
+        ----------
+        current_key : str
+            The key for the current record being parsed.
+        pdbrecordline : str
+            The line from the PDB file to be parsed.
+        current_format : dict
+            The format dictionary defining the structure of the PDB record.
+        typemap : dict
+            A dictionary mapping field names to their types.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the parsed input dictionary, the current key, and the current format.
+        """
         local_record_format=current_format.copy()
         fields=local_record_format.get('fields',{})
         subrecords=local_record_format.get('subrecords',{})
@@ -53,6 +95,27 @@ class PDBRecord(BaseRecord):
     
     @classmethod
     def newrecord(cls,base_key:str,pdbrecordline:str,record_format:dict,typemap:dict):
+        """
+        Create a new PDBRecord instance from a PDB record line and its format.
+        This method parses the PDB record line according to the specified format and type mapping,
+        and returns a new instance of the PDBRecord class with the parsed data.
+        
+        Parameters
+        ----------
+        base_key : str
+            The base key for the PDB record.
+        pdbrecordline : str
+            The line from the PDB file to be parsed.
+        record_format : dict
+            The format dictionary defining the structure of the PDB record.
+        typemap : dict
+            A dictionary mapping field names to their types.
+        
+        Returns
+        -------
+        :class:`PDBRecord`
+            A new instance of the PDBRecord class containing the parsed data.
+        """
         # logger.debug(f'newrecord pdbrecordline "{pdbrecordline}"')
         while len(pdbrecordline)<80:
             pdbrecordline+=' '
@@ -68,6 +131,19 @@ class PDBRecord(BaseRecord):
         return inst
 
     def get_token(self,key):
+        """
+        Retrieve a token value from the PDBRecord instance based on the provided key.
+        
+        Parameters
+        ----------
+        key : str
+            The key for the token to retrieve.
+        
+        Returns
+        -------
+        str or None
+            The value of the token if found, or None if the token does not exist.
+        """
         if not hasattr(self,'tokengroups'):
             return None
         values={}
@@ -81,6 +157,28 @@ class PDBRecord(BaseRecord):
             return values
 
     def continue_record(self,other,record_format,**kwargs):
+        """
+        Continue a PDBRecord instance with another PDBRecord instance.
+        This method merges the attributes of the other PDBRecord instance into the current instance,
+        handling continuation fields and concatenating values as necessary.
+        
+        Parameters
+        ----------
+        other : PDBRecord
+            The other PDBRecord instance to merge with.
+        record_format : dict
+            The format dictionary defining the structure of the PDB record.
+        kwargs : dict, optional
+            Additional keyword arguments, such as 'all_fields' to specify whether to include all fields.
+        all_fields : bool, optional
+            If True, all fields from the record format will be considered for continuation.
+            If False, only the fields specified in the record format will be considered.
+            
+        Returns
+        -------
+        None
+            This method modifies the current instance in place.
+        """
         all_fields=kwargs.get('all_fields',False)
         continuing_fields=record_format.get('continues',record_format['fields'].keys() if all_fields else {})
         logger.debug(f'{self.key} {continuing_fields}')
@@ -101,6 +199,21 @@ class PDBRecord(BaseRecord):
                 self.__dict__[cfield]=[self.__dict__[cfield],other.__dict__[cfield]]
 
     def parse_tokens(self,typemap):
+        """
+        Parse tokens from the PDBRecord instance based on the record format.
+        This method checks if the record format contains token formats and parses them accordingly.
+        
+        Parameters
+        ----------
+        typemap : dict
+            A dictionary mapping field names to their types.
+            
+        Returns
+        -------
+        None
+            This method modifies the PDBRecord instance in place, adding a `tokengroups` attribute
+            that contains the parsed tokens grouped by their labels.
+        """
         record_format=self.format
         if not 'token_formats' in record_format:
             return
@@ -167,7 +280,19 @@ class PDBRecord(BaseRecord):
                         self.tokengroups[a][new_tokengroup.label]=new_tokengroup
                     else:
                         current_tokengroup.add_token(tokkey,tokvalue)
+
     def parse_embedded(self,format_dict,typemap):
+        """
+        Parse embedded records within the PDBRecord instance based on the record format.
+        This method checks if the record format contains embedded records and parses them accordingly.
+
+        Parameters
+        ----------
+        format_dict : dict
+            A dictionary mapping field names to their formats.
+        typemap : dict
+            A dictionary mapping field names to their types.
+        """
         logger.debug(f'Parsing embedded')
         new_records={}
         record_format=self.format 
@@ -267,6 +392,20 @@ class PDBRecord(BaseRecord):
         return new_records
 
     def parse_tables(self,typemap):
+        """
+        Parse tables from the PDBRecord instance based on the record format.
+        This method checks if the record format contains table formats and parses them accordingly.
+        
+        Parameters
+        ----------
+        typemap : dict
+            A dictionary mapping field names to their types.
+            
+        Returns
+        -------
+        None. This method modifies the PDBRecord instance in place, adding a `tables` attribute
+        that contains the parsed tables, where each table is a list of :class:`.pdbrecord.PDBRecord` instances.
+        """
         fmt=self.format
         self.tables={}
         scanbegin=0
@@ -304,6 +443,20 @@ class PDBRecord(BaseRecord):
                         self.tables[tname].append(parsedrow)
 
 def header_check(record,headers,parse,hold=[]):
+    """
+    Check if a record is a header line and parse it accordingly.
+    
+    Parameters
+    ----------
+    record : str
+        The record line to check.
+    headers : dict
+        A dictionary containing header formats and their specifications.
+    parse : function
+        A function to parse the header line.
+    hold : list, optional
+        A list to hold the parsed header values. Defaults to an empty list.
+    """
     r=parse(record)
     if r.mainline==headers['formats']['mainline']['signalvalue']:
         assert len(hold)==0
@@ -314,6 +467,19 @@ def header_check(record,headers,parse,hold=[]):
         hold.extend([x.strip() for x in r.value.strip().split(',')])
 
 def gather_token(k,v,hold={}):
+    """
+    Gather a token into a holder dictionary.
+    If the key already exists in the holder, it appends the value to the list.
+    
+    Parameters
+    ----------
+    k : str
+        The key for the token.
+    v : str
+        The value of the token.
+    hold : dict, optional
+        A dictionary to hold the tokens. Defaults to an empty dictionary.
+    """
     if k in hold:
         if not type(hold[k])==list:
             hold[k]=[hold[k],v]
@@ -323,17 +489,34 @@ def gather_token(k,v,hold={}):
         hold[k]=v
 
 def header_or_token(rec,d,hdrs,tp,htp,th,hh):
-    # check to see if the record is tokenizable either as
-    # a generic tokenstring or a header
-    # rec: record
-    # d: delimiter
-    # hdrs: headers dict from the embedded_records entry
-    # tp: token parser
-    # htp: header token parser
-    # th: token holder
-    # hth: header token holder
-    # returns True if a token or headertoken was parsed
-    # False otherwise
+    """
+    Check if a record is a token or a header line and parse it accordingly.
+    This function checks if the record can be tokenized or if it matches a header format.
+    If it matches a header format, it updates the header holder. If it is a token,
+    it gathers the token into the token holder.
+    
+    Parameters
+    ----------
+    rec : str
+        The record line to check.
+    d : str
+        The delimiter used to separate tokens in the record.
+    hdrs : dict
+        A dictionary containing header formats and their specifications.
+    tp : function
+        A function to parse the token line.
+    htp : function
+        A function to parse the header line.
+    th : dict
+        A dictionary to hold the tokens.
+    hh : list
+        A list to hold the header values.
+    
+    Returns
+    -------
+    bool
+        True if the record was parsed as a token or header, False otherwise.
+    """
     tokenstr=tp(rec).token
     if d in tokenstr:
         k,v=tokenstr.split(d)
@@ -346,15 +529,38 @@ def header_or_token(rec,d,hdrs,tp,htp,th,hh):
     return False
 
 def capture_record(rec,fmt,typemap,key,hdrs,hh,th,divno,rh):
-    # rec: the record
-    # fmt: format
-    # typemap
-    # key: current base key
-    # hdrs: headers dict from the embedded_records entry
-    # hh: header holder
-    # th: token holder
-    # divno: current division number
-    # rh: record holder
+    """
+    Capture a record from the PDB file and create a new PDBRecord instance.
+    This function checks if the record is a continuation of an existing record or a new record.
+    If it is a continuation, it updates the existing record. If it is a new record,
+    it creates a new PDBRecord instance and adds it to the record holder.
+    
+    Parameters
+    ----------
+    rec : str
+        The record line to capture.
+    fmt : dict
+        The format dictionary defining the structure of the PDB record.
+    typemap : dict
+        A dictionary mapping field names to their types.
+    key : str
+        The key for the current record being captured.
+    hdrs : dict
+        A dictionary containing header formats and their specifications.
+    hh : list
+        A list to hold the header values.
+    th : dict
+        A dictionary to hold the tokens.
+    divno : int
+        The current division number.
+    rh : dict
+        A dictionary to hold the records, where keys are record keys and values are PDBRecord instances.    
+    
+    Returns
+    -------
+    bool
+        True if a new division was detected, False otherwise.
+    """
     new_division=False
     embedkey=key
     if hh:

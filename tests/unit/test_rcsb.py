@@ -4,6 +4,7 @@ import unittest
 from itertools import product
 import logging
 logger=logging.getLogger(__name__)
+
 def test_pdbformat():
     p=PDBParser()
     expected_sections=['record_formats','BASE_URL']
@@ -611,11 +612,11 @@ class Test_mmCIF(unittest.TestCase):
                 # self.assertEqual(ma.serial,pa.serial)
                 self.assertEqual(ma.name,pa.name)
                 self.assertEqual(ma.altLoc,pa.altLoc)
-                logger.debug(f'{ma.residue.chainID} {ma.residue.resName} {ma.residue.seqNum} {ma.name} == {pa.residue.chainID} {pa.residue.resName} {pa.residue.seqNum} {pa.name} ')
-                self.assertEqual(ma.residue.chainID,pa.residue.chainID)
-                self.assertEqual(ma.residue.resName,pa.residue.resName)
-                self.assertEqual(ma.residue.seqNum,pa.residue.seqNum)
-                self.assertEqual(ma.residue.iCode,pa.residue.iCode)
+                logger.debug(f'{ma.residue_auth.chainID} {ma.residue_auth.resName} {ma.residue_auth.seqNum} {ma.name} == {pa.residue.chainID} {pa.residue.resName} {pa.residue.seqNum} {pa.name} ')
+                self.assertEqual(ma.residue_auth.chainID,pa.residue.chainID)
+                self.assertEqual(ma.residue_auth.resName,pa.residue.resName)
+                self.assertEqual(ma.residue_auth.seqNum,pa.residue.seqNum)
+                self.assertEqual(ma.residue_auth.iCode,pa.residue.iCode)
                 self.assertEqual(ma.x,pa.x)
                 self.assertEqual(ma.y,pa.y)
                 self.assertEqual(ma.z,pa.z)

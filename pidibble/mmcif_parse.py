@@ -1,3 +1,13 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>
+"""
+.. module:: mmcif_parse
+
+   :synopsis: defines the MMCIF_Parser class for parsing mmCIF files
+
+   .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+   
+"""
+
 from collections import UserDict
 from .pdbrecord import PDBRecord
 from .baserecord import BaseRecord
@@ -5,6 +15,19 @@ import logging
 logger=logging.getLogger(__name__)
 
 def split_ri(ri):
+    """
+    Split a residue identifier into its sequence number and insertion code.
+    
+    Parameters
+    ----------
+    ri : str or int
+        The residue identifier, which can be a string in the format '1234A' or an integer like 1234.
+        
+    Returns
+    -------
+    tuple
+        A tuple containing the sequence number as an integer and the insertion code as a string.
+    """
     if type(ri)==int: # this is no insertion code
         r=ri
         i=''
@@ -17,6 +40,19 @@ def split_ri(ri):
     return r,i
 
 def rectify(val):
+    """
+    Convert a value to its appropriate type, handling empty strings and special cases.
+    
+    Parameters
+    ----------
+    val : str
+        The value to be rectified, which can be a string representation of a number or an empty string.
+        
+    Returns
+    -------
+    int or float or str
+        The rectified value, which is an integer if the string represents a number, a float if it can be converted, or the original string if it cannot be converted.
+    """
     if not val:
         return ''
     if val in '.?':
@@ -30,15 +66,48 @@ def rectify(val):
     return val
 
 def resolve(key,aDict):
+    """
+    Stub function to resolve a key in a dictionary.
+    This function is a placeholder and does not perform any actual resolution.
+    """
     pass
 
 class MMCIFDict(UserDict):
+    """
+    A dictionary-like class for handling mmCIF data with custom key resolution.
+    This class extends UserDict to provide additional functionality for mmCIF data handling.
+    
+    Parameters
+    ----------
+    data : dict
+        The initial data to populate the MMCIFDict.
+    linkers : dict, optional
+        A dictionary mapping keys to other keys for resolving linked values.
+    blankers : list, optional
+        A list of values that should be treated as empty strings.
+        Defaults to [' ', '', '?'].
+    """
+    
     def __init__(self,data,linkers={},blankers=[' ','','?']):
         self.data=data
         self.linkers=linkers
         self.blankers=blankers
     
     def get(self,key):
+        """
+        Retrieve a value from the MMCIFDict by key, resolving linked keys if necessary.
+        If the value is in the blankers list, it returns an empty string.
+        
+        Parameters
+        ----------
+        key : str
+            The key to retrieve from the MMCIFDict.
+        
+        Returns
+        -------
+        str
+            The value associated with the key, or an empty string if the value is in the blankers list.
+        """
         val=self[key]
         if val in self.blankers:
             return ''
@@ -49,8 +118,19 @@ class MMCIFDict(UserDict):
                 val=self[key_link]
         return val
 
-
 class MMCIF_Parser:
+    """
+    A parser for mmCIF files, handling the parsing of various formats and structures.
+    
+    Parameters
+    ----------
+    mmcif_formats : dict
+        A dictionary defining the mmCIF formats to be parsed.
+    pdb_formats : dict
+        A dictionary defining the PDB formats to be parsed.
+    cif_data : object
+        An object containing the CIF data to be parsed.
+    """
     def __init__(self,mmcif_formats,pdb_formats,cif_data):
         self.formats=mmcif_formats
         self.pdb_formats=pdb_formats
@@ -59,6 +139,18 @@ class MMCIF_Parser:
         self.cif_data=cif_data
 
     def update_maps(self,maps,cifrec,idx):
+        """
+        Update the global maps with values from the CIF record at a specific index.
+        
+        Parameters
+        ----------
+        maps : dict
+            A dictionary of maps to update, where keys are map names and values are dictionaries with 'key' and 'value' keys.
+        cifrec : object
+            The CIF record object containing the data to update the maps.
+        idx : int
+            The index in the CIF record to retrieve values from.
+        """
         for mapname,mapspec in maps.items():
             if not mapname in self.global_maps:
                 self.global_maps[mapname]={}
@@ -70,6 +162,18 @@ class MMCIF_Parser:
                 self.global_maps[mapname][key]=val
 
     def update_ids(self,idmaps,cifrec,idx):
+        """
+        Update the global IDs with values from the CIF record at a specific index.
+        
+        Parameters
+        ----------
+        idmaps : dict
+            A dictionary of ID maps, where keys are ID names and values are the corresponding CIF record field names.
+        cifrec : object
+            The CIF record object containing the data to update the IDs.
+        idx : int
+            The index in the CIF record to retrieve values from.
+        """
         for idname,idspec in idmaps.items():
             if not idname in self.global_ids:
                 self.global_ids[idname]=[]
@@ -78,6 +182,20 @@ class MMCIF_Parser:
                 self.global_ids[idname].append(thisid)
 
     def gen_dict(self,mapspec):
+        """
+        Generate a list of dictionaries based on the specified mapping specification.
+        This method processes the mapping specification to create dictionaries that represent parsed records from the CIF data.
+        
+        Parameters
+        ----------
+        mapspec : dict
+            A dictionary containing the mapping specification, which includes keys like 'data_obj', 'attr_map', 'splits', 'spawns_on', 'indexes', 'map_values', 'tables', 'spawn_data', 'global_maps', 'global_ids', 'list_attr', 'signal_attr', 'signal_value', 'allcaps', and 'if_dot_replace_with'.
+        
+        Returns
+        -------
+        list
+            A list of dictionaries representing the parsed records based on the mapping specification.
+        """
         idicts=[]
         attr_map=mapspec.get('attr_map',{})
         splits=mapspec.get('splits',[])
@@ -210,6 +328,15 @@ class MMCIF_Parser:
         return idicts
 
     def parse(self):
+        """
+        Parse the mmCIF data and generate a dictionary of :class:`pdbrecord.PDBRecord` instances.
+        This method processes the mmCIF formats and generates a dictionary where keys are record types and values are lists of :class:`pdbrecord.PDBRecord` instances.
+
+        Returns
+        -------
+        dict
+            A dictionary where keys are record types and values are lists of :class:`pdbrecord.sPDBRecord` instances.
+        """
         recdict={}
         for rectype,mapspec in self.formats.items():
             idicts=self.gen_dict(mapspec)

@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.3.0
+   * streamline class attribute usage; full API documentation
 * 1.2.3:
    * bugfix: negative resids allowed
 * 1.2.1:
