@@ -24,7 +24,6 @@ import importlib.metadata
 import json
 from .hex import str2atomSerial, hex_reset
 
-
 __version__ = importlib.metadata.version("pidibble")
 
 class PDBParser:
