@@ -73,7 +73,7 @@ ATOM
 ```
 
 ## Release History
-* 1.3.1
+* 1.3.2
    * implemented `filepath` parameter in `PDBParser()` to make
      reading local files more transparent
 * 1.3.0
