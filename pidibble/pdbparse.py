@@ -12,6 +12,7 @@ import os
 import logging
 import yaml
 import numpy as np
+from pathlib import Path
 from mmcif.io.IoAdapterCore import IoAdapterCore
 from . import resources
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
@@ -51,6 +52,7 @@ class PDBParser:
                  input_format='PDB',
                  overwrite=False,
                  alphafold='',
+                 filepath: Path = None,
                  mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':safe_float},
                  pdbcode_synonyms=['PDBcode','pdb_code','pdbCode','pdbcode','pdbID','pdb_id','pdbid','PDBID','PDBId','PDBid'],
                  comment_chars=['#'],
@@ -61,6 +63,7 @@ class PDBParser:
         self.input_format=input_format
         self.overwrite=overwrite
         self.alphafold=alphafold
+        self.filepath=filepath
         self.mappers=mappers
         self.mappers.update(ListParsers)
         self.pdb_code=''
@@ -117,7 +120,7 @@ class PDBParser:
         bool
             True if the file was successfully fetched, False otherwise.
         """
-        assert self.pdb_code!='' or self.alphafold!=''
+        assert self.pdb_code!='' or self.alphafold!='' or self.filepath is not None, "PDB code or AlphaFold ID must be provided, or a path to a PDB file must be specified."
         if self.pdb_code!='':
             if self.input_format=='PDB':
                 self.filepath=f'{self.pdb_code}.pdb'
@@ -150,6 +153,11 @@ class PDBParser:
                 urllib.request.urlretrieve(result[0]['pdbUrl'],self.filepath)
             except:
                 logger.warning(f'Could not retrieve {result[0]["pdbUrl"]}')
+                return False
+            return True
+        elif self.filepath is not None:
+            if not os.path.exists(self.filepath):
+                logger.warning(f'File {self.filepath} does not exist.')
                 return False
             return True
         else:
