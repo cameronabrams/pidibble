@@ -214,8 +214,9 @@ class MMCIF_Parser:
         spawns_on=mapspec.get('spawns_on',None)
         allcaps=mapspec.get('allcaps',[])
         if_dot_replace_with=mapspec.get('if_dot_replace_with',{})
+        logger.debug(f'getting cifrec for {mapspec["data_obj"]}')
         cifrec=self.cif_data.getObj(mapspec['data_obj'])
-        if not tables:
+        if not tables and cifrec is not None:
             for idx in range(len(cifrec)):
                 if not use_signal or (cifrec.getValue(sigattr,idx)==sigval):
                     if global_maps:

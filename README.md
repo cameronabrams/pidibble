@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.3.3
+   * fixed bugs regarding assuming missing records actually present in mmcif parsing
 * 1.3.2
    * implemented `filepath` parameter in `PDBParser()` to make
      reading local files more transparent
