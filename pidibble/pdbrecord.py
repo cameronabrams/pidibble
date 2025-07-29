@@ -7,7 +7,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-
+from collections import UserList, UserDict
 from .baserecord import BaseRecord, BaseRecordParser
 from .baseparsers import StringParser
 import logging
@@ -441,6 +441,79 @@ class PDBRecord(BaseRecord):
                     parsedrow=rowparser(l)
                     if not all([x=='' for x in parsedrow.__dict__.values()]):
                         self.tables[tname].append(parsedrow)
+
+class PDBRecordList(UserList):
+    """
+    A class representing a list of PDBRecord instances, inheriting from UserList.
+    It provides methods for parsing and handling multiple PDB records.
+    """
+    def __init__(self, initlist=None):
+        if initlist is not None:
+            self._validate_all(initlist)
+        super().__init__(initlist or [])
+
+    def _validate(self, item):
+        if not isinstance(item, PDBRecord):
+            raise TypeError(f"All items must be instances of PDBRecord, got {type(item)}")
+
+    def _validate_all(self, iterable):
+        for item in iterable:
+            self._validate(item)
+
+    def __setitem__(self, index, item):
+        # Support slice assignment
+        if isinstance(index, slice):
+            self._validate_all(item)
+        else:
+            self._validate(item)
+        super().__setitem__(index, item)
+
+    def append(self, item):
+        self._validate(item)
+        super().append(item)
+
+    def insert(self, index, item):
+        self._validate(item)
+        super().insert(index, item)
+
+    def extend(self, other):
+        self._validate_all(other)
+        super().extend(other)
+
+    def __add__(self, other):
+        self._validate_all(other)
+        return AList(super().__add__(other))
+
+    def __iadd__(self, other):
+        self._validate_all(other)
+        return super().__iadd__(other)
+    
+class PDBRecordDict(UserDict):
+    """
+    A class representing a dictionary of PDBRecord or PDBRecordList instances, inheriting from UserDict.
+    It provides methods for parsing and handling multiple PDB records stored in a dictionary.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.update(*args, **kwargs)
+
+    def _validate(self, value):
+        if not isinstance(value, (PDBRecord, PDBRecordList)):
+            raise TypeError(f"Values must be PDBRecord or PDBRecordList, got {type(value)}")
+
+    def __setitem__(self, key, value):
+        self._validate(value)
+        super().__setitem__(key, value)
+
+    def update(self, *args, **kwargs):
+        other = dict(*args, **kwargs)
+        for key, value in other.items():
+            self[key] = value  # Triggers __setitem__
+
+    def setdefault(self, key, default=None):
+        if key not in self:
+            self[key] = default  # Triggers __setitem__
+        return self[key]
 
 def header_check(record,headers,parse,hold=[]):
     """

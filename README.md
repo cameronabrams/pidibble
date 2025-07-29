@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.4.0
+   * Introduced `PDBRecordList` and `PDBRecordDict` classes
 * 1.3.3
    * fixed bugs regarding assuming missing records actually present in mmcif parsing
 * 1.3.2

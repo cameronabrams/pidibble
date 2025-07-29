@@ -14,10 +14,11 @@ import yaml
 import numpy as np
 from pathlib import Path
 from mmcif.io.IoAdapterCore import IoAdapterCore
+from typing import List, Dict
 from . import resources
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
-from .pdbrecord import PDBRecord
+from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .mmcif_parse import MMCIF_Parser
 from pidibble import resources
 logger=logging.getLogger(__name__)
@@ -35,9 +36,10 @@ class PDBParser:
 
     Attributes
     ----------
-    
-    parsed : dict
-        A dictionary to store parsed records, where keys are record types and values are lists of :class:`.pdbrecord.PDBRecord` instances. Empty if no input file is provided.
+
+    parsed : PDBRecordDict
+        A dictionary containing parsed records, where keys are record types and values are :class:`.pdbrecord.PDBRecord` instances or lists of instances.
+        This dictionary is populated after parsing the PDB or mmCIF file.
 
     mappers : dict
         A dictionary of mappers for parsing different data types, including custom formats and delimiters.
@@ -75,7 +77,7 @@ class PDBParser:
         self.pdb_lines=[]
         self.cif_data={}
 
-        self.parsed={}
+        self.parsed=PDBRecordDict()
         self.pdb_format_file=pdb_format_file
         if not os.path.isfile(self.pdb_format_file):
             # if pdb_format_file is not a file in the CWD, assume it is a relative path to the resources directory
@@ -262,7 +264,7 @@ class PDBParser:
                             if tok[0]==group_open_record.key:
                                 groupid=getattr(group_open_record,tok[1])
                                 setattr(new_record,group_open_record.key.lower(),groupid)
-                    self.parsed[key]=[new_record]
+                    self.parsed[key]=PDBRecordList([new_record])
                 else:
                     # this is either
                     # (a) a continuation record of a given key.(determinants)
@@ -328,7 +330,7 @@ class PDBParser:
                 rf=p.format
                 if 'embedded_records' in rf:
                     new_parsed_records.update(p.parse_embedded(self.pdb_format_dict['record_formats'],self.mappers))
-            elif type(p)==list:
+            elif type(p)==PDBRecordList:
                 for q in p:
                     rf=q.format
                     if 'embedded_records' in rf:
@@ -361,7 +363,7 @@ class PDBParser:
         It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
         """
         for key,p in self.parsed.items():
-            if type(p)==list:
+            if type(p)==PDBRecordList:
                 continue # don't expect to read a table from a multiple-record entry
             rf=p.format
             if 'tables' in rf:

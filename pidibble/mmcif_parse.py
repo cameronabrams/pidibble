@@ -9,7 +9,7 @@
 """
 
 from collections import UserDict
-from .pdbrecord import PDBRecord
+from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .baserecord import BaseRecord
 import logging
 logger=logging.getLogger(__name__)
@@ -335,18 +335,18 @@ class MMCIF_Parser:
 
         Returns
         -------
-        dict
-            A dictionary where keys are record types and values are lists of :class:`pdbrecord.sPDBRecord` instances.
+        PDBRecordDict
+            A dictionary where keys are record types and values are lists of :class:`pdbrecord.PDBRecord` instances.
         """
-        recdict={}
+        recdict=PDBRecordDict()
         for rectype,mapspec in self.formats.items():
             idicts=self.gen_dict(mapspec)
             for idict in idicts:
                 this_key=idict.get('tmp_label','')
                 reckey=rectype if not this_key else f'{rectype}.{this_key}'
                 if reckey in recdict:
-                    if not type(recdict[reckey])==list:
-                        recdict[reckey]=[recdict[reckey]]
+                    if not type(recdict[reckey])==PDBRecordList:
+                        recdict[reckey]=PDBRecordList([recdict[reckey]])
                     idict['key']=reckey
                     recdict[reckey].append(PDBRecord(idict))
                 else:
