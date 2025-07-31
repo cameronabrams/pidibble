@@ -407,13 +407,15 @@ def get_symm_ops(rec:PDBRecord):
     T : :class:`numpy.ndarray`
         The 3x1 translation vector.
     """
-    M=np.identity(3)
-    T=np.array([0.,0.,0.])
-    assert len(rec.row)==3,f'a transformation matrix record should not have more than 3 rows'
-    for c,r in zip(rec.coordinate,rec.row):
-        row=c-1
-        M[row][0]=r.m1
-        M[row][1]=r.m2
-        M[row][2]=r.m3
-        T[row]=r.t
-    return M,T
+    M = np.identity(3)
+    T = np.array([0., 0., 0.])
+    if not (hasattr(rec, 'row') and hasattr(rec, 'coordinate')):
+        raise ValueError('Invalid PDBRecord: missing row or coordinate attributes')
+    assert len(rec.row) == 3, f'a transformation matrix record should not have more than 3 rows'
+    for c, r in zip(rec.coordinate, rec.row):
+        row = c - 1
+        M[row][0] = r.m1
+        M[row][1] = r.m2
+        M[row][2] = r.m3
+        T[row] = r.t
+    return M, T
