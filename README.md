@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.4.1
+   * Fixed parsing bug in `PDBRecordList`
 * 1.4.0
    * Introduced `PDBRecordList` and `PDBRecordDict` classes
 * 1.3.3

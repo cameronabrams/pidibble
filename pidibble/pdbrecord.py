@@ -7,10 +7,12 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+from __future__ import annotations
 from collections import UserList, UserDict
 from .baserecord import BaseRecord, BaseRecordParser
 from .baseparsers import StringParser
 import logging
+
 logger=logging.getLogger(__name__)
 
 class tokengroup:
@@ -482,7 +484,7 @@ class PDBRecordList(UserList):
 
     def __add__(self, other):
         self._validate_all(other)
-        return AList(super().__add__(other))
+        return PDBRecordList(super().__add__(other))
 
     def __iadd__(self, other):
         self._validate_all(other)
