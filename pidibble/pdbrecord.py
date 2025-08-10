@@ -132,6 +132,9 @@ class PDBRecord(BaseRecord):
         inst.format=current_format
         return inst
 
+    def __repr__(self):
+        return f'<PDBRecord {self.__dict__}>'
+
     def get_token(self,key):
         """
         Retrieve a token value from the PDBRecord instance based on the provided key.
