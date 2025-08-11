@@ -11,7 +11,8 @@
 # 1. 28-FEB-2024: Alphafold stuff
 #
 BASE_URL: https://files.rcsb.org/download
-ALPHAFOLD_API_URL: https://alphafold.com/api/prediction
+ALPHAFOLD_API_URL: https://alphafold.ebi.ac.uk/api/prediction
+ALPHAFOLD_API_KEY: AIzaSyCeurAJz7ZGjPQUtEaerUkBZ3TaBkXrY94
 record_types:
   1: one-time-single-line
   2: one-time-multiple-line

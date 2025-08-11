@@ -14,7 +14,6 @@ import yaml
 import numpy as np
 from pathlib import Path
 from mmcif.io.IoAdapterCore import IoAdapterCore
-from typing import List, Dict
 from . import resources
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
@@ -144,8 +143,9 @@ class PDBParser:
             self.filepath=f'{self.alphafold}.pdb'
             BASE_URL=self.pdb_format_dict['ALPHAFOLD_API_URL']
             target_url=os.path.join(BASE_URL,self.alphafold)
+            logger.debug(f'target url {target_url}')
             try:
-                urllib.request.urlretrieve(target_url,f'{self.alphafold}.json')
+                urllib.request.urlretrieve(target_url+r'?key='+self.pdb_format_dict['ALPHAFOLD_API_KEY'],f'{self.alphafold}.json')
             except:
                 logger.warning(f'Could not fetch metadata for entry with accession code {self.alphafold} from AlphaFold')
                 return False

@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.4.2
+   * updated alphafold interface
 * 1.4.1
    * Fixed parsing bug in `PDBRecordList`
 * 1.4.0
