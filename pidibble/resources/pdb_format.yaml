@@ -13,6 +13,7 @@
 BASE_URL: https://files.rcsb.org/download
 ALPHAFOLD_API_URL: https://alphafold.ebi.ac.uk/api/prediction
 ALPHAFOLD_API_KEY: AIzaSyCeurAJz7ZGjPQUtEaerUkBZ3TaBkXrY94
+OPM_URL: https://biomembhub.org/shared/opm-assets/pdb
 record_types:
   1: one-time-single-line
   2: one-time-multiple-line

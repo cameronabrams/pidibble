@@ -7,24 +7,27 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-import urllib.request
-import os
+import importlib.metadata
+import json
 import logging
+import os
+import urllib.request
 import yaml
+from typing import Callable
+
 import numpy as np
-from pathlib import Path
+
 from mmcif.io.IoAdapterCore import IoAdapterCore
+from pathlib import Path
+
 from . import resources
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .mmcif_parse import MMCIF_Parser
-from pidibble import resources
-logger=logging.getLogger(__name__)
-import importlib.metadata
-import json
 from .hex import str2atomSerial, hex_reset
 
+logger = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("pidibble")
 
 class PDBParser:
@@ -50,46 +53,42 @@ class PDBParser:
         A dictionary containing the parsed mmCIF data. Empty if no input file is provided.
     """
     def __init__(self,
-                 input_format='PDB',
-                 overwrite=False,
-                 alphafold='',
-                 filepath: Path = None,
-                 mappers={'HxInteger':str2atomSerial,'Integer':str2int_sig,'String':str,'Float':safe_float},
-                 pdbcode_synonyms=['PDBcode','pdb_code','pdbCode','pdbcode','pdbID','pdb_id','pdbid','PDBID','PDBId','PDBid'],
-                 comment_chars=['#'],
-                 pdb_format_file='pdb_format.yaml',
-                 mmcif_format_file='mmcif_format.yaml',
+                 input_format: str = 'PDB',
+                 overwrite: bool = False,
+                 source_db: str = None,
+                 source_id: str = None,
+                 filepath: str | Path = None,
+                 mappers: dict[str, Callable] = {'HxInteger':str2atomSerial, 'Integer':str2int_sig, 'String':str, 'Float':safe_float},
+                 comment_chars: list[str] = ['#'],
+                 pdb_format_file: str ='pdb_format.yaml',
+                 mmcif_format_file: str = 'mmcif_format.yaml',
                  **kwargs):
         logger.debug(f'Pidibble v. {__version__}')
-        self.input_format=input_format
-        self.overwrite=overwrite
-        self.alphafold=alphafold
-        self.filepath=filepath
-        self.mappers=mappers
+        self.input_format = input_format
+        self.overwrite = overwrite
+        self.source_db = source_db
+        self.source_id = source_id
+        self.filepath = Path(filepath) if filepath else None
+        self.mappers = mappers
         self.mappers.update(ListParsers)
-        self.pdb_code=''
-        for k in pdbcode_synonyms:
-            if k in kwargs:
-                self.pdb_code=kwargs[k]
-                break
-        self.comment_chars=comment_chars
-        self.pdb_lines=[]
-        self.cif_data={}
+        self.comment_chars = comment_chars
+        self.pdb_lines = []
+        self.cif_data = {}
 
-        self.parsed=PDBRecordDict()
-        self.pdb_format_file=pdb_format_file
+        self.parsed = PDBRecordDict()
+        self.pdb_format_file = pdb_format_file
         if not os.path.isfile(self.pdb_format_file):
             # if pdb_format_file is not a file in the CWD, assume it is a relative path to the resources directory
             # this is useful for testing
-            self.pdb_format_file=os.path.join(os.path.dirname(resources.__file__),pdb_format_file)
-        self.mmcif_format_file=mmcif_format_file
+            self.pdb_format_file = os.path.join(os.path.dirname(resources.__file__), pdb_format_file)
+        self.mmcif_format_file = mmcif_format_file
         if not os.path.isfile(self.mmcif_format_file):
             # if mmcif_format_file is not a file in the CWD, assume it is a relative path to the resources directory
             # this is useful for testing
-            self.mmcif_format_file=os.path.join(os.path.dirname(resources.__file__),mmcif_format_file)
+            self.mmcif_format_file = os.path.join(os.path.dirname(resources.__file__), mmcif_format_file)
         if os.path.exists(self.pdb_format_file):
-            with open(self.pdb_format_file,'r') as f:
-                self.pdb_format_dict=yaml.safe_load(f)
+            with open(self.pdb_format_file, 'r') as f:
+                self.pdb_format_dict = yaml.safe_load(f)
                 logger.debug(f'Pidibble uses the installed config file {self.pdb_format_file}')
         else:
             raise FileNotFoundError(f'{self.pdb_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
@@ -101,14 +100,14 @@ class PDBParser:
             raise FileNotFoundError(f'{self.mmcif_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
 
         # update mappers with delimiters and custom formats
-        delimiter_dict=self.pdb_format_dict.get('delimiters',{})
+        delimiter_dict = self.pdb_format_dict.get('delimiters', {})
         for map,d in delimiter_dict.items():
             if not map in self.mappers:
-                self.mappers[map]=ListParser(d).parse
-        cformat_dict=self.pdb_format_dict.get('custom_formats',{})
+                self.mappers[map] = ListParser(d).parse
+        cformat_dict = self.pdb_format_dict.get('custom_formats', {})
         for cname,cformat in cformat_dict.items():
             if not cname in self.mappers:
-                self.mappers[cname]=BaseRecordParser(cformat,self.mappers).parse
+                self.mappers[cname] = BaseRecordParser(cformat, self.mappers).parse
             
     def fetch(self):
         """
@@ -121,50 +120,67 @@ class PDBParser:
         bool
             True if the file was successfully fetched, False otherwise.
         """
-        assert self.pdb_code!='' or self.alphafold!='' or self.filepath is not None, "PDB code or AlphaFold ID must be provided, or a path to a PDB file must be specified."
-        if self.pdb_code!='':
-            if self.input_format=='PDB':
-                self.filepath=f'{self.pdb_code}.pdb'
-            elif self.input_format=='mmCIF':
-                self.filepath=f'{self.pdb_code}.cif'
-            else:
-                logger.warning(f'Input format {self.input_format} not recognized; using PDB')
-                self.filepath=f'{self.pdb_code}.pdb'
-            BASE_URL=self.pdb_format_dict['BASE_URL']
-            target_url=os.path.join(BASE_URL,self.filepath)
-            if not os.path.exists(self.filepath) or self.overwrite:
+        assert self.source_db is not None or self.filepath is not None, f'source_db or filepath must be specified for fetch()'
+        if self.source_db is not None and self.source_id is None:
+            raise ValueError(f'You must specify a source ID code for source_db {self.source_db}')
+        if self.source_db is not None and self.source_db not in ['rcsb', 'alphafold', 'opm']:
+            raise ValueError(f'Source db {self.source_db} is not recognized.')
+        
+        if self.filepath is not None:
+            if not self.filepath.exists():
+                raise FileNotFoundError(f'{self.filepath.name} not found.')
+            return True
+        
+        match self.source_db:
+            case 'rcsb':
+                if self.input_format == 'PDB':
+                    self.filepath = Path(f'{self.source_id}.pdb')
+                elif self.input_format == 'mmCIF':
+                    self.filepath = Path(f'{self.source_id}.cif')
+                else:
+                    logger.warning(f'Input format {self.input_format} not recognized; using PDB')
+                    self.filepath = Path(f'{self.source_id}.pdb')
+                BASE_URL = self.pdb_format_dict['BASE_URL']
+                target_url = os.path.join(BASE_URL, self.filepath.name)
+                if not self.filepath.exists() or self.overwrite:
+                    try:
+                        urllib.request.urlretrieve(target_url, self.filepath.name)
+                    except:
+                        logger.warning(f'Could not fetch {self.filepath.name} from {self.source_db}')
+                        return False
+                return True
+            case 'alphafold':
+                self.filepath = Path(f'{self.source_id}.pdb')
+                BASE_URL = self.pdb_format_dict['ALPHAFOLD_API_URL']
+                target_url = os.path.join(BASE_URL, self.source_id)
                 try:
-                    urllib.request.urlretrieve(target_url,self.filepath)
+                    urllib.request.urlretrieve(target_url + r'?key=' + self.pdb_format_dict['ALPHAFOLD_API_KEY'], f'{self.source_id}.json')
                 except:
-                    logger.warning(f'Could not fetch {self.filepath}')
+                    logger.warning(f'Could not fetch metadata for entry with accession code {self.source_id} from AlphaFold')
                     return False
-            return True
-        elif self.alphafold!='':
-            self.filepath=f'{self.alphafold}.pdb'
-            BASE_URL=self.pdb_format_dict['ALPHAFOLD_API_URL']
-            target_url=os.path.join(BASE_URL,self.alphafold)
-            logger.debug(f'target url {target_url}')
-            try:
-                urllib.request.urlretrieve(target_url+r'?key='+self.pdb_format_dict['ALPHAFOLD_API_KEY'],f'{self.alphafold}.json')
-            except:
-                logger.warning(f'Could not fetch metadata for entry with accession code {self.alphafold} from AlphaFold')
+                with open(f'{self.source_id}.json') as f:
+                    result = json.load(f)
+                try:
+                    urllib.request.urlretrieve(result[0]['pdbUrl'], self.filepath.name)
+                except:
+                    logger.warning(f'Could not retrieve {result[0]["pdbUrl"]}')
+                    return False
+                return True
+            case 'opm':
+                self.filepath = Path(f'{self.source_id}.pdb')
+                BASE_URL = self.pdb_format_dict['OPM_URL']
+                target_url = os.path.join(BASE_URL, self.filepath.name)
+                if not self.filepath.exists() or self.overwrite:
+                    try:
+                        urllib.request.urlretrieve(target_url, self.filepath.name)
+                    except:
+                        logger.warning(f'Could not fetch {self.filepath.name} from {self.source_db}')
+                        return False
+                return True
+            case '_':
+                logger.debug(f'Source db {self.source_db} is not recognized.')
                 return False
-            with open(f'{self.alphafold}.json') as f:
-                result=json.load(f)
-            try:
-                urllib.request.urlretrieve(result[0]['pdbUrl'],self.filepath)
-            except:
-                logger.warning(f'Could not retrieve {result[0]["pdbUrl"]}')
-                return False
-            return True
-        elif self.filepath is not None:
-            if not os.path.exists(self.filepath):
-                logger.warning(f'File {self.filepath} does not exist.')
-                return False
-            return True
-        else:
-            pass # assert statement at top of method body should suppress this branch
-
+            
     def read_PDB(self):
         """
         Read the PDB file and store its lines in :attr:`PDBParser.pdb_lines`.
