@@ -73,6 +73,8 @@ ATOM
 ```
 
 ## Release History
+* 1.5.1
+   * added capability to download from OPM
 * 1.4.2
    * updated alphafold interface
 * 1.4.1

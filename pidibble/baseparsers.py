@@ -87,7 +87,7 @@ class StringParser:
         self.fields={k:v for k,v in fmtdict.items()}
         self.allowed=allowed
 
-    def parse(self,record):
+    def parse(self, record):
         """
         Parse a fixed-width string record into a dictionary of fields.
         
@@ -104,7 +104,10 @@ class StringParser:
         if len(record)>80:
             logger.warning('The following record exceeds 80 bytes in length:')
             self.report_record_error(record)
-        assert len(record)<=80,f'Record is too long; something wrong with your PDB file?'
+            logger.warning('Stripping...')
+            record = record.strip()
+            if len(record)>80:
+               raise ValueError(f'Record is too long; something wrong with your PDB file?')
         input_dict={}
         record+=' '*(80-len(record)) # pad
         for k,v in self.fields.items():
@@ -141,7 +144,7 @@ class StringParser:
         """
         if byte_range:
             record=record[:byte_range[0]-1]+'\033[91m'+record[byte_range[0]:byte_range[1]+1]+'\033[0m'+record[byte_range[1]+1:]
-        repstr=_cols+'\n'+record
+        repstr=_cols+'\n'+record+'|'
         logger.warning(repstr)
         
     def report_field_error(self,record,k):

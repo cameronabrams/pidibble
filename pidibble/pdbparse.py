@@ -120,7 +120,7 @@ class PDBParser:
         bool
             True if the file was successfully fetched, False otherwise.
         """
-        assert self.source_db is not None or self.filepath is not None, f'source_db or filepath must be specified for fetch()'
+        assert self.source_db is not None or self.filepath is not None, f'source_db {self.source_db} or filepath {self.filepath} must be specified for fetch()'
         if self.source_db is not None and self.source_id is None:
             raise ValueError(f'You must specify a source ID code for source_db {self.source_db}')
         if self.source_db is not None and self.source_db not in ['rcsb', 'alphafold', 'opm']:
@@ -176,6 +176,13 @@ class PDBParser:
                     except:
                         logger.warning(f'Could not fetch {self.filepath.name} from {self.source_db}')
                         return False
+                    logger.warning(f'Stripping blanks and END lines from OPM pdb')
+                    badlines = self.filepath.read_text().split('\n')
+                    with open(self.filepath.name, 'w') as f:
+                        for line in badlines:
+                            sline = line.strip()
+                            if not sline.startswith('END') and len(sline) > 0:
+                                f.write(sline+'\n')
                 return True
             case '_':
                 logger.debug(f'Source db {self.source_db} is not recognized.')
@@ -187,10 +194,10 @@ class PDBParser:
         This method opens the PDB file, reads its contents, and splits it into lines.
         If the last line is empty, it removes it from the list of lines.
         """
-        with open(self.filepath,'r') as f:
-            self.pdb_lines=f.read().split('\n')
-            if self.pdb_lines[-1]=='':
-                self.pdb_lines=self.pdb_lines[:-1]
+        with open(self.filepath, 'r') as f:
+            self.pdb_lines = f.read().split('\n')
+            if self.pdb_lines[-1] == '':
+                self.pdb_lines = self.pdb_lines[:-1]
 
     def read_mmCIF(self):
         """
@@ -198,16 +205,16 @@ class PDBParser:
         This method uses the :class:`mmcif.io.IoAdapterCore.IoAdapterCore` to read the
         mmCIF file and store the data in :attr:`PDBParser.cif_data`.
         """
-        io=IoAdapterCore()
-        l_dc=io.readFile(self.filepath)
-        self.cif_data=l_dc[0]
+        io = IoAdapterCore()
+        l_dc = io.readFile(self.filepath)
+        self.cif_data = l_dc[0]
 
     def read(self):
         """
         Read the PDB or mmCIF file based on the input format.
         This method checks the input format and calls the appropriate read method.
         """
-        if self.input_format=='mmCIF':
+        if self.input_format == 'mmCIF':
             self.read_mmCIF()
         else:
             self.read_PDB()
@@ -219,7 +226,7 @@ class PDBParser:
         If the input format is mmCIF, it uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data.
         If the input format is PDB, it uses the :class:`.pdbrecord.PDBRecord` class to parse the PDB lines.
         """
-        if self.input_format=='mmCIF':
+        if self.input_format == 'mmCIF':
             self.parse_mmCIF()
         else:
             self.parse_PDB()
@@ -230,8 +237,8 @@ class PDBParser:
         This method uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data and store the parsed records
         in :attr:`PDBParser.parsed`.
         """
-        mmcif_parser=MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'],self.cif_data)
-        self.parsed=mmcif_parser.parse()
+        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'],self.cif_data)
+        self.parsed = mmcif_parser.parse()
 
     def parse_PDB(self):
         """
