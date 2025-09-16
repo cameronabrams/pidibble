@@ -178,11 +178,17 @@ class PDBParser:
                         return False
                     logger.warning(f'Stripping blanks and END lines from OPM pdb')
                     badlines = self.filepath.read_text().split('\n')
-                    with open(self.filepath.name, 'w') as f:
-                        for line in badlines:
-                            sline = line.strip()
-                            if not sline.startswith('END') and len(sline) > 0:
-                                f.write(sline+'\n')
+                    with open(self.filepath.name, 'w') as f_base:
+                        with open(f'{self.filepath.stem}-dum.pdb', 'w') as f_dum:
+                            f = f_base
+                            for line in badlines:
+                                sline = line.strip()
+                                if not sline.startswith('END') and len(sline) > 0:
+                                    f.write(sline+'\n')
+                                if sline.startswith('END') and f is f_base:
+                                    f = f_dum
+                    logger.debug(f'Generated {self.filepath.name} and {self.filepath.stem}-dum.pdb')
+                                
                 return True
             case '_':
                 logger.debug(f'Source db {self.source_db} is not recognized.')
