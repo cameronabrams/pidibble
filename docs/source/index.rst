@@ -30,3 +30,4 @@ Contents
    installation
    usage
    API <api/API>
+   changelog

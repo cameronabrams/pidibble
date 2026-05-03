@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 from collections import UserList, UserDict
+from enum import Enum, auto
 from .baserecord import BaseRecord, BaseRecordParser
 from .baseparsers import StringParser
 import logging
@@ -286,6 +287,55 @@ class PDBRecord(BaseRecord):
                     else:
                         current_tokengroup.add_token(tokkey, tokvalue)
 
+    class _EmbedState(Enum):
+        SEARCHING = auto()    # waiting for the signal line
+        PRE_CAPTURE = auto()  # signal seen; skipping lines or gathering tokens
+        CAPTURING = auto()    # recording embedded records until blank line
+
+    def _setup_embed_context(self, ename, espec, format_dict, typemap):
+        """Validate one embed spec and build its parsers. Returns a context dict."""
+        assert espec['from'] in self.__dict__, \
+            f'Record {self.key} references an invalid base field [{espec["from"]}] from which to extract embeds'
+        assert 'signal' in espec, \
+            f'Record {self.key} has an embed spec {ename} for which no signal is specified'
+        assert 'value' in espec, \
+            f'Record {self.key} has an embed spec {ename} for which no value for signal {espec["signal"]} is specified'
+
+        idxparse = None
+        if 'record_index' in espec:
+            idxparse = BaseRecordParser({'record_index': espec['record_index']}, typemap).parse
+
+        if isinstance(espec['record_format'], str):
+            embedfmt = format_dict.get(espec['record_format'], {})
+            assert embedfmt != {}, \
+                f'Record {self.key} contains an embedded_records specification with an invalid record format [{espec["record_format"]}]'
+        else:
+            assert isinstance(espec['record_format'], dict), \
+                f'Record {self.key} has an embed spec {ename} for which no format is specified'
+            embedfmt = espec['record_format']
+
+        tokenize = espec.get('tokenize', {})
+        headers = espec.get('headers', {})
+        tokenparser = headertokenparser = None
+        if tokenize:
+            tokenparser = BaseRecordParser({'token': tokenize['from']}, typemap).parse
+            if headers:
+                headertokenparser = BaseRecordParser(
+                    {k: v['format'] for k, v in headers['formats'].items()}, typemap
+                ).parse
+
+        return {
+            'sigparse': BaseRecordParser({'signal': espec['signal']}, typemap).parse,
+            'idxparse': idxparse,
+            'terparse': BaseRecordParser({'blank': ['String', [12, 80]]}, typemap).parse,
+            'embedfmt': embedfmt,
+            'skiplines': espec.get('skiplines', 0),
+            'tokenize': tokenize,
+            'headers': headers,
+            'tokenparser': tokenparser,
+            'headertokenparser': headertokenparser,
+        }
+
     def parse_embedded(self, format_dict, typemap):
         """
         Parse embedded records within the PDBRecord instance based on the record format.
@@ -301,97 +351,73 @@ class PDBRecord(BaseRecord):
         logger.debug(f'Parsing embedded')
         new_records = {}
         record_format = self.format
-        if not 'embedded_records' in record_format:
+        if 'embedded_records' not in record_format:
             return
         base_key = self.key
-        embedspec = record_format.get('embedded_records', {})
-        for ename, espec in embedspec.items():
+        for ename, espec in record_format.get('embedded_records', {}).items():
             logger.debug(f'Embedded {ename}')
+            ctx = self._setup_embed_context(ename, espec, format_dict, typemap)
             embedfrom = espec['from']
-            assert embedfrom in self.__dict__, f'Record {self.key} references an invalid base field [{embedfrom}] from which to extract embeds'
-            assert 'signal' in espec, f'Record {self.key} has an embed spec {ename} for which no signal is specified'
-            sigparse = BaseRecordParser({'signal': espec['signal']}, typemap).parse
-            assert 'value' in espec, f'Record {self.key} has an embed spec {ename} for which no value for signal {espec["signal"]} is specified'
-            idxparse = None
-            if 'record_index' in espec:
-                idxparse = BaseRecordParser({'record_index': espec['record_index']}, typemap).parse
-            terparse = BaseRecordParser({'blank': ['String', [12, 80]]}, typemap).parse
-            if isinstance(espec['record_format'], str):
-                embedfmt = format_dict.get(espec['record_format'], {})
-                assert embedfmt != {}, f'Record {self.key} contains an embedded_records specification with an invalid record format [{espec["record_format"]}]'
-            else:
-                assert isinstance(espec['record_format'], dict), 'Record {self.key} has an embed spec {ename} for which no format is specified'
-                embedfmt = espec['record_format']
-            skiplines = espec.get('skiplines', 0)
-            tokenize = espec.get('tokenize', {})
-            headers = espec.get('headers', {})
+
             token_hold = {}
             header_hold = []
-            if tokenize:
-                tokenparser = BaseRecordParser({'token': tokenize['from']}, typemap).parse
-                if headers:
-                    headertokenparser = BaseRecordParser({k: v['format'] for k, v in headers['formats'].items()}, typemap).parse
             embedkey = base_key
-            idx = -1
             lskip = 0
-            triggered = False  # True when an embedded_record signal is encountered
-            capturing = False  # True once we have skipped the desired number of lines
-            # after the signal OR if we are tokenizing and encounter
-            # the FIRST non-tokenizable line
             current_division = 0
+            state = self._EmbedState.SEARCHING
+
             for record in self.__dict__[embedfrom]:
-                # check for signal
-                sigrec = sigparse(record)
-                if not triggered and sigrec.signal == espec['value']:
-                    idx = None if not idxparse else idxparse(record).record_index
-                    # this is a signal-line
-                    triggered = True
-                    if not skiplines and not tokenize and not headers:
-                        capturing = True
-                    embedkey = f'{base_key}.{ename}'
-                    if idx:
-                        embedkey = f'{base_key}.{ename}{idx}'
-                    # savkey=embedkey
-                    continue  # go to next record
-                if triggered and not capturing:
-                    # we can skip lines or we can gather tokens
-                    if skiplines:
+                if state == self._EmbedState.SEARCHING:
+                    sigrec = ctx['sigparse'](record)
+                    if sigrec.signal != espec['value']:
+                        logger.debug(f'Ignoring {record}')
+                        continue
+                    idx = None if not ctx['idxparse'] else ctx['idxparse'](record).record_index
+                    embedkey = f'{base_key}.{ename}' + (str(idx) if idx else '')
+                    if not ctx['skiplines'] and not ctx['tokenize'] and not ctx['headers']:
+                        state = self._EmbedState.CAPTURING
+                    else:
+                        state = self._EmbedState.PRE_CAPTURE
+
+                elif state == self._EmbedState.PRE_CAPTURE:
+                    if ctx['skiplines']:
                         logger.debug(f'Skipping {record}')
                         lskip += 1
-                        if lskip == skiplines:
-                            capturing = True
+                        if lskip == ctx['skiplines']:
+                            state = self._EmbedState.CAPTURING
                         continue
                     logger.debug(f'Parsing "{record}"')
-                    if tokenize:
-                        is_ht = header_or_token(record, tokenize['d'], headers, tokenparser, headertokenparser, token_hold, header_hold)
-                        if is_ht:
-                            continue  # go to next record
-                        else:
-                            # if it not a token, it must be a record described by record_format
-                            capturing = True
-                            new_div = capture_record(record, embedfmt, typemap, embedkey, headers, header_hold, token_hold, current_division, new_records)
-                            if new_div:
-                                current_division += 1
-                                logger.debug(f'First capture into division {current_division}')
-                            continue
-                elif capturing:
-                    # if we are capturing, the first occurrence of a blank line
-                    # terminates the search for embedded records
-                    if (terparse(record).blank == ''):
-                        logger.debug(f'Terminate embed capture for {embedkey} from record {record}')
-                        break  # finished!
-                    logger.debug(f'Parsing "{record}"')
-                    # capturing can capture embedded records or tokens
-                    if tokenize:
-                        is_ht = header_or_token(record, tokenize['d'], headers, tokenparser, headertokenparser, token_hold, header_hold)
+                    if ctx['tokenize']:
+                        is_ht = header_or_token(record, ctx['tokenize']['d'], ctx['headers'],
+                                                ctx['tokenparser'], ctx['headertokenparser'],
+                                                token_hold, header_hold)
                         if is_ht:
                             continue
-                    new_div = capture_record(record, embedfmt, typemap, embedkey, headers, header_hold, token_hold, current_division, new_records)
+                    # first non-token line transitions to CAPTURING
+                    state = self._EmbedState.CAPTURING
+                    new_div = capture_record(record, ctx['embedfmt'], typemap, embedkey,
+                                             ctx['headers'], header_hold, token_hold,
+                                             current_division, new_records)
                     if new_div:
                         current_division += 1
-                    continue
-                else:
-                    logger.debug(f'Ingoring {record}')
+                        logger.debug(f'First capture into division {current_division}')
+
+                elif state == self._EmbedState.CAPTURING:
+                    if ctx['terparse'](record).blank == '':
+                        logger.debug(f'Terminate embed capture for {embedkey} from record {record}')
+                        break
+                    logger.debug(f'Parsing "{record}"')
+                    if ctx['tokenize']:
+                        is_ht = header_or_token(record, ctx['tokenize']['d'], ctx['headers'],
+                                                ctx['tokenparser'], ctx['headertokenparser'],
+                                                token_hold, header_hold)
+                        if is_ht:
+                            continue
+                    new_div = capture_record(record, ctx['embedfmt'], typemap, embedkey,
+                                             ctx['headers'], header_hold, token_hold,
+                                             current_division, new_records)
+                    if new_div:
+                        current_division += 1
 
         logger.debug(f'embed rec new keys {new_records}')
         return new_records
@@ -520,7 +546,7 @@ class PDBRecordDict(UserDict):
             self[key] = default  # Triggers __setitem__
         return self[key]
 
-def header_check(record, headers, parse, hold=[]):
+def header_check(record, headers, parse, hold=None):
     """
     Check if a record is a header line and parse it accordingly.
 
@@ -544,7 +570,7 @@ def header_check(record, headers, parse, hold=[]):
     elif r.andline == headers['formats']['andline']['signalvalue']:
         hold.extend([x.strip() for x in r.value.strip().split(',')])
 
-def gather_token(k, v, hold={}):
+def gather_token(k, v, hold=None):
     """
     Gather a token into a holder dictionary.
     If the key already exists in the holder, it appends the value to the list.

@@ -22,6 +22,7 @@ extensions = [
     'sphinxcontrib.mermaid',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    'myst_parser',
 ]
 
 autosummary_generate = True  # Enable autosummary tables
@@ -49,7 +50,7 @@ html_theme_options = {
     "footer_icons": [
         {
             "name": "GitHub",
-            "url": "https://github.com/cameronabrams/ycleptic",
+            "url": "https://github.com/cameronabrams/pidibble",
             "html": """
     <svg role="img" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
         <title>GitHub</title>

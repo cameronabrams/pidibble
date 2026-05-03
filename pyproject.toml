@@ -20,6 +20,9 @@ dependencies = [
     "pyyaml>=6",
     "mmcif"
 ]
+
+[project.optional-dependencies]
+test = ["pytest"]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pidibble"
 "Documentation" = "https://pidibble.readthedocs.io/en/latest/"

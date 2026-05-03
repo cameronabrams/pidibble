@@ -8,6 +8,7 @@
 
 """
 import importlib.metadata
+import importlib.resources
 import json
 import logging
 import os
@@ -20,7 +21,6 @@ import numpy as np
 from mmcif.io.IoAdapterCore import IoAdapterCore
 from pathlib import Path
 
-from . import resources
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
@@ -87,28 +87,8 @@ class PDBParser:
         self.cif_data = {}
 
         self.parsed = PDBRecordDict()
-        self.pdb_format_file = pdb_format_file
-        if not os.path.isfile(self.pdb_format_file):
-            # if pdb_format_file is not a file in the CWD, assume it is a relative path to the resources directory
-            # this is useful for testing
-            self.pdb_format_file = os.path.join(os.path.dirname(resources.__file__), pdb_format_file)
-        self.mmcif_format_file = mmcif_format_file
-        if not os.path.isfile(self.mmcif_format_file):
-            # if mmcif_format_file is not a file in the CWD, assume it is a relative path to the resources directory
-            # this is useful for testing
-            self.mmcif_format_file = os.path.join(os.path.dirname(resources.__file__), mmcif_format_file)
-        if os.path.exists(self.pdb_format_file):
-            with open(self.pdb_format_file, 'r') as f:
-                self.pdb_format_dict = yaml.safe_load(f)
-                logger.debug(f'Pidibble uses the installed config file {self.pdb_format_file}')
-        else:
-            raise FileNotFoundError(f'{self.pdb_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
-        if os.path.exists(self.mmcif_format_file):
-            with open(self.mmcif_format_file, 'r') as f:
-                self.mmcif_format_dict = yaml.safe_load(f)
-                logger.debug(f'Pidibble uses the installed config file {self.mmcif_format_file}')
-        else:
-            raise FileNotFoundError(f'{self.mmcif_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
+        self.pdb_format_dict = self._load_format(pdb_format_file)
+        self.mmcif_format_dict = self._load_format(mmcif_format_file)
 
         # update mappers with delimiters and custom formats
         delimiter_dict = self.pdb_format_dict.get('delimiters', {})
@@ -119,6 +99,23 @@ class PDBParser:
         for cname, cformat in cformat_dict.items():
             if not cname in self.mappers:
                 self.mappers[cname] = BaseRecordParser(cformat, self.mappers).parse
+
+    @staticmethod
+    def _load_format(filename: str) -> dict:
+        """Load a YAML format file, checking CWD first then the package resources."""
+        local = Path(filename)
+        if local.is_file():
+            logger.debug(f'Pidibble uses local config file {local}')
+            return yaml.safe_load(local.read_text())
+        resource = importlib.resources.files('pidibble') / 'resources' / filename
+        try:
+            text = resource.read_text(encoding='utf-8')
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f'{filename} not found in CWD ({Path.cwd()}) or package resources'
+            )
+        logger.debug(f'Pidibble uses installed config file {filename}')
+        return yaml.safe_load(text)
 
     def fetch(self):
         """
