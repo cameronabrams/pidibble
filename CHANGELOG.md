@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-05-03
+
 ### Fixed
 - `PDBParser(PDBcode=...)` legacy parameter silently swallowed by `**kwargs`; restored via explicit mapping to `source_id`/`source_db='rcsb'`
 - Eight bare `except:` clauses narrowed to specific exception types throughout
