@@ -25,7 +25,7 @@ from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .mmcif_parse import MMCIF_Parser
-from .hex import str2atomSerial, hex_reset
+from .hex import AtomSerialParser, str2atomSerial, hex_reset
 
 logger = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("pidibble")
@@ -58,18 +58,29 @@ class PDBParser:
                  source_db: str = None,
                  source_id: str = None,
                  filepath: str | Path = None,
-                 mappers: dict[str, Callable] = {'HxInteger':str2atomSerial, 'Integer':str2int_sig, 'String':str, 'Float':safe_float},
+                 mappers: dict[str, Callable] = None,
                  comment_chars: list[str] = ['#'],
-                 pdb_format_file: str ='pdb_format.yaml',
+                 pdb_format_file: str = 'pdb_format.yaml',
                  mmcif_format_file: str = 'mmcif_format.yaml',
                  **kwargs):
         logger.debug(f'Pidibble v. {__version__}')
         self.input_format = input_format
         self.overwrite = overwrite
+        if 'PDBcode' in kwargs:
+            source_db = source_db or 'rcsb'
+            source_id = source_id or kwargs['PDBcode']
         self.source_db = source_db
         self.source_id = source_id
         self.filepath = Path(filepath) if filepath else None
-        self.mappers = mappers
+        self._atom_serial_parser = AtomSerialParser()
+        self.mappers = {
+            'HxInteger': self._atom_serial_parser,
+            'Integer': str2int_sig,
+            'String': str,
+            'Float': safe_float,
+        }
+        if mappers is not None:
+            self.mappers.update(mappers)
         self.mappers.update(ListParsers)
         self.comment_chars = comment_chars
         self.pdb_lines = []
@@ -93,28 +104,28 @@ class PDBParser:
         else:
             raise FileNotFoundError(f'{self.pdb_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
         if os.path.exists(self.mmcif_format_file):
-            with open(self.mmcif_format_file,'r') as f:
-                self.mmcif_format_dict=yaml.safe_load(f)
+            with open(self.mmcif_format_file, 'r') as f:
+                self.mmcif_format_dict = yaml.safe_load(f)
                 logger.debug(f'Pidibble uses the installed config file {self.mmcif_format_file}')
         else:
             raise FileNotFoundError(f'{self.mmcif_format_file} not found, either locally ({os.getcwd()}) or in resources ({os.path.dirname(resources.__file__)})')
 
         # update mappers with delimiters and custom formats
         delimiter_dict = self.pdb_format_dict.get('delimiters', {})
-        for map,d in delimiter_dict.items():
+        for map, d in delimiter_dict.items():
             if not map in self.mappers:
                 self.mappers[map] = ListParser(d).parse
         cformat_dict = self.pdb_format_dict.get('custom_formats', {})
-        for cname,cformat in cformat_dict.items():
+        for cname, cformat in cformat_dict.items():
             if not cname in self.mappers:
                 self.mappers[cname] = BaseRecordParser(cformat, self.mappers).parse
-            
+
     def fetch(self):
         """
         Fetch the PDB file based on the provided PDB code or AlphaFold ID.
         This method checks if the PDB code or AlphaFold ID is provided, constructs the appropriate file path,
         and attempts to download the file from the PDB or AlphaFold API.
-        
+
         Returns
         -------
         bool
@@ -125,12 +136,12 @@ class PDBParser:
             raise ValueError(f'You must specify a source ID code for source_db {self.source_db}')
         if self.source_db is not None and self.source_db not in ['rcsb', 'alphafold', 'opm']:
             raise ValueError(f'Source db {self.source_db} is not recognized.')
-        
+
         if self.filepath is not None:
             if not self.filepath.exists():
                 raise FileNotFoundError(f'{self.filepath.name} not found.')
             return True
-        
+
         match self.source_db:
             case 'rcsb':
                 if self.input_format == 'PDB':
@@ -145,7 +156,7 @@ class PDBParser:
                 if not self.filepath.exists() or self.overwrite:
                     try:
                         urllib.request.urlretrieve(target_url, self.filepath.name)
-                    except:
+                    except (urllib.error.URLError, OSError):
                         logger.warning(f'Could not fetch {self.filepath.name} from {self.source_db}')
                         return False
                 return True
@@ -155,14 +166,14 @@ class PDBParser:
                 target_url = os.path.join(BASE_URL, self.source_id)
                 try:
                     urllib.request.urlretrieve(target_url + r'?key=' + self.pdb_format_dict['ALPHAFOLD_API_KEY'], f'{self.source_id}.json')
-                except:
+                except (urllib.error.URLError, OSError):
                     logger.warning(f'Could not fetch metadata for entry with accession code {self.source_id} from AlphaFold')
                     return False
                 with open(f'{self.source_id}.json') as f:
                     result = json.load(f)
                 try:
                     urllib.request.urlretrieve(result[0]['pdbUrl'], self.filepath.name)
-                except:
+                except (urllib.error.URLError, OSError):
                     logger.warning(f'Could not retrieve {result[0]["pdbUrl"]}')
                     return False
                 return True
@@ -173,7 +184,7 @@ class PDBParser:
                 if not self.filepath.exists() or self.overwrite:
                     try:
                         urllib.request.urlretrieve(target_url, self.filepath.name)
-                    except:
+                    except (urllib.error.URLError, OSError):
                         logger.warning(f'Could not fetch {self.filepath.name} from {self.source_db}')
                         return False
                     logger.warning(f'Stripping blanks and END lines from OPM pdb')
@@ -184,16 +195,16 @@ class PDBParser:
                             for line in badlines:
                                 sline = line.strip()
                                 if not sline.startswith('END') and len(sline) > 0:
-                                    f.write(sline+'\n')
+                                    f.write(sline + '\n')
                                 if sline.startswith('END') and f is f_base:
                                     f = f_dum
                     logger.debug(f'Generated {self.filepath.name} and {self.filepath.stem}-dum.pdb')
-                                
+
                 return True
             case '_':
                 logger.debug(f'Source db {self.source_db} is not recognized.')
                 return False
-            
+
     def read_PDB(self):
         """
         Read the PDB file and store its lines in :attr:`PDBParser.pdb_lines`.
@@ -243,7 +254,7 @@ class PDBParser:
         This method uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data and store the parsed records
         in :attr:`PDBParser.parsed`.
         """
-        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict,self.pdb_format_dict['record_formats'],self.cif_data)
+        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict, self.pdb_format_dict['record_formats'], self.cif_data)
         self.parsed = mmcif_parser.parse()
 
     def parse_PDB(self):
@@ -253,47 +264,47 @@ class PDBParser:
         and creates a new :class:`.pdbrecord.PDBRecord` instance for each record.
         It handles different record types, including continuation records and grouped records.
         """
-        hex_reset()
-        record_formats=self.pdb_format_dict['record_formats']
-        key=''
-        record_format={}
-        group_open_record=None
-        for i,pdbrecord_line in enumerate(self.pdb_lines):
-            tc=pdbrecord_line[0]
+        self._atom_serial_parser.reset()
+        record_formats = self.pdb_format_dict['record_formats']
+        key = ''
+        record_format = {}
+        group_open_record = None
+        for i, pdbrecord_line in enumerate(self.pdb_lines):
+            tc = pdbrecord_line[0]
             if tc in self.comment_chars:
                 continue
-            pdbrecord_line+=' '*(80-len(pdbrecord_line))
-            base_key=pdbrecord_line[:6].strip()
-            assert base_key in record_formats,f'{base_key} is not found in among the available record formats'
-            base_record_format=record_formats[base_key]
-            record_type=base_record_format['type']
-            new_record=PDBRecord.newrecord(base_key,pdbrecord_line,base_record_format,self.mappers)
-            key=new_record.key
-            record_format=new_record.format
-            if record_type in [1,2,6]:
+            pdbrecord_line += ' ' * (80 - len(pdbrecord_line))
+            base_key = pdbrecord_line[:6].strip()
+            assert base_key in record_formats, f'{base_key} is not found in among the available record formats'
+            base_record_format = record_formats[base_key]
+            record_type = base_record_format['type']
+            new_record = PDBRecord.newrecord(base_key, pdbrecord_line, base_record_format, self.mappers)
+            key = new_record.key
+            record_format = new_record.format
+            if record_type in [1, 2, 6]:
                 if not key in self.parsed:
-                    self.parsed[key]=new_record
+                    self.parsed[key] = new_record
                 else:
                     # this must be a continuation record
-                    assert record_type!=1,f'{key} may not have continuation records'
-                    root_record=self.parsed[key]
-                    root_record.continue_record(new_record,record_format,all_fields=('REMARK' in key))
-            elif record_type in [3,4,5]:
+                    assert record_type != 1, f'{key} may not have continuation records'
+                    root_record = self.parsed[key]
+                    root_record.continue_record(new_record, record_format, all_fields=('REMARK' in key))
+            elif record_type in [3, 4, 5]:
                 if not key in self.parsed:
                     # this is necessarily the first occurance of a record with this key, but since there can be multiple instances this must be a list of records
                     if 'groupuntil' in record_format:
-                        group_open_record=new_record
+                        group_open_record = new_record
                         logger.debug(f'opening group {group_open_record.serial} until {group_open_record.format["groupuntil"]}')
-                    if group_open_record!=None and key==group_open_record.format['groupuntil']:
+                    if group_open_record is not None and key == group_open_record.format['groupuntil']:
                         logger.debug(f'closing group {group_open_record.serial}')
-                        group_open_record=None
+                        group_open_record = None
                     if 'groupby' in record_format:
-                        tok=new_record.format['groupby'].split('.')
-                        if group_open_record!=None:
-                            if tok[0]==group_open_record.key:
-                                groupid=getattr(group_open_record,tok[1])
-                                setattr(new_record,group_open_record.key.lower(),groupid)
-                    self.parsed[key]=PDBRecordList([new_record])
+                        tok = new_record.format['groupby'].split('.')
+                        if group_open_record is not None:
+                            if tok[0] == group_open_record.key:
+                                groupid = getattr(group_open_record, tok[1])
+                                setattr(new_record, group_open_record.key.lower(), groupid)
+                    self.parsed[key] = PDBRecordList([new_record])
                 else:
                     # this is either
                     # (a) a continuation record of a given key.(determinants)
@@ -301,32 +312,32 @@ class PDBParser:
                     # (b) a new set of (determinants) on this key
                     # note (b) is only option if there are no determinants
                     # first, look for key.(determinants)
-                    root_record=None
+                    root_record = None
                     if 'determinants' in record_format:
-                        nrd=[new_record.__dict__[k] for k in record_format['determinants']]
+                        nrd = [new_record.__dict__[k] for k in record_format['determinants']]
                         for r in self.parsed[key]:
-                            td=[r.__dict__[k] for k in record_format['determinants']]
-                            if nrd==td:
-                                root_record=r
+                            td = [r.__dict__[k] for k in record_format['determinants']]
+                            if nrd == td:
+                                root_record = r
                                 break
                     if root_record:
                         # case (a)
-                        assert root_record.continuation<new_record.continuation,f'continuation parsing error {record_type}'
-                        root_record.continue_record(new_record,record_format)
+                        assert root_record.continuation < new_record.continuation, f'continuation parsing error {record_type}'
+                        root_record.continue_record(new_record, record_format)
                     else:
                         # case (b)
                         if 'groupuntil' in record_format:
-                            group_open_record=new_record
+                            group_open_record = new_record
                             logger.debug(f'opening group {group_open_record.serial} until {group_open_record.format["groupuntil"]}')
-                        if group_open_record!=None and key==group_open_record.format['groupuntil']:
+                        if group_open_record is not None and key == group_open_record.format['groupuntil']:
                             logger.debug(f'closing group {group_open_record.serial}')
-                            group_open_record=None
+                            group_open_record = None
                         if 'groupby' in record_format:
-                            tok=new_record.format['groupby'].split('.')
-                            if group_open_record!=None:
-                                if tok[0]==group_open_record.key:
-                                    groupid=getattr(group_open_record,tok[1])
-                                    setattr(new_record,group_open_record.key.lower(),groupid)
+                            tok = new_record.format['groupby'].split('.')
+                            if group_open_record is not None:
+                                if tok[0] == group_open_record.key:
+                                    groupid = getattr(group_open_record, tok[1])
+                                    setattr(new_record, group_open_record.key.lower(), groupid)
                         self.parsed[key].append(new_record)
 
     def post_process(self):
@@ -335,7 +346,7 @@ class PDBParser:
         This method checks if the input format is mmCIF and processes the records accordingly.
         If the input format is PDB, it processes the records to handle embedded records, tokens, and tables.
         """
-        if self.input_format!='mmCIF':
+        if self.input_format != 'mmCIF':
             self.parse_embedded_records()
             self.parse_tokens()
             self.parse_tables()
@@ -345,7 +356,7 @@ class PDBParser:
     #     for i in range(n_models):
     #         self.parsed['MODEL'][i+1]={}
     #         # in progress
-        
+
     def parse_embedded_records(self):
         """
         Parse embedded records within the parsed records.
@@ -353,17 +364,17 @@ class PDBParser:
         If an embedded record is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_embedded` method to parse the embedded records.
         It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
         """
-        new_parsed_records={}
-        for key,p in self.parsed.items():
-            if type(p)==PDBRecord:
-                rf=p.format
+        new_parsed_records = {}
+        for key, p in self.parsed.items():
+            if isinstance(p, PDBRecord):
+                rf = p.format
                 if 'embedded_records' in rf:
-                    new_parsed_records.update(p.parse_embedded(self.pdb_format_dict['record_formats'],self.mappers))
-            elif type(p)==PDBRecordList:
+                    new_parsed_records.update(p.parse_embedded(self.pdb_format_dict['record_formats'], self.mappers))
+            elif isinstance(p, PDBRecordList):
                 for q in p:
-                    rf=q.format
+                    rf = q.format
                     if 'embedded_records' in rf:
-                        new_parsed_records.update(q.parse_embedded(self.pdb_format_dict['record_formats'],self.mappers))
+                        new_parsed_records.update(q.parse_embedded(self.pdb_format_dict['record_formats'], self.mappers))
         self.parsed.update(new_parsed_records)
 
     def parse_tokens(self):
@@ -373,14 +384,14 @@ class PDBParser:
         If a token format is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_tokens` method to parse the tokens.
         It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
         """
-        for key,p in self.parsed.items():
-            if type(p)==PDBRecord:
-                rf=p.format
+        for key, p in self.parsed.items():
+            if isinstance(p, PDBRecord):
+                rf = p.format
                 if 'token_formats' in rf:
                     p.parse_tokens(self.mappers)
-            elif type(p)==list:
+            elif isinstance(p, PDBRecordList):
                 for q in p:
-                    rf=q.format
+                    rf = q.format
                     if 'token_formats' in rf:
                         q.parse_tokens(self.mappers)
 
@@ -391,12 +402,12 @@ class PDBParser:
         If a table format is found, it calls the :meth:`.pdbrecord.PDBRecord.parse_tables` method to parse the tables.
         It updates the :attr:`PDBParser.parsed` dictionary with the new parsed records.
         """
-        for key,p in self.parsed.items():
-            if type(p)==PDBRecordList:
-                continue # don't expect to read a table from a multiple-record entry
-            rf=p.format
+        for key, p in self.parsed.items():
+            if isinstance(p, PDBRecordList):
+                continue  # don't expect to read a table from a multiple-record entry
+            rf = p.format
             if 'tables' in rf:
-                p.parse_tables(self.mappers)                        
+                p.parse_tables(self.mappers)
 
     def parse(self):
         """
@@ -418,8 +429,8 @@ class PDBParser:
         else:
             logger.warning(f'No data.')
         return self
-            
-def get_symm_ops(rec:PDBRecord):
+
+def get_symm_ops(rec: PDBRecord):
     """
     Extract the symmetry operations from a PDB record.
     This function processes the symmetry operations from a PDB record and returns the transformation matrix and translation vector.
