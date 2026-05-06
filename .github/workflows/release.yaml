@@ -12,5 +12,4 @@ jobs:
     with:
       rtd_slug: pidibble
       run_tests: true
-      use_api_token: true
     secrets: inherit
