@@ -136,3 +136,6 @@ dmypy.json
 .pyre/
 .vscode/settings.json
 
+
+# uv local lockfile (libraries: not committed)
+uv.lock
