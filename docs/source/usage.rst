@@ -159,11 +159,16 @@ REMARK.350.BIOMOLECULE1.TRANSFORM2
 
 Note that the important attributes of ``row`` and ``header`` are the same (in ``header``'s case, the lists are in different orders but they have the same elements).  Note the greater precision in the floating-point values for the record read in from the ``mmCIF`` file.
 
-Currently, only ``ATOM``, ``HETATM``, ``SEQADV``, ``REMARK 350``, and ``REMARK 465`` records are translated from a ``mmCIF``-format file: 
+As of version 1.7.0, ``pidibble`` translates a broad set of record types from ``mmCIF``/PDBx files.  Re-parsing the mmCIF entry and listing its keys:
 
+>>> p=PDBParser(PDBcode='4tvp',input_format='mmCIF').parse()
 >>> ', '.join(list(p.parsed.keys()))
-'ATOM, HETATM, LINK, SSBOND, SEQADV, REMARK.350.BIOMOLECULE1.TRANSFORM1, REMARK.350.BIOMOLECULE1.TRANSFORM2, REMARK.350.BIOMOLECULE1.TRANSFORM3, REMARK.465'
+'ATOM, HETATM, LINK, SSBOND, SEQADV, REMARK.350.BIOMOLECULE1.TRANSFORM1, REMARK.350.BIOMOLECULE1.TRANSFORM2, REMARK.350.BIOMOLECULE1.TRANSFORM3, REMARK.465, HEADER, TITLE, EXPDTA, KEYWDS, CRYST1, SEQRES, HELIX, SHEET, COMPND, SOURCE'
 
-These records are the bare minimum needed to generate (say) input coordinate and topology files for an MD simulation.  Future versions of ``pidibble`` will provide complete PDB-like parsings of ``mmCIF`` files.  This is probably not useful.
+This covers coordinates (``ATOM``/``HETATM``), connectivity (``LINK`` — including metal coordination — and ``SSBOND``), sequence (``SEQRES``), secondary structure (``HELIX`` and ``SHEET``), biological assemblies (``REMARK 350``), missing residues (``REMARK 465``), sequence-database differences (``SEQADV``), header/metadata (``HEADER``, ``TITLE``, ``EXPDTA``, ``KEYWDS``, ``CRYST1``), and entity/source information (``COMPND``/``SOURCE``).  Each mmCIF-derived record mirrors the attribute names of its PDB counterpart and is validated field-by-field against the corresponding legacy-PDB parse.
+
+At parse time ``pidibble`` also logs (at ``INFO``) how many of the file's mmCIF categories it read and how many are present but unmapped, so you can see what data a given entry carries beyond what is surfaced.
+
+There are two deliberate departures from exact PDB equivalence.  ``COMPND`` and ``SOURCE`` are emitted as flat per-entity records (for example, ``p.parsed['COMPND'][0].molID``, ``.chains``, ``.molName``) rather than the nested token-group structure the legacy-PDB parser builds, so consumers must branch on input format for those two records.  A few purely representational fields also differ where the formats themselves differ — for instance ``HEADER.depDate`` is exposed in mmCIF's native ISO form (``2014-06-27``) rather than the PDB ``DD-MON-YY`` form.
 
 Importantly:  ``pidibble`` parses mmCIF input to generate a structure that is the equivalent of the PDB format; that is, it uses ``auth`` fields instead of ``label`` fields.  
