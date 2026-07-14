@@ -101,8 +101,11 @@ HETATM:
 LINK:
   data_obj: struct_conn
   signal_attr: conn_type_id
-  signal_value: covale
-  attr_map: 
+  # PDB LINK records cover both covalent links and metal coordination
+  signal_value:
+    - covale
+    - metalc
+  attr_map:
     sym1: ptnr1_symmetry
     sym2: ptnr2_symmetry
     length: pdbx_dist_value

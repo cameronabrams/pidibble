@@ -57,7 +57,7 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 |---|---|---|
 | `ATOM` | `atom_site` (group_PDB=ATOM) | Full coordinate parity with PDB; the only well-tested path |
 | `HETATM` | `atom_site` (group_PDB=HETATM) | Same |
-| `LINK` | `struct_conn` (**covale only**) | Validated vs PDB (4TVP); `metalc`, `hydrog`, salt bridges dropped |
+| `LINK` | `struct_conn` (covale + metalc) | Validated vs PDB (4TVP covalent, 1CA2 metal coordination); `hydrog`/salt bridges still dropped |
 | `SSBOND` | `struct_conn` (disulf) | Validated vs PDB (4TVP) |
 | `SEQADV` | `struct_ref_seq_dif` | Validated vs PDB (4TVP) |
 | `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms; validated vs PDB (4TVP) |
@@ -116,7 +116,7 @@ the remaining gaps are:
 | `CONECT` | connectivity | `struct_conn`, `chem_comp_bond` |
 | `REVDAT` | revision history | `pdbx_audit_revision_history` |
 | `JRNL` | primary citation | `citation`, `citation_author` |
-| `LINK` (non-covalent) | metal/other bonds | `struct_conn` (`metalc`, etc.) |
+| `LINK` (`hydrog`/salt) | non-metal non-covalent bonds | `struct_conn` (`hydrog`, `saltbr`, …) |
 | `MASTER`, `END`, `TER` | bookkeeping | n/a (structural artifacts) |
 
 ## Correctness / validation status
@@ -188,7 +188,12 @@ test.)
    strands) and spot-checked on 8fae/4zmj. SHEET `sense`/`numStrands`/H-bond
    registration remain unmapped pending a `join` directive across
    `struct_sheet_order`/`pdbx_struct_sheet_hbond`.
-6. **Broaden `struct_conn`** beyond covale/disulf (at least `metalc`).
+6. ~~**Broaden `struct_conn`** beyond covale/disulf (at least `metalc`).~~
+   **Done 2026-07-14.** LINK now folds in `metalc` (metal coordination)
+   alongside `covale`, matching how PDB writes metal bonds as LINK records.
+   Added a multi-value `signal_value` (a list unions the matching rows).
+   Validated vs PDB on 1CA2 (carbonic anhydrase Zn site: 4 LINKs). `hydrog`/
+   `saltbr` remain dropped. Test fixtures 1ca2.{pdb,cif} added.
 7. **Category-discovery pass** using `getObjNameList()`; have the nonconformance
    registry report categories present in the file but unmapped.
 8. **Delete dead `MMCIFDict`/`resolve` code.**

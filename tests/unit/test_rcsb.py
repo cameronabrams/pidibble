@@ -770,6 +770,35 @@ class Test_mmCIF(unittest.TestCase):
         TL.sort()
         self.assertEqual(rec.header,TL)
 
+class Test_mmCIF_metal(unittest.TestCase):
+    def test_metalc_links(self):
+        # metal coordination is written as PDB LINK records; in mmCIF it is
+        # struct_conn with conn_type_id=metalc, which pidibble now folds into
+        # LINK alongside covale. 1CA2 (carbonic anhydrase II) has a catalytic
+        # Zn coordinated by three His plus a water.
+        pdb = PDBParser(PDBcode='1ca2', input_format='PDB').parse().parsed
+        cif = PDBParser(PDBcode='1ca2', input_format='mmCIF').parse().parsed
+
+        def aslist(d, k):
+            if k not in d:
+                return []
+            try:
+                return list(d[k])
+            except TypeError:
+                return [d[k]]
+
+        def res(r):
+            return (r.chainID, r.resName, r.seqNum, r.iCode)
+
+        pl = aslist(pdb, 'LINK')
+        cl = aslist(cif, 'LINK')
+        self.assertEqual(len(pl), len(cl))
+        self.assertGreater(len(pl), 0)
+        # order is not guaranteed to match, so compare as sets
+        pset = {(x.name1, res(x.residue1), x.name2, res(x.residue2)) for x in pl}
+        cset = {(x.name1, res(x.residue1_auth), x.name2, res(x.residue2_auth)) for x in cl}
+        self.assertEqual(pset, cset)
+
 class TestFourLetterResNames(unittest.TestCase):
     def test_four(self):
         P=PDBParser(PDBcode='4zmj-newresnames').parse()

@@ -239,8 +239,13 @@ class MMCIF_Parser:
                 idicts.append(idict)
         elif not tables and cifrec is not None:
             # select matching rows up front (selectIndices preserves row order)
-            # instead of scanning every row and testing the signal attribute
-            indices = cifrec.selectIndices(sigval, sigattr) if use_signal else range(len(cifrec))
+            # instead of scanning every row and testing the signal attribute;
+            # signal_value may be a single value or a list of accepted values
+            if use_signal:
+                sigvals = sigval if isinstance(sigval, list) else [sigval]
+                indices = sorted(i for sv in sigvals for i in cifrec.selectIndices(sv, sigattr))
+            else:
+                indices = range(len(cifrec))
             for idx in indices:
                 # pull the whole row as an {attribute: value} dict once, rather
                 # than issuing a positional getValue() per field
