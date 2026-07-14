@@ -13,10 +13,10 @@ is not a general mmCIF reader. Parsing the same entry (4TVP) both ways:
 | | Record types produced |
 |---|---|
 | PDB | 36 |
-| mmCIF | 12 (was 6 before roadmap #3) |
-| in PDB but not mmCIF | 24 |
+| mmCIF | 14 (was 6 before roadmap #3) |
+| in PDB but not mmCIF | 22 |
 
-The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 12 of them.
+The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 14 of them.
 
 ## External library
 
@@ -68,6 +68,8 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `KEYWDS` | `struct_keywords` | Uppercased list; see keywds caveat below |
 | `CRYST1` | `cell` + `symmetry` | Cell/space-group/Z; validated vs PDB (4TVP) |
 | `SEQRES` | `pdbx_poly_seq_scheme` | One record per author chain; sequences validated vs PDB (4TVP) |
+| `HELIX` | `struct_conf` (HELX_P) | helixID/endpoints/class/length validated vs PDB (4TVP) |
+| `SHEET` | `struct_sheet_range` | Strand ranges only; sense/numStrands/H-bond registration omitted (see below) |
 
 ### Representational caveats for the new metadata records
 
@@ -83,13 +85,20 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
   a parsing bug.
 - Cryo-EM entries (e.g. 8FAE) carry a dummy `cell`/`symmetry` (`a=1.0`,
   `sGroup='P 1'`, empty `z`); this is passed through as-is.
+- **`SHEET` is partial:** only the per-strand ranges (`strand`, `sheetID`,
+  `initRes`, `endRes`) are mapped from `struct_sheet_range`. The `sense`,
+  `numStrands`, and H-bond registration fields (`curAtom`/`curRes`/`prevAtom`/
+  `prevRes`) live in `struct_sheet_order` and `pdbx_struct_sheet_hbond` and
+  require multi-key joins across categories, which the mapspec machinery does
+  not yet support. A future `join` directive would complete it.
 
 ## What mmCIF does NOT parse (the 30 PDB record types)
 
 With the mmCIF category that would supply each:
 
-`HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1` (roadmap #3) and `SEQRES`
-(roadmap #4) are now mapped; the remaining gaps are:
+`HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1` (roadmap #3), `SEQRES`
+(roadmap #4), and `HELIX`/`SHEET` (roadmap #5, SHEET partial) are now mapped;
+the remaining gaps are:
 
 | PDB record(s) | Data | mmCIF category |
 |---|---|---|
@@ -98,8 +107,7 @@ With the mmCIF category that would supply each:
 | `SCALE1-3` | scale matrix | `atom_sites` |
 | `ORIGX1-3` | origin transform | `atom_sites` (or `database_PDB_matrix`) |
 | `DBREF` | DB cross-refs | `struct_ref`, `struct_ref_seq` |
-| `HELIX` | helices | `struct_conf` |
-| `SHEET` | sheets | `struct_sheet_range`, `struct_sheet_order`, `pdbx_struct_sheet_hbond` |
+| `SHEET` (sense/hbond) | strand sense + registration | `struct_sheet_order`, `pdbx_struct_sheet_hbond` |
 | `MODRES` | modified residues | `pdbx_struct_mod_residue` |
 | `SITE` | functional sites | `struct_site`, `struct_site_gen` |
 | `FORMUL`, `HETNAM`, `HETSYN`, `HET` | het chemistry | `chem_comp`, `pdbx_entity_nonpoly` |
@@ -174,8 +182,12 @@ test.)
    vs PDB for 4TVP (6 chains) and spot-checked on 8fae/4zmj. Introduced a
    general `groupby`/`group_attr_map`/`collect`/`lengths` mapspec pattern for
    reproducing PDB grouped records from per-row mmCIF categories.
-5. **Add secondary structure** (`struct_conf` → HELIX, `struct_sheet_range` →
-   SHEET).
+5. ~~**Add secondary structure.**~~ **Done 2026-07-14.** HELIX mapped fully
+   from `struct_conf` (HELX_P); SHEET strand ranges mapped from
+   `struct_sheet_range`. Both validated vs PDB for 4TVP (24 helices, 125
+   strands) and spot-checked on 8fae/4zmj. SHEET `sense`/`numStrands`/H-bond
+   registration remain unmapped pending a `join` directive across
+   `struct_sheet_order`/`pdbx_struct_sheet_hbond`.
 6. **Broaden `struct_conn`** beyond covale/disulf (at least `metalc`).
 7. **Category-discovery pass** using `getObjNameList()`; have the nonconformance
    registry report categories present in the file but unmapped.

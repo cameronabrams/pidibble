@@ -730,6 +730,29 @@ class Test_mmCIF(unittest.TestCase):
         for r in self._aslist(self.mmCIF, 'SEQRES'):
             self.assertEqual(r.numRes, len(r.resNames))
 
+    def test_cif_pdb_correspondence_helix(self):
+        ph = {h.helixID: h for h in self._aslist(self.pdb, 'HELIX')}
+        ch = {h.helixID: h for h in self._aslist(self.mmCIF, 'HELIX')}
+        self.assertTrue(ph)
+        self.assertEqual(set(ph), set(ch))
+        for hid in ph:
+            p, c = ph[hid], ch[hid]
+            self.assertEqual(self._res(c.initRes), self._res(p.initRes))
+            self.assertEqual(self._res(c.endRes), self._res(p.endRes))
+            self.assertEqual(c.helixClass, p.helixClass)
+            self.assertEqual(c.length, p.length)
+
+    def test_cif_pdb_correspondence_sheet(self):
+        # only the strand ranges are mapped from struct_sheet_range; sense and
+        # H-bond registration require multi-category joins not yet supported
+        ps = {(s.sheetID, s.strand): s for s in self._aslist(self.pdb, 'SHEET')}
+        cs = {(s.sheetID, s.strand): s for s in self._aslist(self.mmCIF, 'SHEET')}
+        self.assertTrue(ps)
+        self.assertEqual(set(ps), set(cs))
+        for k in ps:
+            self.assertEqual(self._res(cs[k].initRes), self._res(ps[k].initRes))
+            self.assertEqual(self._res(cs[k].endRes), self._res(ps[k].endRes))
+
     def test_cif_fetch(self):
         p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed
         self.assertEqual(len(p['ATOM']),14466)

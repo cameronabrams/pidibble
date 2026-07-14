@@ -327,3 +327,44 @@ SEQRES:
     resNames: mon_id
   lengths:
     numRes: resNames
+# --- secondary structure ---------------------------------------------------
+# HELIX from struct_conf (protein helices only). Residue endpoints use author
+# numbering to match the PDB HELIX record.
+HELIX:
+  data_obj: struct_conf
+  signal_attr: conf_type_id
+  signal_value: HELX_P
+  attr_map:
+    helixID: pdbx_PDB_helix_id
+    initRes:
+      chainID: beg_auth_asym_id
+      resName: beg_auth_comp_id
+      seqNum: beg_auth_seq_id
+      iCode: pdbx_beg_PDB_ins_code
+    endRes:
+      chainID: end_auth_asym_id
+      resName: end_auth_comp_id
+      seqNum: end_auth_seq_id
+      iCode: pdbx_end_PDB_ins_code
+    helixClass: pdbx_PDB_helix_class
+    length: pdbx_PDB_helix_length
+    comment: details
+# SHEET from struct_sheet_range (strand ranges only). NOTE: sense, numStrands,
+# and the H-bond registration (curAtom/curRes/prevAtom/prevRes) come from
+# struct_sheet_order and pdbx_struct_sheet_hbond, which require multi-key joins
+# not yet supported; those fields are omitted here.
+SHEET:
+  data_obj: struct_sheet_range
+  attr_map:
+    strand: id
+    sheetID: sheet_id
+    initRes:
+      chainID: beg_auth_asym_id
+      resName: beg_auth_comp_id
+      seqNum: beg_auth_seq_id
+      iCode: pdbx_beg_PDB_ins_code
+    endRes:
+      chainID: end_auth_asym_id
+      resName: end_auth_comp_id
+      seqNum: end_auth_seq_id
+      iCode: pdbx_end_PDB_ins_code
