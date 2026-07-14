@@ -40,8 +40,8 @@ High-value unused capabilities that should shape the expansion:
 | Capability | Method | Why it matters |
 |---|---|---|
 | Category discovery | `DataContainer.getObjNameList()` | Enumerate all categories actually present (73 in 4TVP) instead of hard-coding names; lets the nonconformance registry flag "present but unmapped." |
-| Row-as-dict | `DataCategory.getRowAttributeDict(idx)`, `getRowList()`, `getAttributeList()` | Pull a whole row as `{attr: value}` in one call; collapses most of `gen_dict`'s positional index machinery and makes adding categories declarative. |
-| Declarative selection | `selectValuesWhere(...)`, `selectIndices(...)` | Native replacement for the manual `signal_attr`/`signal_value` scan (e.g. `atom_site` by `group_PDB`, `struct_conn` by `covale`/`disulf`). |
+| Row-as-dict | `DataCategory.getRowAttributeDict(idx)`, `getRowList()`, `getAttributeList()` | Pull a whole row as `{attr: value}` in one call; collapses most of `gen_dict`'s positional index machinery and makes adding categories declarative. **Adopted 2026-07-14 (roadmap #2).** |
+| Declarative selection | `selectValuesWhere(...)`, `selectIndices(...)` | Native replacement for the manual `signal_attr`/`signal_value` scan (e.g. `atom_site` by `group_PDB`, `struct_conn` by `covale`/`disulf`). **Adopted 2026-07-14 (roadmap #2).** |
 | Safe optional access | `getValueOrDefault(attr, idx, default)`, `hasAttribute(name)` | Clean handling of missing/optional items instead of carefully avoiding absent attributes. |
 | DDL2 dictionary | `mmcif.api.DictionaryApi` | Authoritative type/enum/mandatory info per item; could replace the heuristic `rectify()` coercion and semi-auto-generate the format map. Heavier (needs the dictionary file) — a later phase. |
 
@@ -132,8 +132,14 @@ test.)
    revived and passing; existing mmCIF parse of LINK/SSBOND/SEQADV/REMARK.465/
    REMARK.350 verified correct against PDB for 4TVP. See "Correctness /
    validation status" above.
-2. **Refactor `gen_dict` onto `getRowAttributeDict` + `selectValuesWhere`.**
-   Removes positional-loop fragility and makes new categories declarative.
+2. ~~**Refactor `gen_dict` onto `getRowAttributeDict` + `selectValuesWhere`.**~~
+   **Done 2026-07-14.** Positional `getValue(attr, idx)` loops replaced with
+   `selectIndices()` for signal filtering and `getRowAttributeDict()` for row
+   access; `update_maps`/`update_ids` now take a row dict. Verified
+   behavior-preserving: parsed output is byte-for-byte identical (SHA-256) for
+   4tvp/8fae/4zmj, and all correspondence tests still pass. Missing attributes
+   now yield `''` (via `row.get`) instead of raising `ValueError`, so mapspec
+   fields absent from a given entry degrade gracefully.
 3. **Add header/metadata mapping** (`entry`, `struct`, `struct_keywords`,
    `exptl`, `cell`, `symmetry`, `entity`/`entity_src_gen`). This is what
    PDB-less newer entries most need for consumers like pestifer.
