@@ -8,7 +8,6 @@
    
 """
 
-from collections import UserDict
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .baserecord import BaseRecord
 import logging
@@ -64,59 +63,6 @@ def rectify(val):
     except ValueError:
         pass
     return val
-
-def resolve(key, aDict):
-    """
-    Stub function to resolve a key in a dictionary.
-    This function is a placeholder and does not perform any actual resolution.
-    """
-    pass
-
-class MMCIFDict(UserDict):
-    """
-    A dictionary-like class for handling mmCIF data with custom key resolution.
-    This class extends UserDict to provide additional functionality for mmCIF data handling.
-
-    Parameters
-    ----------
-    data : dict
-        The initial data to populate the MMCIFDict.
-    linkers : dict, optional
-        A dictionary mapping keys to other keys for resolving linked values.
-    blankers : list, optional
-        A list of values that should be treated as empty strings.
-        Defaults to [' ', '', '?'].
-    """
-
-    def __init__(self, data, linkers={}, blankers=[' ', '', '?']):
-        self.data = data
-        self.linkers = linkers
-        self.blankers = blankers
-
-    def get(self, key):
-        """
-        Retrieve a value from the MMCIFDict by key, resolving linked keys if necessary.
-        If the value is in the blankers list, it returns an empty string.
-
-        Parameters
-        ----------
-        key : str
-            The key to retrieve from the MMCIFDict.
-
-        Returns
-        -------
-        str
-            The value associated with the key, or an empty string if the value is in the blankers list.
-        """
-        val = self[key]
-        if val in self.blankers:
-            return ''
-
-        key_link = self.linkers.get(val, None)
-        if key_link:
-            if key_link in self.keys():
-                val = self[key_link]
-        return val
 
 class MMCIF_Parser:
     """
@@ -176,6 +122,35 @@ class MMCIF_Parser:
             thisid = rectify(row.get(idspec, ''))
             if not thisid in self.global_ids[idname]:
                 self.global_ids[idname].append(thisid)
+
+    def _join_lookup(self, jo, on, idict):
+        """
+        Find the first row of category ``jo`` matching every ``on`` condition.
+
+        Parameters
+        ----------
+        jo : DataCategory or None
+            The category to search.
+        on : list of tuple
+            ``(other_attr, self_key)`` pairs; a row matches when, for each pair,
+            the row's ``other_attr`` equals this record's ``self_key`` value.
+        idict : dict
+            The record being built, holding the already-mapped self values.
+
+        Returns
+        -------
+        dict
+            The matching row as an ``{attribute: value}`` dict, or ``{}`` if none.
+        """
+        if jo is None or not on:
+            return {}
+        first_attr, first_key = on[0]
+        candidates = jo.selectIndices(str(idict.get(first_key, '')), first_attr)
+        for idx in candidates:
+            jrow = jo.getRowAttributeDict(idx)
+            if all(str(jrow.get(oa, '')) == str(idict.get(sk, '')) for oa, sk in on[1:]):
+                return jrow
+        return {}
 
     def gen_dict(self, mapspec):
         """
@@ -367,21 +342,33 @@ class MMCIF_Parser:
                         idict[ak] = rectify(mrow.get(cifattr, ''))
 
         # keyed join: for each record, look up a row of another category whose
-        # `other_key` attribute equals this record's already-mapped `self_key`
-        # value, and pull additional attributes from it (e.g. COMPND draws
-        # molName from `entity` keyed by entity_id).
+        # attributes match this record's already-mapped values on all `match`
+        # conditions ({other_attr: self_key}), and pull additional attributes
+        # (scalars or nested residue dicts) from it. e.g. COMPND draws molName
+        # from `entity` on {id: molID}; SHEET draws sense from struct_sheet_order
+        # on {sheet_id: sheetID, range_id_2: strand}.
         join = mapspec.get('join', {})
         if join:
             for cat_name, spec in join.items():
                 jo = self.cif_data.getObj(cat_name)
-                self_key = spec['self_key']
-                other_key = spec['other_key']
+                on = list(spec['match'].items())  # [(other_attr, self_key), ...]
                 jmap = spec['attr_map']
                 for idict in idicts:
-                    match = jo.selectIndices(str(idict.get(self_key, '')), other_key) if jo is not None else []
-                    jrow = jo.getRowAttributeDict(match[0]) if match else {}
+                    jrow = self._join_lookup(jo, on, idict)
                     for ak, cifattr in jmap.items():
-                        idict[ak] = rectify(jrow.get(cifattr, ''))
+                        if isinstance(cifattr, dict):
+                            idict[ak] = PDBRecord({kk: rectify(jrow.get(o, '')) for kk, o in cifattr.items()})
+                        else:
+                            idict[ak] = rectify(jrow.get(cifattr, ''))
+
+        # map literal values to replacements (e.g. SHEET sense strings
+        # 'anti-parallel'/''/'parallel' -> -1/0/1 to match the PDB integer)
+        value_maps = mapspec.get('value_maps', {})
+        if value_maps:
+            for idict in idicts:
+                for k, vmap in value_maps.items():
+                    if k in idict and idict[k] in vmap:
+                        idict[k] = vmap[idict[k]]
 
         # ensure the named attributes are always lists (e.g. a single-chain
         # COMPND still yields chains=['G'] rather than 'G')
@@ -426,4 +413,35 @@ class MMCIF_Parser:
                 else:
                     idict['key'] = reckey
                     recdict[reckey] = PDBRecord(idict)
+        self._report_unmapped_categories()
         return recdict
+
+    def _referenced_categories(self):
+        """Return the set of mmCIF category names any mapspec reads from."""
+        cats = set()
+        for mapspec in self.formats.values():
+            cats.add(mapspec.get('data_obj'))
+            for directive in ('merge', 'join'):
+                cats.update((mapspec.get(directive) or {}).keys())
+            spawn = mapspec.get('spawn_data')
+            if spawn:
+                cats.add(spawn.get('data_obj'))
+        cats.discard(None)
+        return cats
+
+    def _report_unmapped_categories(self):
+        """
+        Log a coverage summary: how many of the file's categories pidibble reads,
+        and (at DEBUG) which ones it ignores. Uses the py-mmcif category index
+        so users can see what data is present but not surfaced.
+        """
+        try:
+            present = set(self.cif_data.getObjNameList())
+        except Exception:
+            return
+        mapped = self._referenced_categories() & present
+        unmapped = sorted(present - mapped)
+        if unmapped:
+            logger.info(f'mmCIF: read {len(mapped)} of {len(present)} categories present; '
+                        f'{len(unmapped)} present but unmapped (set logging to DEBUG to list)')
+            logger.debug(f'unmapped mmCIF categories: {", ".join(unmapped)}')

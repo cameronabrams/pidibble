@@ -743,15 +743,26 @@ class Test_mmCIF(unittest.TestCase):
             self.assertEqual(c.length, p.length)
 
     def test_cif_pdb_correspondence_sheet(self):
-        # only the strand ranges are mapped from struct_sheet_range; sense and
-        # H-bond registration require multi-category joins not yet supported
         ps = {(s.sheetID, s.strand): s for s in self._aslist(self.pdb, 'SHEET')}
         cs = {(s.sheetID, s.strand): s for s in self._aslist(self.mmCIF, 'SHEET')}
         self.assertTrue(ps)
         self.assertEqual(set(ps), set(cs))
+
+        def res(r):  # PDB stores '' for the blank first-strand registration
+            return self._res(r) if hasattr(r, 'chainID') else ('', '', '', '')
+
         for k in ps:
-            self.assertEqual(self._res(cs[k].initRes), self._res(ps[k].initRes))
-            self.assertEqual(self._res(cs[k].endRes), self._res(ps[k].endRes))
+            p, c = ps[k], cs[k]
+            self.assertEqual(res(c.initRes), res(p.initRes))
+            self.assertEqual(res(c.endRes), res(p.endRes))
+            # completed via joins on struct_sheet / struct_sheet_order /
+            # pdbx_struct_sheet_hbond
+            self.assertEqual(c.numStrands, p.numStrands)
+            self.assertEqual(c.sense, p.sense)
+            self.assertEqual(c.curAtom, p.curAtom)
+            self.assertEqual(c.prevAtom, p.prevAtom)
+            self.assertEqual(res(c.curRes), res(p.curRes))
+            self.assertEqual(res(c.prevRes), res(p.prevRes))
 
     def test_cif_pdb_correspondence_entities(self):
         # COMPND/SOURCE are native mmCIF-shaped records (not PDB tokengroups),

@@ -352,10 +352,10 @@ HELIX:
     helixClass: pdbx_PDB_helix_class
     length: pdbx_PDB_helix_length
     comment: details
-# SHEET from struct_sheet_range (strand ranges only). NOTE: sense, numStrands,
-# and the H-bond registration (curAtom/curRes/prevAtom/prevRes) come from
-# struct_sheet_order and pdbx_struct_sheet_hbond, which require multi-key joins
-# not yet supported; those fields are omitted here.
+# SHEET from struct_sheet_range, completed with sense (struct_sheet_order),
+# numStrands (struct_sheet), and H-bond registration (pdbx_struct_sheet_hbond)
+# via keyed joins on (sheet_id, range_id_2 == strand). The first strand of each
+# sheet has no predecessor, so its sense is 0 and its registration is blank.
 SHEET:
   data_obj: struct_sheet_range
   attr_map:
@@ -371,6 +371,40 @@ SHEET:
       resName: end_auth_comp_id
       seqNum: end_auth_seq_id
       iCode: pdbx_end_PDB_ins_code
+  join:
+    struct_sheet:
+      match:
+        id: sheetID
+      attr_map:
+        numStrands: number_strands
+    struct_sheet_order:
+      match:
+        sheet_id: sheetID
+        range_id_2: strand
+      attr_map:
+        sense: sense
+    pdbx_struct_sheet_hbond:
+      match:
+        sheet_id: sheetID
+        range_id_2: strand
+      attr_map:
+        curAtom: range_2_auth_atom_id
+        curRes:
+          chainID: range_2_auth_asym_id
+          resName: range_2_auth_comp_id
+          seqNum: range_2_auth_seq_id
+          iCode: range_2_PDB_ins_code
+        prevAtom: range_1_auth_atom_id
+        prevRes:
+          chainID: range_1_auth_asym_id
+          resName: range_1_auth_comp_id
+          seqNum: range_1_auth_seq_id
+          iCode: range_1_PDB_ins_code
+  value_maps:
+    sense:
+      anti-parallel: -1
+      parallel: 1
+      '': 0
 # --- entity / source (native mmCIF-shaped records) -------------------------
 # These do NOT mirror the PDB COMPND/SOURCE tokengroup structure; they expose
 # per-entity information as flat records. COMPND covers polymer entities only
@@ -386,8 +420,8 @@ COMPND:
     - chains
   join:
     entity:
-      self_key: molID
-      other_key: id
+      match:
+        id: molID
       attr_map:
         molName: pdbx_description
   allcaps:

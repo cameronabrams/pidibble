@@ -17,7 +17,7 @@ is not a general mmCIF reader. Parsing the same entry (4TVP) both ways:
 | in PDB but not mmCIF | 20 |
 
 The same 4TVP mmCIF file draws on **73 data categories**; pidibble now reads from
-19 of them.
+22 of them (a coverage summary is logged at parse time — see roadmap #8).
 
 ## External library
 
@@ -70,7 +70,7 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `CRYST1` | `cell` + `symmetry` | Cell/space-group/Z; validated vs PDB (4TVP) |
 | `SEQRES` | `pdbx_poly_seq_scheme` | One record per author chain; sequences validated vs PDB (4TVP) |
 | `HELIX` | `struct_conf` (HELX_P) | helixID/endpoints/class/length validated vs PDB (4TVP) |
-| `SHEET` | `struct_sheet_range` | Strand ranges only; sense/numStrands/H-bond registration omitted (see below) |
+| `SHEET` | `struct_sheet_range` + `struct_sheet` + `struct_sheet_order` + `pdbx_struct_sheet_hbond` | Complete (ranges, sense, numStrands, H-bond registration); validated vs PDB (4TVP) |
 | `COMPND` | `entity_poly` + `entity` | **Native** per-entity records (molID/chains/molName), NOT PDB tokengroups (see below) |
 | `SOURCE` | `entity_src_gen` | **Native** per-entity records (molID/organism/taxid/exprSystem/gene) |
 
@@ -88,12 +88,6 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
   a parsing bug.
 - Cryo-EM entries (e.g. 8FAE) carry a dummy `cell`/`symmetry` (`a=1.0`,
   `sGroup='P 1'`, empty `z`); this is passed through as-is.
-- **`SHEET` is partial:** only the per-strand ranges (`strand`, `sheetID`,
-  `initRes`, `endRes`) are mapped from `struct_sheet_range`. The `sense`,
-  `numStrands`, and H-bond registration fields (`curAtom`/`curRes`/`prevAtom`/
-  `prevRes`) live in `struct_sheet_order` and `pdbx_struct_sheet_hbond` and
-  require a *keyed* join on strand-pair ids, which the `join` directive does not
-  yet do (it joins on a single key). A two-key join would complete it.
 - **`COMPND`/`SOURCE` do NOT mirror the PDB tokengroup structure.** The PDB
   parser stores these as `record.tokengroups['compound']['MOL_ID.N'].MOLECULE`;
   the mmCIF parser instead emits flat per-entity records
@@ -109,8 +103,8 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 With the mmCIF category that would supply each:
 
 `HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1` (roadmap #3), `SEQRES`
-(roadmap #4), `HELIX`/`SHEET` (roadmap #5, SHEET partial), and `COMPND`/`SOURCE`
-(native shape) are now mapped; the remaining gaps are:
+(roadmap #4), `HELIX`/`SHEET` (roadmap #5 + #10, now complete), and
+`COMPND`/`SOURCE` (native shape) are now mapped; the remaining gaps are:
 
 | PDB record(s) | Data | mmCIF category |
 |---|---|---|
@@ -118,7 +112,6 @@ With the mmCIF category that would supply each:
 | `SCALE1-3` | scale matrix | `atom_sites` |
 | `ORIGX1-3` | origin transform | `atom_sites` (or `database_PDB_matrix`) |
 | `DBREF` | DB cross-refs | `struct_ref`, `struct_ref_seq` |
-| `SHEET` (sense/hbond) | strand sense + registration | `struct_sheet_order`, `pdbx_struct_sheet_hbond` |
 | `MODRES` | modified residues | `pdbx_struct_mod_residue` |
 | `SITE` | functional sites | `struct_site`, `struct_site_gen` |
 | `FORMUL`, `HETNAM`, `HETSYN`, `HET` | het chemistry | `chem_comp`, `pdbx_entity_nonpoly` |
@@ -156,13 +149,13 @@ test.)
 
 ## Minor issues
 
-- **Dead code** in `mmcif_parse.py`: `MMCIFDict` class and `resolve()` (a `pass`
-  stub) are never instantiated or called.
 - **No multi-model handling** on the mmCIF side: `pdbx_PDB_model_num` is captured
   as an atom attribute, but atoms are not grouped into `MODEL`/`ENDMDL`
   structures as in the PDB path.
 - The **nonconformance registry** (1.6.0) covers only the PDB path; mmCIF coercion
-  (`rectify`, `getValue`) has no equivalent reporting.
+  (`rectify`, `getValue`) has no equivalent reporting. (A coverage summary of
+  unmapped *categories* is now logged — roadmap #8 — but per-value mmCIF
+  coercion issues still aren't tracked.)
 
 ## Roadmap (priority order)
 
@@ -209,13 +202,20 @@ test.)
    from `entity_src_gen` (molID/organism/taxid/exprSystem/gene). Introduced a
    single-key `join` directive and an `as_list` directive; content validated
    against the PDB tokengroups on 4TVP, multi-chain entities checked on 8fae.
-8. **Category-discovery pass** using `getObjNameList()`; have the nonconformance
-   registry report categories present in the file but unmapped.
-9. **Delete dead `MMCIFDict`/`resolve` code.**
-10. **Finish `SHEET`** with a two-key join across `struct_sheet_order` /
-    `pdbx_struct_sheet_hbond` for sense/numStrands/H-bond registration.
+8. ~~**Category-discovery pass** using `getObjNameList()`.~~ **Done 2026-07-14.**
+   `MMCIF_Parser.parse()` now logs a coverage summary (INFO: "read N of M
+   categories present; K unmapped"; DEBUG lists the unmapped ones).
+9. ~~**Delete dead `MMCIFDict`/`resolve` code.**~~ **Done 2026-07-14.** Removed
+   both, plus the now-unused `UserDict` import.
+10. ~~**Finish `SHEET`.**~~ **Done 2026-07-14.** Added `sense`, `numStrands`, and
+    the H-bond registration (`curAtom`/`curRes`/`prevAtom`/`prevRes`) via keyed
+    joins on `struct_sheet`/`struct_sheet_order`/`pdbx_struct_sheet_hbond`. All 6
+    fields validated identical vs PDB across 125 strands of 4TVP. Introduced a
+    multi-key `join` (`match:` conditions, nested residue dicts) and a
+    `value_maps` directive (sense strings → PDB integers).
 11. *(Later)* Evaluate `mmcif.api.DictionaryApi` for type-correct coercion and
     format-map generation.
+
 ## References
 
 - py-mmcif: https://github.com/rcsb/py-mmcif — API docs for `DataContainer` /
