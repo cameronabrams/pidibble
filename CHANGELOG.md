@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-07-14
+
 ### Added
 - Substantially expanded PDBx/mmCIF parsing: coverage grew from 6 to 16 record types (reading 22 of a typical file's ~73 categories). New mmCIF-mapped records: `HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1`, `SEQRES`, `HELIX`, `SHEET` (complete — ranges, sense, numStrands, H-bond registration), and `COMPND`/`SOURCE` (as native per-entity records). Metal coordination (`metalc`) now folds into `LINK`. Every mapping is validated against the legacy PDB parse.
 - mmCIF↔PDB correspondence test suite revived and extended (atoms, links, ssbonds, seqadv, missing residues, assembly, metadata, seqres, helix, sheet, entities, metal coordination).
