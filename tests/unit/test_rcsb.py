@@ -753,6 +753,27 @@ class Test_mmCIF(unittest.TestCase):
             self.assertEqual(self._res(cs[k].initRes), self._res(ps[k].initRes))
             self.assertEqual(self._res(cs[k].endRes), self._res(ps[k].endRes))
 
+    def test_cif_pdb_correspondence_entities(self):
+        # COMPND/SOURCE are native mmCIF-shaped records (not PDB tokengroups),
+        # but their content should agree with the PDB COMPND/SOURCE tokengroups.
+        pdb, cif = self.pdb, self.mmCIF
+        cc = {r.molID: r for r in self._aslist(cif, 'COMPND')}
+        self.assertTrue(cc)
+        for label, tg in pdb['COMPND'].tokengroups['compound'].items():
+            molid = int(label.split('.')[1])
+            self.assertIn(molid, cc)
+            self.assertEqual(cc[molid].molName, tg.MOLECULE)
+            self.assertEqual(cc[molid].chains, tg.CHAIN)
+        cs = {r.molID: r for r in self._aslist(cif, 'SOURCE')}
+        self.assertTrue(cs)
+        for label, tg in pdb['SOURCE'].tokengroups['srcName'].items():
+            molid = int(label.split('.')[1])
+            if molid not in cs:  # e.g. natural-source entities live elsewhere
+                continue
+            self.assertEqual(cs[molid].organism, tg.ORGANISM_SCIENTIFIC)
+            self.assertEqual(str(cs[molid].taxid), tg.ORGANISM_TAXID)
+            self.assertEqual(cs[molid].exprSystem, tg.EXPRESSION_SYSTEM)
+
     def test_cif_fetch(self):
         p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed
         self.assertEqual(len(p['ATOM']),14466)

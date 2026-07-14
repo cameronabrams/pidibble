@@ -13,10 +13,11 @@ is not a general mmCIF reader. Parsing the same entry (4TVP) both ways:
 | | Record types produced |
 |---|---|
 | PDB | 36 |
-| mmCIF | 14 (was 6 before roadmap #3) |
-| in PDB but not mmCIF | 22 |
+| mmCIF | 16 (was 6 before roadmap #3) |
+| in PDB but not mmCIF | 20 |
 
-The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 14 of them.
+The same 4TVP mmCIF file draws on **73 data categories**; pidibble now reads from
+19 of them.
 
 ## External library
 
@@ -70,6 +71,8 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `SEQRES` | `pdbx_poly_seq_scheme` | One record per author chain; sequences validated vs PDB (4TVP) |
 | `HELIX` | `struct_conf` (HELX_P) | helixID/endpoints/class/length validated vs PDB (4TVP) |
 | `SHEET` | `struct_sheet_range` | Strand ranges only; sense/numStrands/H-bond registration omitted (see below) |
+| `COMPND` | `entity_poly` + `entity` | **Native** per-entity records (molID/chains/molName), NOT PDB tokengroups (see below) |
+| `SOURCE` | `entity_src_gen` | **Native** per-entity records (molID/organism/taxid/exprSystem/gene) |
 
 ### Representational caveats for the new metadata records
 
@@ -89,20 +92,28 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
   `initRes`, `endRes`) are mapped from `struct_sheet_range`. The `sense`,
   `numStrands`, and H-bond registration fields (`curAtom`/`curRes`/`prevAtom`/
   `prevRes`) live in `struct_sheet_order` and `pdbx_struct_sheet_hbond` and
-  require multi-key joins across categories, which the mapspec machinery does
-  not yet support. A future `join` directive would complete it.
+  require a *keyed* join on strand-pair ids, which the `join` directive does not
+  yet do (it joins on a single key). A two-key join would complete it.
+- **`COMPND`/`SOURCE` do NOT mirror the PDB tokengroup structure.** The PDB
+  parser stores these as `record.tokengroups['compound']['MOL_ID.N'].MOLECULE`;
+  the mmCIF parser instead emits flat per-entity records
+  (`cif['COMPND'][i].molID/chains/molName`, `cif['SOURCE'][i].molID/organism/
+  taxid/exprSystem/gene`). This is a deliberate simplification — the PDB
+  `FRAGMENT`/`ENGINEERED` tokens have no clean mmCIF equivalent — so consumers
+  must branch on source format for these two records. Content agrees with the
+  PDB tokengroups where it overlaps (validated on 4TVP). `COMPND` covers polymer
+  entities only.
 
 ## What mmCIF does NOT parse (the 30 PDB record types)
 
 With the mmCIF category that would supply each:
 
 `HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1` (roadmap #3), `SEQRES`
-(roadmap #4), and `HELIX`/`SHEET` (roadmap #5, SHEET partial) are now mapped;
-the remaining gaps are:
+(roadmap #4), `HELIX`/`SHEET` (roadmap #5, SHEET partial), and `COMPND`/`SOURCE`
+(native shape) are now mapped; the remaining gaps are:
 
 | PDB record(s) | Data | mmCIF category |
 |---|---|---|
-| `COMPND`, `SOURCE` | entities, chains, organism | `entity`, `entity_poly`, `entity_src_gen`, `struct_asym` |
 | `REMARK 2 / 3` | resolution, refinement | `reflns`, `refine`, `refine_ls_restr` |
 | `SCALE1-3` | scale matrix | `atom_sites` |
 | `ORIGX1-3` | origin transform | `atom_sites` (or `database_PDB_matrix`) |
@@ -173,9 +184,7 @@ test.)
    names and validated vs PDB for 4TVP. Introduced a `merge` mapspec directive
    (pull single-valued attrs from a secondary category, e.g. CRYST1 ←
    cell+symmetry), taught `allcaps` to handle list values, and made comma
-   `splits` strip whitespace. Entity/source (`COMPND`/`SOURCE` ←
-   `entity`/`entity_src_gen`) deferred — its PDB token structure is a larger
-   mapping job; see remaining gaps above.
+   `splits` strip whitespace.
 4. ~~**Add `SEQRES` equivalent.**~~ **Done 2026-07-14.** Mapped from
    `pdbx_poly_seq_scheme`, grouping rows by `pdb_strand_id` (author chain) and
    collecting `mon_id` into per-chain `resNames`. Sequences validated identical
@@ -194,12 +203,19 @@ test.)
    Added a multi-value `signal_value` (a list unions the matching rows).
    Validated vs PDB on 1CA2 (carbonic anhydrase Zn site: 4 LINKs). `hydrog`/
    `saltbr` remain dropped. Test fixtures 1ca2.{pdb,cif} added.
-7. **Category-discovery pass** using `getObjNameList()`; have the nonconformance
+7. ~~**Entity/source mapping** (`COMPND`/`SOURCE`).~~ **Done 2026-07-14.** Added
+   as *native* flat per-entity records (not PDB tokengroups — see caveats):
+   COMPND from `entity_poly` joined to `entity` (molID/chains/molName), SOURCE
+   from `entity_src_gen` (molID/organism/taxid/exprSystem/gene). Introduced a
+   single-key `join` directive and an `as_list` directive; content validated
+   against the PDB tokengroups on 4TVP, multi-chain entities checked on 8fae.
+8. **Category-discovery pass** using `getObjNameList()`; have the nonconformance
    registry report categories present in the file but unmapped.
-8. **Delete dead `MMCIFDict`/`resolve` code.**
-9. *(Later)* Evaluate `mmcif.api.DictionaryApi` for type-correct coercion and
-   format-map generation.
-
+9. **Delete dead `MMCIFDict`/`resolve` code.**
+10. **Finish `SHEET`** with a two-key join across `struct_sheet_order` /
+    `pdbx_struct_sheet_hbond` for sense/numStrands/H-bond registration.
+11. *(Later)* Evaluate `mmcif.api.DictionaryApi` for type-correct coercion and
+    format-map generation.
 ## References
 
 - py-mmcif: https://github.com/rcsb/py-mmcif — API docs for `DataContainer` /

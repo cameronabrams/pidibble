@@ -366,6 +366,32 @@ class MMCIF_Parser:
                     for ak, cifattr in amap.items():
                         idict[ak] = rectify(mrow.get(cifattr, ''))
 
+        # keyed join: for each record, look up a row of another category whose
+        # `other_key` attribute equals this record's already-mapped `self_key`
+        # value, and pull additional attributes from it (e.g. COMPND draws
+        # molName from `entity` keyed by entity_id).
+        join = mapspec.get('join', {})
+        if join:
+            for cat_name, spec in join.items():
+                jo = self.cif_data.getObj(cat_name)
+                self_key = spec['self_key']
+                other_key = spec['other_key']
+                jmap = spec['attr_map']
+                for idict in idicts:
+                    match = jo.selectIndices(str(idict.get(self_key, '')), other_key) if jo is not None else []
+                    jrow = jo.getRowAttributeDict(match[0]) if match else {}
+                    for ak, cifattr in jmap.items():
+                        idict[ak] = rectify(jrow.get(cifattr, ''))
+
+        # ensure the named attributes are always lists (e.g. a single-chain
+        # COMPND still yields chains=['G'] rather than 'G')
+        as_list = mapspec.get('as_list', [])
+        for idict in idicts:
+            for k in as_list:
+                v = idict.get(k, '')
+                if not isinstance(v, list):
+                    idict[k] = [v] if v != '' else []
+
         if allcaps:
             for idict in idicts:
                 for k, v in idict.items():

@@ -371,3 +371,37 @@ SHEET:
       resName: end_auth_comp_id
       seqNum: end_auth_seq_id
       iCode: pdbx_end_PDB_ins_code
+# --- entity / source (native mmCIF-shaped records) -------------------------
+# These do NOT mirror the PDB COMPND/SOURCE tokengroup structure; they expose
+# per-entity information as flat records. COMPND covers polymer entities only
+# (driven by entity_poly), joining the molecule name from `entity`.
+COMPND:
+  data_obj: entity_poly
+  attr_map:
+    molID: entity_id
+    chains: pdbx_strand_id
+  splits:
+    - chains
+  as_list:
+    - chains
+  join:
+    entity:
+      self_key: molID
+      other_key: id
+      attr_map:
+        molName: pdbx_description
+  allcaps:
+    - molName
+SOURCE:
+  data_obj: entity_src_gen
+  attr_map:
+    molID: entity_id
+    organism: pdbx_gene_src_scientific_name
+    taxid: pdbx_gene_src_ncbi_taxonomy_id
+    exprSystem: pdbx_host_org_scientific_name
+    exprTaxid: pdbx_host_org_ncbi_taxonomy_id
+    gene: pdbx_gene_src_gene
+  allcaps:
+    - organism
+    - exprSystem
+    - gene
