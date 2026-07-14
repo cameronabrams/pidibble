@@ -5,6 +5,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Substantially expanded PDBx/mmCIF parsing: coverage grew from 6 to 16 record types (reading 22 of a typical file's ~73 categories). New mmCIF-mapped records: `HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1`, `SEQRES`, `HELIX`, `SHEET` (complete — ranges, sense, numStrands, H-bond registration), and `COMPND`/`SOURCE` (as native per-entity records). Metal coordination (`metalc`) now folds into `LINK`. Every mapping is validated against the legacy PDB parse.
+- mmCIF↔PDB correspondence test suite revived and extended (atoms, links, ssbonds, seqadv, missing residues, assembly, metadata, seqres, helix, sheet, entities, metal coordination).
+- mmCIF coverage summary logged at parse time: how many of a file's categories pidibble reads, with the unmapped ones listed at DEBUG level.
+- `docs/mmcif_coverage.md`: PDB vs PDBx/mmCIF coverage audit and roadmap.
+- Reusable declarative mmCIF mapspec directives: `merge`, `join` (multi-key `match:` conditions with nested residue dicts), `groupby`/`collect`/`lengths`, `as_list`, `value_maps`, list-aware `allcaps`, and multi-value `signal_value`.
+
+### Changed
+- mmCIF `gen_dict` refactored onto the py-mmcif higher-level API (`selectIndices`, `getRowAttributeDict`) instead of positional `getValue` loops; verified byte-for-byte identical output on existing records.
+- A mapped-but-absent mmCIF category now emits no records (previously produced a spurious empty `{'tables': {}}` record).
+
+### Removed
+- Dead `MMCIFDict` class and `resolve()` stub in `mmcif_parse.py`.
+
 ## [1.6.0] - 2026-07-14
 
 ### Added
