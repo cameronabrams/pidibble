@@ -257,7 +257,7 @@ REMARK.350:
 # _pdbx_unobs_or_zero_occ_residues.label_seq_id 
 REMARK.465:
   data_obj: pdbx_unobs_or_zero_occ_residues
-  tables: 
+  tables:
     MISSING:
       row_attr_map:
         modelNum: PDB_model_num
@@ -270,3 +270,49 @@ REMARK.465:
         iCode: PDB_ins_code
       blank_if_single_valued:
         - modelNum
+# --- header / metadata records ---------------------------------------------
+# Single-row descriptive categories. Attribute names mirror the corresponding
+# PDB record fields so downstream consumers are format-agnostic. Text fields
+# (title, keywds) are uppercased to match the PDB convention; note that
+# depDate is exposed in mmCIF's native ISO form (YYYY-MM-DD), unlike the PDB
+# DD-MON-YY representation.
+HEADER:
+  data_obj: entry
+  attr_map:
+    idCode: id
+  merge:
+    struct_keywords:
+      classification: pdbx_keywords
+    pdbx_database_status:
+      depDate: recvd_initial_deposition_date
+TITLE:
+  data_obj: struct
+  attr_map:
+    title: title
+  allcaps:
+    - title
+EXPDTA:
+  data_obj: exptl
+  attr_map:
+    technique: method
+KEYWDS:
+  data_obj: struct_keywords
+  attr_map:
+    keywds: text
+  splits:
+    - keywds
+  allcaps:
+    - keywds
+CRYST1:
+  data_obj: cell
+  attr_map:
+    a: length_a
+    b: length_b
+    c: length_c
+    alpha: angle_alpha
+    beta: angle_beta
+    gamma: angle_gamma
+    z: Z_PDB
+  merge:
+    symmetry:
+      sGroup: space_group_name_H-M

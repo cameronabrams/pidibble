@@ -698,6 +698,25 @@ class Test_mmCIF(unittest.TestCase):
             self.assertTrue(np.allclose(pT, oT))
         self.assertNotIn('REMARK.350.BIOMOLECULE1.TRANSFORM4', self.pdb)
 
+    def test_cif_pdb_correspondence_metadata(self):
+        pdb, cif = self.pdb, self.mmCIF
+        for rec in ('HEADER', 'TITLE', 'EXPDTA', 'KEYWDS', 'CRYST1'):
+            self.assertIn(rec, cif, f'{rec} missing from mmCIF parse')
+        # fields that correspond exactly between the two formats
+        self.assertEqual(cif['HEADER'].idCode, pdb['HEADER'].idCode)
+        self.assertEqual(cif['HEADER'].classification, pdb['HEADER'].classification)
+        self.assertEqual(cif['TITLE'].title, pdb['TITLE'].title)  # uppercased to match PDB
+        self.assertEqual(cif['EXPDTA'].technique, pdb['EXPDTA'].technique)
+        pc, cc = pdb['CRYST1'], cif['CRYST1']
+        for f in ('a', 'b', 'c', 'alpha', 'beta', 'gamma', 'sGroup', 'z'):
+            self.assertEqual(getattr(cc, f), getattr(pc, f), f'CRYST1.{f}')
+        # keywds is an uppercased list; exact correspondence is confounded by
+        # source-data comma differences, so validate shape rather than equality
+        kc = cif['KEYWDS'].keywds
+        self.assertIsInstance(kc, list)
+        self.assertTrue(kc and all(isinstance(x, str) and x == x.upper() for x in kc))
+        # depDate is exposed in mmCIF's native ISO form (differs from PDB DD-MON-YY)
+        self.assertRegex(cif['HEADER'].depDate, r'^\d{4}-\d{2}-\d{2}$')
 
     def test_cif_fetch(self):
         p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed

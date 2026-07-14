@@ -13,10 +13,10 @@ is not a general mmCIF reader. Parsing the same entry (4TVP) both ways:
 | | Record types produced |
 |---|---|
 | PDB | 36 |
-| mmCIF | 6 |
-| in PDB but not mmCIF | 30 |
+| mmCIF | 11 (was 6 before roadmap #3) |
+| in PDB but not mmCIF | 25 |
 
-The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 6 of them.
+The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 11 of them.
 
 ## External library
 
@@ -63,19 +63,39 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `SEQADV` | `struct_ref_seq_dif` | Validated vs PDB (4TVP) |
 | `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms; validated vs PDB (4TVP) |
 | `REMARK.465` | `pdbx_unobs_or_zero_occ_residues` | Missing residues; validated vs PDB (4TVP) |
+| `HEADER` | `entry` + `struct_keywords` + `pdbx_database_status` | idCode/classification exact; `depDate` in native ISO (see below) |
+| `TITLE` | `struct` | Uppercased to match PDB; validated vs PDB (4TVP) |
+| `EXPDTA` | `exptl` | Experiment method; validated vs PDB (4TVP) |
+| `KEYWDS` | `struct_keywords` | Uppercased list; see keywds caveat below |
+| `CRYST1` | `cell` + `symmetry` | Cell/space-group/Z; validated vs PDB (4TVP) |
+
+### Representational caveats for the new metadata records
+
+- **`HEADER.depDate`** is exposed in mmCIF's native ISO form (`2014-06-27`),
+  which differs from the PDB `DD-MON-YY` form (`27-JUN-14`). A future
+  normalization pass could reconcile the two.
+- **Text case:** `TITLE.title` and `KEYWDS.keywds` are uppercased so the mmCIF
+  output matches the PDB convention and consumers get identical data regardless
+  of source format. This intentionally discards mmCIF's richer mixed-case text.
+- **`KEYWDS.keywds`** exact correspondence can be confounded by source-data
+  comma placement (in 4TVP the PDB `KEYWDS` splits one phrase that the mmCIF
+  `struct_keywords.text` leaves joined); this is a file-content difference, not
+  a parsing bug.
+- Cryo-EM entries (e.g. 8FAE) carry a dummy `cell`/`symmetry` (`a=1.0`,
+  `sGroup='P 1'`, empty `z`); this is passed through as-is.
 
 ## What mmCIF does NOT parse (the 30 PDB record types)
 
 With the mmCIF category that would supply each:
 
+`HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, and `CRYST1` are now mapped (roadmap #3);
+the remaining gaps are:
+
 | PDB record(s) | Data | mmCIF category |
 |---|---|---|
-| `HEADER`, `TITLE` | id, title, classification | `entry`, `struct`, `struct_keywords` |
 | `COMPND`, `SOURCE` | entities, chains, organism | `entity`, `entity_poly`, `entity_src_gen`, `struct_asym` |
-| `KEYWDS` | keywords | `struct_keywords` |
-| `EXPDTA` | experiment type | `exptl` |
 | `REMARK 2 / 3` | resolution, refinement | `reflns`, `refine`, `refine_ls_restr` |
-| `CRYST1`, `SCALE1-3` | cell, symmetry, scale matrix | `cell`, `symmetry`, `atom_sites` |
+| `SCALE1-3` | scale matrix | `atom_sites` |
 | `ORIGX1-3` | origin transform | `atom_sites` (or `database_PDB_matrix`) |
 | `SEQRES` | sequence | `entity_poly_seq`, `pdbx_poly_seq_scheme` |
 | `DBREF` | DB cross-refs | `struct_ref`, `struct_ref_seq` |
@@ -140,9 +160,15 @@ test.)
    4tvp/8fae/4zmj, and all correspondence tests still pass. Missing attributes
    now yield `''` (via `row.get`) instead of raising `ValueError`, so mapspec
    fields absent from a given entry degrade gracefully.
-3. **Add header/metadata mapping** (`entry`, `struct`, `struct_keywords`,
-   `exptl`, `cell`, `symmetry`, `entity`/`entity_src_gen`). This is what
-   PDB-less newer entries most need for consumers like pestifer.
+3. ~~**Add header/metadata mapping.**~~ **Done 2026-07-14.** Added HEADER,
+   TITLE, EXPDTA, KEYWDS, CRYST1 from `entry`/`struct`/`struct_keywords`/
+   `exptl`/`cell`/`symmetry`/`pdbx_database_status`, mirroring PDB attribute
+   names and validated vs PDB for 4TVP. Introduced a `merge` mapspec directive
+   (pull single-valued attrs from a secondary category, e.g. CRYST1 ←
+   cell+symmetry), taught `allcaps` to handle list values, and made comma
+   `splits` strip whitespace. Entity/source (`COMPND`/`SOURCE` ←
+   `entity`/`entity_src_gen`) deferred — its PDB token structure is a larger
+   mapping job; see remaining gaps above.
 4. **Add `SEQRES` equivalent** (`entity_poly_seq` / `pdbx_poly_seq_scheme`).
 5. **Add secondary structure** (`struct_conf` → HELIX, `struct_sheet_range` →
    SHEET).

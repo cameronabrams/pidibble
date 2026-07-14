@@ -237,10 +237,10 @@ class MMCIF_Parser:
                             idict['seqNum'], idict['iCode'] = split_ri(val)
                         else:
                             if k in splits and ',' in val:
-                                val = [rectify(x) for x in val.split(',')]
+                                val = [rectify(x.strip()) for x in val.split(',')]
                             if k == spawns_on:
                                 if isinstance(val, str) and ',' in val:
-                                    val = [rectify(x) for x in val.split(',')]
+                                    val = [rectify(x.strip()) for x in val.split(',')]
                             if k in map_values:
                                 mapper = self.global_maps[map_values[k]]
                                 if isinstance(val, list):
@@ -305,7 +305,7 @@ class MMCIF_Parser:
                         idicts.append(idict)
                 else:
                     idicts.append(idict)
-        else:
+        elif tables and cifrec is not None:
             tabledict = {}
             for tname, tspec in tables.items():
                 tabledict[tname] = []
@@ -322,12 +322,28 @@ class MMCIF_Parser:
                     tabledict[tname].append(BaseRecord(tdict))
             udict = {'tables': tabledict}
             idicts.append(udict)
+        # else: the mapped category is absent from this file -> emit no records
+
+        # merge single-valued attributes drawn from other (single-row) categories,
+        # e.g. CRYST1 draws cell parameters from `cell` and space group from
+        # `symmetry`. Only the first row of each merged category is consulted.
+        merge = mapspec.get('merge', {})
+        if merge:
+            for cat_name, amap in merge.items():
+                mo = self.cif_data.getObj(cat_name)
+                mrow = mo.getRowAttributeDict(0) if (mo is not None and len(mo)) else {}
+                for idict in idicts:
+                    for ak, cifattr in amap.items():
+                        idict[ak] = rectify(mrow.get(cifattr, ''))
 
         if allcaps:
             for idict in idicts:
                 for k, v in idict.items():
                     if k in allcaps:
-                        idict[k] = v.upper()
+                        if isinstance(v, list):
+                            idict[k] = [x.upper() if isinstance(x, str) else x for x in v]
+                        elif isinstance(v, str):
+                            idict[k] = v.upper()
         return idicts
 
     def parse(self):
