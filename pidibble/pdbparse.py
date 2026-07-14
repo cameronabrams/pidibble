@@ -21,7 +21,7 @@ import numpy as np
 from mmcif.io.IoAdapterCore import IoAdapterCore
 from pathlib import Path
 
-from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float
+from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float, NonconformanceRegistry
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .mmcif_parse import MMCIF_Parser
@@ -87,6 +87,7 @@ class PDBParser:
         self.cif_data = {}
 
         self.parsed = PDBRecordDict()
+        self.nonconformances = NonconformanceRegistry()
         self.pdb_format_dict = self._load_format(pdb_format_file)
         self.mmcif_format_dict = self._load_format(mmcif_format_file)
 
@@ -262,6 +263,7 @@ class PDBParser:
         It handles different record types, including continuation records and grouped records.
         """
         self._atom_serial_parser.reset()
+        self.nonconformances = NonconformanceRegistry()
         record_formats = self.pdb_format_dict['record_formats']
         key = ''
         record_format = {}
@@ -275,7 +277,7 @@ class PDBParser:
             assert base_key in record_formats, f'{base_key} is not found in among the available record formats'
             base_record_format = record_formats[base_key]
             record_type = base_record_format['type']
-            new_record = PDBRecord.newrecord(base_key, pdbrecord_line, base_record_format, self.mappers)
+            new_record = PDBRecord.newrecord(base_key, pdbrecord_line, base_record_format, self.mappers, registry=self.nonconformances)
             key = new_record.key
             record_format = new_record.format
             if record_type in [1, 2, 6]:
@@ -423,6 +425,7 @@ class PDBParser:
             self.read()
             self.parse_base()
             self.post_process()
+            self.nonconformances.report(logger, label=self.source_id or (self.filepath.name if self.filepath else ''))
         else:
             logger.warning(f'No data.')
         return self

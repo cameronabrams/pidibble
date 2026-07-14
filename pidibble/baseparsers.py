@@ -69,6 +69,90 @@ ListParsers = {
 _cols = """
          1         2         3         4         5         6         7         8
 12345678901234567890123456789012345678901234567890123456789012345678901234567890"""
+
+class NonconformanceRegistry:
+    """
+    Accumulates *types* of PDB-format nonconformance encountered during a parse,
+    rather than every individual instance.
+
+    Real-world PDB files routinely deviate from the fixed-column standard (for
+    example, a `charge` column that holds ``O-`` instead of a bare number). A
+    single file can contain tens of thousands of instances of the same
+    deviation, so logging each one is useless noise. This registry collapses
+    them by *type*, keyed by ``(record_key, field, kind)`` — e.g.
+    ``("ATOM", "charge", "not coercible to Float")`` — keeping a running count
+    and one exemplar (the offending value and its byte range) per type so the
+    end-of-parse summary can point at something concrete.
+    """
+
+    def __init__(self):
+        self._types = {}  # (record_key, field, kind) -> {count, byte_range, example}
+
+    def __len__(self):
+        return len(self._types)
+
+    def __bool__(self):
+        return bool(self._types)
+
+    def add(self, record_key, nc):
+        """
+        Record one nonconformance instance under its type signature.
+
+        Parameters
+        ----------
+        record_key : str
+            The record type the instance was found in (e.g. ``ATOM``).
+        nc : dict
+            A nonconformance descriptor as produced by :class:`StringParser`,
+            with keys ``field``, ``kind``, ``byte_range``, and ``value``.
+        """
+        sig = (record_key, nc['field'], nc['kind'])
+        entry = self._types.get(sig)
+        if entry is None:
+            self._types[sig] = {'count': 1,
+                                'byte_range': nc.get('byte_range'),
+                                'example': nc.get('value', '')}
+        else:
+            entry['count'] += 1
+
+    def types(self):
+        """
+        Return the accumulated nonconformance types.
+
+        Returns
+        -------
+        list of tuple
+            One ``(record_key, field, kind, count, byte_range, example)`` tuple
+            per distinct nonconformance type.
+        """
+        return [(rk, field, kind, e['count'], e['byte_range'], e['example'])
+                for (rk, field, kind), e in self._types.items()]
+
+    def report(self, log, label=''):
+        """
+        Emit one INFO line per nonconformance type to the given logger.
+
+        Parameters
+        ----------
+        log : logging.Logger
+            The logger to emit the summary to.
+        label : str, optional
+            A label for the source being parsed (e.g. the PDB id), included in
+            the summary header.
+        """
+        if not self._types:
+            return
+        where = f' while parsing {label}' if label else ''
+        log.info(f'{len(self._types)} PDB-format nonconformance type(s) encountered{where}; '
+                 f'set logging to DEBUG for per-instance detail:')
+        for (rk, field, kind), e in sorted(self._types.items()):
+            name = f'{rk}.{field}' if field else rk
+            br = e.get('byte_range')
+            loc = f' at cols {br[0]}-{br[1]}' if br else ''
+            eg = f' — e.g. {e["example"]!r}{loc}' if (e.get('example') or br) else ''
+            log.info(f'  {name}: {e["count"]} value(s) {kind}{eg}')
+
+
 class StringParser:
     """
     A parser for fixed-width strings, with a customizable field map.
@@ -86,6 +170,9 @@ class StringParser:
         self.typemap = typemap
         self.fields = {k: v for k, v in fmtdict.items()}
         self.allowed = allowed
+        # structured record of every nonconformance found by parse(); drained by
+        # the caller into a NonconformanceRegistry for type-level summarizing
+        self.nonconformances = []
 
     def parse(self, record):
         """
@@ -102,9 +189,11 @@ class StringParser:
             A dictionary of fields parsed from the input record.
         """
         if len(record) > 80:
-            logger.warning('The following record exceeds 80 bytes in length:')
+            self.nonconformances.append({'field': '', 'kind': 'record exceeds 80 bytes',
+                                         'byte_range': None, 'value': record.strip()})
+            logger.debug('The following record exceeds 80 bytes in length:')
             self.report_record_error(record)
-            logger.warning('Stripping...')
+            logger.debug('Stripping...')
             record = record.strip()
             if len(record) > 80:
                 raise ValueError(f'Record is too long; something wrong with your PDB file?')
@@ -122,6 +211,8 @@ class StringParser:
                 #     fieldstring=''
                 input_dict[k] = '' if fieldstring == '' else typ(fieldstring)
             except (ValueError, TypeError):
+                self.nonconformances.append({'field': k, 'kind': f'not coercible to {typestring}',
+                                             'byte_range': byte_range, 'value': fieldstring})
                 self.report_field_error(record, k)
                 input_dict[k] = ''
             if typ == str:
@@ -145,7 +236,7 @@ class StringParser:
         if byte_range:
             record = record[:byte_range[0] - 1] + '\033[91m' + record[byte_range[0] - 1:byte_range[1]] + '\033[0m' + record[byte_range[1]:]
         repstr = _cols + '\n' + record + '|'
-        logger.warning(repstr)
+        logger.debug(repstr)
 
     def report_field_error(self, record, k):
         """
@@ -159,7 +250,7 @@ class StringParser:
             The field name that caused the error.
         """
         byte_range = self.fields[k][1]
-        logger.warning(f'Could not parse field {k} from bytes {byte_range}:')
+        logger.debug(f'Could not parse field {k} from bytes {byte_range}:')
         self.report_record_error(record, byte_range=byte_range)
 
 def safe_float(x):

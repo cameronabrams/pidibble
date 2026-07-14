@@ -47,7 +47,7 @@ class PDBRecord(BaseRecord):
     """
     continuation = '0'
     @classmethod
-    def base_parse(cls, current_key, pdbrecordline: str, current_format: dict, typemap: dict):
+    def base_parse(cls, current_key, pdbrecordline: str, current_format: dict, typemap: dict, registry=None):
         """
         Parse a PDB record line based on the provided format and type mapping.
 
@@ -76,7 +76,11 @@ class PDBRecord(BaseRecord):
         subrecords = local_record_format.get('subrecords', {})
         allowed_values = local_record_format.get('allowed', {})
         concats = local_record_format.get('concatenate', {})
-        input_dict = StringParser(fields, typemap, allowed=allowed_values).parse(pdbrecordline)
+        parser = StringParser(fields, typemap, allowed=allowed_values)
+        input_dict = parser.parse(pdbrecordline)
+        if registry is not None:
+            for nc in parser.nonconformances:
+                registry.add(current_key, nc)
         for cfield, subf in concats.items():
             if not cfield in input_dict:
                 input_dict[cfield] = []
@@ -93,11 +97,11 @@ class PDBRecord(BaseRecord):
                 assert input_dict[subrecords['branchon']] in subrecords['formats'], f'Key "{current_key}" is missing specification of a required subrecord format for field "{subrecords["branchon"]}" value "{input_dict[subrecords["branchon"]]}" from its subrecords specification'
                 subrecord_format = subrecords['formats'][input_dict[subrecords['branchon']]]
                 new_key = f'{current_key}.{input_dict[subrecords["branchon"]]}'
-                input_dict, current_key, current_format = PDBRecord.base_parse(new_key, pdbrecordline, subrecord_format, typemap)
+                input_dict, current_key, current_format = PDBRecord.base_parse(new_key, pdbrecordline, subrecord_format, typemap, registry=registry)
         return input_dict, current_key, current_format
 
     @classmethod
-    def newrecord(cls, base_key: str, pdbrecordline: str, record_format: dict, typemap: dict):
+    def newrecord(cls, base_key: str, pdbrecordline: str, record_format: dict, typemap: dict, registry=None):
         """
         Create a new PDBRecord instance from a PDB record line and its format.
         This method parses the PDB record line according to the specified format and type mapping,
@@ -122,7 +126,7 @@ class PDBRecord(BaseRecord):
         # logger.debug(f'newrecord pdbrecordline "{pdbrecordline}"')
         while len(pdbrecordline) < 80:
             pdbrecordline += ' '
-        input_dict, current_key, current_format = PDBRecord.base_parse(base_key, pdbrecordline, record_format, typemap)
+        input_dict, current_key, current_format = PDBRecord.base_parse(base_key, pdbrecordline, record_format, typemap, registry=registry)
         continuation_custom_fieldname = current_format.get('continuation', None)
         if continuation_custom_fieldname:
             input_dict['continuation'] = str(input_dict[continuation_custom_fieldname])

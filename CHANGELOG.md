@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `NonconformanceRegistry`: PDB-format deviations (e.g. a `charge` column that cannot be coerced to its declared type, or a record exceeding 80 bytes) are now aggregated by *type* — keyed by `(record_key, field, kind)` — rather than logged per instance. At the end of a parse, `PDBParser` emits a single INFO summary line per type with a count and one exemplar, replacing what could be tens of thousands of repeated warnings. The registry is available programmatically as `PDBParser.nonconformances` (`.types()`, `len()`, `bool()`).
+
+### Changed
+- Per-instance field/record parse-error messages demoted from WARNING to DEBUG; the INFO type-summary is the default-visible output, with full per-instance detail available by setting the logger to DEBUG.
+
 ## [1.5.4] - 2026-07-14
 
 ### Fixed
