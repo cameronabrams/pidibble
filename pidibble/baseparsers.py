@@ -143,7 +143,7 @@ class StringParser:
             If empty, the entire record is reported. 
         """
         if byte_range:
-            record = record[:byte_range[0] - 1] + '\033[91m' + record[byte_range[0]:byte_range[1] + 1] + '\033[0m' + record[byte_range[1] + 1:]
+            record = record[:byte_range[0] - 1] + '\033[91m' + record[byte_range[0] - 1:byte_range[1]] + '\033[0m' + record[byte_range[1]:]
         repstr = _cols + '\n' + record + '|'
         logger.warning(repstr)
 

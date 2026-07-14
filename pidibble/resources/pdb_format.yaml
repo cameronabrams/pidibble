@@ -318,7 +318,7 @@ record_formats:
       u02: [Integer,[57,63]]
       u12: [Integer,[64,70]]
       element: [String,[77,78]]
-      charge: [Float,[79,80]] # String?      
+      charge: [String,[79,80]]
   ATOM:
     type: 3
     groupby: MODEL.serial
@@ -333,7 +333,7 @@ record_formats:
       occupancy: [Float,[55,60]]
       tempFactor: [Float,[61,66]]
       element: [String,[77,78]]
-      charge: [Float,[79,80]] # String?
+      charge: [String,[79,80]]
   HETATM:
     type: 3
     groupby: MODEL.serial
@@ -348,7 +348,7 @@ record_formats:
       occupancy: [Float,[55,60]]
       tempFactor: [Float,[61,66]]
       element: [String,[77,78]]
-      charge: [Float,[79,80]] # String?
+      charge: [String,[79,80]]
   CISPEP:
     type: 3
     fields:
