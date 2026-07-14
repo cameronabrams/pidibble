@@ -624,100 +624,80 @@ class Test_mmCIF(unittest.TestCase):
                 self.assertEqual(ma.tempFactor,pa.tempFactor)
                 self.assertEqual(ma.element,pa.element)
                 self.assertEqual(ma.charge,pa.charge)
-        # plinks=p.parsed['LINK']
-        # olinks=o.parsed['LINK']
-        # self.assertEqual(len(plinks),len(olinks))
-        # # do they have the same order though?
-        # for i in range(len(plinks)):
-        #     pn_link=plinks[i]
-        #     on_link=olinks[i]
-        #     self.assertEqual(pn_link.name1,on_link.name1)
-        #     self.assertEqual(pn_link.altLoc1,on_link.altLoc1)
-        #     self.assertEqual(pn_link.residue1.chainID,on_link.residue1.chainID)
-        #     self.assertEqual(pn_link.residue1.resName,on_link.residue1.resName)
-        #     self.assertEqual(pn_link.residue1.seqNum,on_link.residue1.seqNum)
-        #     self.assertEqual(pn_link.residue1.iCode,on_link.residue1.iCode)
-        #     self.assertEqual(pn_link.name2,on_link.name2)
-        #     self.assertEqual(pn_link.altLoc2,on_link.altLoc2)
-        #     self.assertEqual(pn_link.residue2.chainID,on_link.residue2.chainID)
-        #     self.assertEqual(pn_link.residue2.resName,on_link.residue2.resName)
-        #     self.assertEqual(pn_link.residue2.seqNum,on_link.residue2.seqNum)
-        #     self.assertEqual(pn_link.residue2.iCode,on_link.residue2.iCode)
 
-        # pssbonds=p.parsed['SSBOND']
-        # ossbonds=o.parsed['SSBOND']
-        # self.assertEqual(len(pssbonds),len(ossbonds))
-        # for i in range(len(pssbonds)):
-        #     p_ss=pssbonds[i]
-        #     o_ss=ossbonds[i]
-        #     self.assertEqual(p_ss.residue1.chainID,o_ss.residue1.chainID)
-        #     self.assertEqual(p_ss.residue1.resName,o_ss.residue1.resName)
-        #     self.assertEqual(p_ss.residue1.seqNum,o_ss.residue1.seqNum)
-        #     self.assertEqual(p_ss.residue1.iCode,o_ss.residue1.iCode)
+    @staticmethod
+    def _aslist(parsed, key):
+        """Return the record(s) at ``key`` as a list (PDBRecordList subclasses
+        UserList, so it is not a builtin list)."""
+        if key not in parsed:
+            return []
+        try:
+            return list(parsed[key])
+        except TypeError:
+            return [parsed[key]]
 
-        # p_missing=p.parsed['REMARK.465'].tables['MISSING']
-        # o_missing=o.parsed['REMARK.465'].tables['MISSING']
-        # self.assertEqual(len(p_missing),len(o_missing))
-        # for i in range(len(p_missing)):
-        #     pn_missing=p_missing[i]
-        #     on_missing=o_missing[i]
-        #     self.assertEqual(pn_missing.modelNum,on_missing.modelNum)
-        #     self.assertEqual(pn_missing.resName,on_missing.resName)
-        #     self.assertEqual(pn_missing.chainID,on_missing.chainID)
-        #     self.assertEqual(pn_missing.seqNum,on_missing.seqNum)
-        #     self.assertEqual(pn_missing.iCode,on_missing.iCode)
+    @staticmethod
+    def _res(r):
+        return (getattr(r, 'chainID', None), getattr(r, 'resName', None),
+                getattr(r, 'seqNum', None), getattr(r, 'iCode', None))
 
-        # # for k in p.parsed.keys():
-        # #     print(k)
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in p.parsed)
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM1' in o.parsed)
-        # prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
-        # orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM1']
-        # pM,pT=get_symm_ops(prec)
-        # oM,oT=get_symm_ops(orec)
-        # self.assertTrue(np.allclose(pM,oM))
-        # self.assertTrue(np.allclose(pT,oT))
+    def test_cif_pdb_correspondence_links(self):
+        # mmCIF struct_conn (covale) vs PDB LINK. mmCIF label_* numbering differs
+        # from PDB author numbering, so compare the mmCIF *_auth residues.
+        plinks = self._aslist(self.pdb, 'LINK')
+        clinks = self._aslist(self.mmCIF, 'LINK')
+        self.assertEqual(len(plinks), len(clinks))
+        self.assertGreater(len(plinks), 0)
+        for pl, cl in zip(plinks, clinks):
+            self.assertEqual(pl.name1, cl.name1)
+            self.assertEqual(pl.name2, cl.name2)
+            self.assertEqual(self._res(pl.residue1), self._res(cl.residue1_auth))
+            self.assertEqual(self._res(pl.residue2), self._res(cl.residue2_auth))
+            # PDB LINK distance is written to 2 decimals; mmCIF carries more
+            self.assertAlmostEqual(float(pl.length), float(cl.length), delta=0.01)
 
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM2' in p.parsed)
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM2' in o.parsed)
-        # prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
-        # orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM2']
-        # pM,pT=get_symm_ops(prec)
-        # oM,oT=get_symm_ops(orec)
-        # # print(f'cif {pM} {pT}')
-        # # print(f'pdb {oM} {oT}')
-        # self.assertTrue(np.allclose(pM,oM))
-        # self.assertTrue(np.allclose(pT,oT))
-        
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM3' in p.parsed)
-        # self.assertTrue('REMARK.350.BIOMOLECULE1.TRANSFORM3' in o.parsed)
-        # prec=p.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM3']
-        # orec=o.parsed['REMARK.350.BIOMOLECULE1.TRANSFORM3']
-        # pM,pT=get_symm_ops(prec)
-        # oM,oT=get_symm_ops(orec)
-        # self.assertTrue(np.allclose(pM,oM))
-        # self.assertTrue(np.allclose(pT,oT))
+    def test_cif_pdb_correspondence_ssbonds(self):
+        pss = self._aslist(self.pdb, 'SSBOND')
+        css = self._aslist(self.mmCIF, 'SSBOND')
+        self.assertEqual(len(pss), len(css))
+        self.assertGreater(len(pss), 0)
+        for ps, cs in zip(pss, css):
+            self.assertEqual(self._res(ps.residue1), self._res(cs.residue1_auth))
+            self.assertEqual(self._res(ps.residue2), self._res(cs.residue2_auth))
 
-        # self.assertFalse('REMARK.350.BIOMOLECULE1.TRANSFORM4' in p.parsed)
-        
-        # prec=p.parsed['SEQADV']
-        # orec=o.parsed['SEQADV']
-        # self.assertEqual(len(prec),len(orec))
-        # for i in range(len(prec)):
-        #     psa=prec[i]
-        #     osa=orec[i]
-        #     self.assertEqual(psa.idCode,osa.idCode)
-        #     self.assertEqual(psa.residue.chainID,osa.residue.chainID)
-        #     self.assertEqual(psa.residue.resName,osa.residue.resName)
-        #     self.assertEqual(psa.residue.seqNum,osa.residue.seqNum)
-        #     self.assertEqual(psa.residue.iCode,osa.residue.iCode)
-        #     self.assertEqual(psa.database,osa.database)
-        #     self.assertEqual(psa.dbAccession,osa.dbAccession)
-        #     self.assertEqual(psa.dbRes,osa.dbRes)
-        #     self.assertEqual(psa.dbSeq,osa.dbSeq)
-        #     self.assertEqual(psa.conflict,osa.conflict)
+    def test_cif_pdb_correspondence_seqadv(self):
+        psa = self._aslist(self.pdb, 'SEQADV')
+        csa = self._aslist(self.mmCIF, 'SEQADV')
+        self.assertEqual(len(psa), len(csa))
+        self.assertGreater(len(psa), 0)
+        for ps, cs in zip(psa, csa):
+            self.assertEqual(self._res(ps.residue), self._res(cs.residue_auth))
+            self.assertEqual(ps.database, cs.database)
+            self.assertEqual(ps.dbAccession, cs.dbAccession)
+            self.assertEqual(ps.dbRes, cs.dbRes)
+            self.assertEqual(ps.conflict, cs.conflict)
 
-        # self.assertTrue(False)
+    def test_cif_pdb_correspondence_missing_residues(self):
+        pm = self.pdb['REMARK.465'].tables['MISSING']
+        om = self.mmCIF['REMARK.465'].tables['MISSING']
+        self.assertEqual(len(pm), len(om))
+        self.assertGreater(len(pm), 0)
+        for p, c in zip(pm, om):
+            self.assertEqual(self._res(p),
+                             (c.auth_chainID, c.auth_resName, c.auth_seqNum, c.iCode))
+
+    def test_cif_pdb_correspondence_assembly(self):
+        # biological assembly transforms: REMARK 350 vs pdbx_struct_oper_list
+        for n in (1, 2, 3):
+            key = f'REMARK.350.BIOMOLECULE1.TRANSFORM{n}'
+            self.assertIn(key, self.pdb)
+            self.assertIn(key, self.mmCIF)
+            pM, pT = get_symm_ops(self.pdb[key])
+            oM, oT = get_symm_ops(self.mmCIF[key])
+            self.assertTrue(np.allclose(pM, oM))
+            self.assertTrue(np.allclose(pT, oT))
+        self.assertNotIn('REMARK.350.BIOMOLECULE1.TRANSFORM4', self.pdb)
+
 
     def test_cif_fetch(self):
         p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed

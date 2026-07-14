@@ -58,11 +58,11 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 |---|---|---|
 | `ATOM` | `atom_site` (group_PDB=ATOM) | Full coordinate parity with PDB; the only well-tested path |
 | `HETATM` | `atom_site` (group_PDB=HETATM) | Same |
-| `LINK` | `struct_conn` (**covale only**) | `metalc`, `hydrog`, salt bridges dropped |
-| `SSBOND` | `struct_conn` (disulf) | Parsed; **unvalidated** (see below) |
-| `SEQADV` | `struct_ref_seq_dif` | Parsed; **unvalidated** |
-| `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms |
-| `REMARK.465` | `pdbx_unobs_or_zero_occ_residues` | Missing residues |
+| `LINK` | `struct_conn` (**covale only**) | Validated vs PDB (4TVP); `metalc`, `hydrog`, salt bridges dropped |
+| `SSBOND` | `struct_conn` (disulf) | Validated vs PDB (4TVP) |
+| `SEQADV` | `struct_ref_seq_dif` | Validated vs PDB (4TVP) |
+| `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms; validated vs PDB (4TVP) |
+| `REMARK.465` | `pdbx_unobs_or_zero_occ_residues` | Missing residues; validated vs PDB (4TVP) |
 
 ## What mmCIF does NOT parse (the 30 PDB record types)
 
@@ -92,15 +92,29 @@ With the mmCIF category that would supply each:
 | `LINK` (non-covalent) | metal/other bonds | `struct_conn` (`metalc`, etc.) |
 | `MASTER`, `END`, `TER` | bookkeeping | n/a (structural artifacts) |
 
-## Correctness / validation gap (highest priority)
+## Correctness / validation status
 
-The only mmCIF↔PDB equivalence test,
-[`test_cif_pdb_correspondence_atoms`](../tests/unit/test_rcsb.py), **actively
-asserts on ATOM/HETATM only**. The correspondence blocks for LINK, SSBOND,
-REMARK.465, REMARK.350 transforms, and SEQADV are all **commented out**. So of
-the 7 mmCIF categories parsed, only the 2 atom records are verified to agree with
-the PDB parse. The other 5 are effectively **unverified** and may silently
-disagree.
+**Resolved 2026-07-14 (roadmap #1 done).** Previously the only mmCIF↔PDB
+equivalence test asserted on ATOM/HETATM only; the blocks for LINK, SSBOND,
+SEQADV, REMARK.465, and REMARK.350 were commented out. They have now been
+revived as five passing tests in
+[`Test_mmCIF`](../tests/unit/test_rcsb.py):
+`test_cif_pdb_correspondence_{links,ssbonds,seqadv,missing_residues,assembly}`.
+
+**Why they were disabled:** the original blocks compared mmCIF **label**
+numbering (`residue1` → chain A, seq 58) against PDB **author** numbering
+(chain G, seq 88), which never matches. The fix is to compare mmCIF `*_auth`
+residues (`residue1_auth`, `residue_auth`, `auth_*`) against PDB residues — the
+same convention the atoms test already used. LINK `length` also needed a
+tolerance (PDB writes 2 decimals, e.g. `1.44`, vs mmCIF `1.437`).
+
+**Result for 4TVP:** all five categories agree element-wise with zero
+mismatches — LINK 59/59, SSBOND 21/21, SEQADV 9/9, REMARK.465 69/69, and the 3
+assembly transforms have matching rotation matrices and translation vectors. So
+the existing mmCIF parsing of these categories is **correct**, at least for an
+entry with exact PDB↔mmCIF correspondence. (Caveat: 4TVP is such an entry;
+large or PDB-less entries with no legacy counterpart are not exercised by this
+test.)
 
 ## Minor issues
 
@@ -114,9 +128,10 @@ disagree.
 
 ## Roadmap (priority order)
 
-1. **Revive the correspondence tests.** Uncomment LINK/SSBOND/SEQADV/REMARK.465/
-   REMARK.350 blocks; fix or file what fails. Cheapest way to learn how much of
-   the current mmCIF parse is trustworthy. *Do this first.*
+1. ~~**Revive the correspondence tests.**~~ **Done 2026-07-14.** Five tests
+   revived and passing; existing mmCIF parse of LINK/SSBOND/SEQADV/REMARK.465/
+   REMARK.350 verified correct against PDB for 4TVP. See "Correctness /
+   validation status" above.
 2. **Refactor `gen_dict` onto `getRowAttributeDict` + `selectValuesWhere`.**
    Removes positional-loop fragility and makes new categories declarative.
 3. **Add header/metadata mapping** (`entry`, `struct`, `struct_keywords`,
