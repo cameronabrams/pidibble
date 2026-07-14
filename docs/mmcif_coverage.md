@@ -13,10 +13,10 @@ is not a general mmCIF reader. Parsing the same entry (4TVP) both ways:
 | | Record types produced |
 |---|---|
 | PDB | 36 |
-| mmCIF | 11 (was 6 before roadmap #3) |
-| in PDB but not mmCIF | 25 |
+| mmCIF | 12 (was 6 before roadmap #3) |
+| in PDB but not mmCIF | 24 |
 
-The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 11 of them.
+The same 4TVP mmCIF file contains **73 data categories**; pidibble maps 12 of them.
 
 ## External library
 
@@ -51,8 +51,7 @@ hand-writing 30 more positional mapspecs.
 
 ## What mmCIF currently parses
 
-Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.yaml)
-(7 mapspecs → 6 record keys):
+Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.yaml):
 
 | pidibble key | mmCIF category | Caveats |
 |---|---|---|
@@ -68,6 +67,7 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `EXPDTA` | `exptl` | Experiment method; validated vs PDB (4TVP) |
 | `KEYWDS` | `struct_keywords` | Uppercased list; see keywds caveat below |
 | `CRYST1` | `cell` + `symmetry` | Cell/space-group/Z; validated vs PDB (4TVP) |
+| `SEQRES` | `pdbx_poly_seq_scheme` | One record per author chain; sequences validated vs PDB (4TVP) |
 
 ### Representational caveats for the new metadata records
 
@@ -88,8 +88,8 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 
 With the mmCIF category that would supply each:
 
-`HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, and `CRYST1` are now mapped (roadmap #3);
-the remaining gaps are:
+`HEADER`, `TITLE`, `EXPDTA`, `KEYWDS`, `CRYST1` (roadmap #3) and `SEQRES`
+(roadmap #4) are now mapped; the remaining gaps are:
 
 | PDB record(s) | Data | mmCIF category |
 |---|---|---|
@@ -97,7 +97,6 @@ the remaining gaps are:
 | `REMARK 2 / 3` | resolution, refinement | `reflns`, `refine`, `refine_ls_restr` |
 | `SCALE1-3` | scale matrix | `atom_sites` |
 | `ORIGX1-3` | origin transform | `atom_sites` (or `database_PDB_matrix`) |
-| `SEQRES` | sequence | `entity_poly_seq`, `pdbx_poly_seq_scheme` |
 | `DBREF` | DB cross-refs | `struct_ref`, `struct_ref_seq` |
 | `HELIX` | helices | `struct_conf` |
 | `SHEET` | sheets | `struct_sheet_range`, `struct_sheet_order`, `pdbx_struct_sheet_hbond` |
@@ -169,7 +168,12 @@ test.)
    `splits` strip whitespace. Entity/source (`COMPND`/`SOURCE` ←
    `entity`/`entity_src_gen`) deferred — its PDB token structure is a larger
    mapping job; see remaining gaps above.
-4. **Add `SEQRES` equivalent** (`entity_poly_seq` / `pdbx_poly_seq_scheme`).
+4. ~~**Add `SEQRES` equivalent.**~~ **Done 2026-07-14.** Mapped from
+   `pdbx_poly_seq_scheme`, grouping rows by `pdb_strand_id` (author chain) and
+   collecting `mon_id` into per-chain `resNames`. Sequences validated identical
+   vs PDB for 4TVP (6 chains) and spot-checked on 8fae/4zmj. Introduced a
+   general `groupby`/`group_attr_map`/`collect`/`lengths` mapspec pattern for
+   reproducing PDB grouped records from per-row mmCIF categories.
 5. **Add secondary structure** (`struct_conf` → HELIX, `struct_sheet_range` →
    SHEET).
 6. **Broaden `struct_conn`** beyond covale/disulf (at least `metalc`).

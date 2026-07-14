@@ -316,3 +316,14 @@ CRYST1:
   merge:
     symmetry:
       sGroup: space_group_name_H-M
+# SEQRES: one record per author chain, residues collected in sequence order.
+# pdbx_poly_seq_scheme rows carry pdb_strand_id (author chain) and mon_id.
+SEQRES:
+  data_obj: pdbx_poly_seq_scheme
+  groupby: pdb_strand_id
+  group_attr_map:
+    chainID: pdb_strand_id
+  collect:
+    resNames: mon_id
+  lengths:
+    numRes: resNames

@@ -718,6 +718,18 @@ class Test_mmCIF(unittest.TestCase):
         # depDate is exposed in mmCIF's native ISO form (differs from PDB DD-MON-YY)
         self.assertRegex(cif['HEADER'].depDate, r'^\d{4}-\d{2}-\d{2}$')
 
+    def test_cif_pdb_correspondence_seqres(self):
+        # one SEQRES record per author chain; compare sequences keyed by chain
+        # (record order is not guaranteed to match between the two formats)
+        pseq = {r.chainID: list(r.resNames) for r in self._aslist(self.pdb, 'SEQRES')}
+        cseq = {r.chainID: list(r.resNames) for r in self._aslist(self.mmCIF, 'SEQRES')}
+        self.assertTrue(pseq)
+        self.assertEqual(set(pseq), set(cseq))
+        for ch in pseq:
+            self.assertEqual(cseq[ch], pseq[ch], f'SEQRES mismatch for chain {ch}')
+        for r in self._aslist(self.mmCIF, 'SEQRES'):
+            self.assertEqual(r.numRes, len(r.resNames))
+
     def test_cif_fetch(self):
         p=PDBParser(input_format='mmCIF',PDBcode='8fae').parse().parsed
         self.assertEqual(len(p['ATOM']),14466)

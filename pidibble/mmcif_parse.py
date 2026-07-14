@@ -212,7 +212,32 @@ class MMCIF_Parser:
         if_dot_replace_with = mapspec.get('if_dot_replace_with', {})
         logger.debug(f'getting cifrec for {mapspec["data_obj"]}')
         cifrec = self.cif_data.getObj(mapspec['data_obj'])
-        if not tables and cifrec is not None:
+        groupby = mapspec.get('groupby', None)
+        if groupby and cifrec is not None:
+            # group rows sharing an attribute value (e.g. author chain) into one
+            # record and collect per-group lists — reproduces PDB grouped records
+            # such as SEQRES (one record per chain, residues gathered in order).
+            group_attr_map = mapspec.get('group_attr_map', {})
+            collect = mapspec.get('collect', {})
+            lengths = mapspec.get('lengths', {})
+            groups = {}  # groupkey -> {'first': row, 'collected': {out: [vals]}}
+            for idx in range(len(cifrec)):
+                row = cifrec.getRowAttributeDict(idx)
+                gk = row.get(groupby, '')
+                if gk not in groups:
+                    groups[gk] = {'first': row, 'collected': {ck: [] for ck in collect}}
+                for ck, cattr in collect.items():
+                    groups[gk]['collected'][ck].append(rectify(row.get(cattr, '')))
+            for gk, g in groups.items():
+                idict = {}
+                for k, cattr in group_attr_map.items():
+                    idict[k] = rectify(g['first'].get(cattr, ''))
+                for ck, vals in g['collected'].items():
+                    idict[ck] = vals
+                for lk, ck in lengths.items():
+                    idict[lk] = len(idict[ck])
+                idicts.append(idict)
+        elif not tables and cifrec is not None:
             # select matching rows up front (selectIndices preserves row order)
             # instead of scanning every row and testing the signal attribute
             indices = cifrec.selectIndices(sigval, sigattr) if use_signal else range(len(cifrec))
