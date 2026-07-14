@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-07-14
+
 ### Fixed
 - ATOM/HETATM/ANISOU `charge` field retyped from `Float` to `String`. The PDB charge column (79–80) is a formatted string (e.g. `1-`, `2+`), never a plain float, so every populated charge previously failed `float()` and emitted a spurious "Could not parse field charge" warning while discarding the value. Charges are now captured correctly (e.g. `1-`).
 - Off-by-one in `StringParser.report_record_error()` highlight: the error display dropped the character at the field's first column and coloured a window shifted one column to the right of the offending field. The highlight now wraps exactly the columns given by the field's byte range.
