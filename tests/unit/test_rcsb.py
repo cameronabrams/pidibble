@@ -698,6 +698,23 @@ class Test_mmCIF(unittest.TestCase):
             self.assertTrue(np.allclose(pT, oT))
         self.assertNotIn('REMARK.350.BIOMOLECULE1.TRANSFORM4', self.pdb)
 
+    def test_cif_assembly_header_label(self):
+        # REMARK.350 exposes both the author-chain list (`header`, produced by
+        # mapping label asym_ids through the chainmap) and the raw label
+        # asym_id list (`header_label`).
+        key = 'REMARK.350.BIOMOLECULE1.TRANSFORM1'
+        c, p = self.mmCIF[key], self.pdb[key]
+        self.assertIsInstance(c.header, list)
+        self.assertIsInstance(c.header_label, list)
+        self.assertTrue(c.header_label)
+        self.assertTrue(all(isinstance(x, str) for x in c.header_label))
+        # author chains agree with the PDB assembly's chain list (as a set)
+        self.assertEqual(set(c.header), set(p.header))
+        # the label list is neither chainmapped nor deduplicated, so it is at
+        # least as long as the author-chain list (strictly longer for this
+        # glycosylated multi-chain assembly)
+        self.assertGreaterEqual(len(c.header_label), len(c.header))
+
     def test_cif_pdb_correspondence_metadata(self):
         pdb, cif = self.pdb, self.mmCIF
         for rec in ('HEADER', 'TITLE', 'EXPDTA', 'KEYWDS', 'CRYST1'):

@@ -61,7 +61,7 @@ Defined in [`resources/mmcif_format.yaml`](../pidibble/resources/mmcif_format.ya
 | `LINK` | `struct_conn` (covale + metalc) | Validated vs PDB (4TVP covalent, 1CA2 metal coordination); `hydrog`/salt bridges still dropped |
 | `SSBOND` | `struct_conn` (disulf) | Validated vs PDB (4TVP) |
 | `SEQADV` | `struct_ref_seq_dif` | Validated vs PDB (4TVP) |
-| `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms; validated vs PDB (4TVP) |
+| `REMARK.350` | `pdbx_struct_assembly_gen` + `pdbx_struct_oper_list` | Bio-assembly + transforms; validated vs PDB (4TVP). Exposes both `header` (author chains, via chainmap) and `header_label` (raw label asym_ids) |
 | `REMARK.465` | `pdbx_unobs_or_zero_occ_residues` | Missing residues; validated vs PDB (4TVP) |
 | `HEADER` | `entry` + `struct_keywords` + `pdbx_database_status` | idCode/classification exact; `depDate` in native ISO (see below) |
 | `TITLE` | `struct` | Uppercased to match PDB; validated vs PDB (4TVP) |

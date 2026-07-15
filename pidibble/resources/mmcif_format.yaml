@@ -210,9 +210,11 @@ REMARK.350:
   attr_map:
     BIOMOLECULE: assembly_id
     header: asym_id_list
+    header_label: asym_id_list
     divnumber: oper_expression
   splits:
     - header
+    - header_label
   spawns_on: divnumber
   indexes: BIOMOLECULE
   map_values:
