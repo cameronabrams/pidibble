@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-07-15
+
 ### Added
 - mmCIF `REMARK.350` (biological assembly) records now expose `header_label`, the raw label asym_id list, alongside the existing `header` (author chains, mapped via the chainmap). This preserves the full per-chain (label) detail — including glycan/ligand chains — that the deduplicated author-chain list collapses.
 
