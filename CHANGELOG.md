@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Continuous-integration workflow (`tests.yaml`) running the unit tests on
+  Python 3.10–3.12 and the documentation doctests on every push and pull
+  request. Previously tests ran only on tagged releases.
+- README now documents PDBx/mmCIF parsing (with a worked example) and carries
+  version, Python-versions, license, tests, docs, and downloads badges.
+
+### Changed
+- Documentation overhauled from a single quickstart page into a multi-page User
+  Guide — loading structures, the parsed data model, working with records,
+  biological assemblies and symmetry, PDBx/mmCIF, large structures, nonconformant
+  files, and advanced/customization — plus a supported-record-types coverage
+  table. Numerous example corrections; every doctest is now validated
+  (`sphinx -b doctest`), with `NORMALIZE_WHITESPACE` enabled so pretty-printed
+  output validates on content rather than incidental spacing. The docs landing
+  page is retitled from "Welcome to Pidibble's documentation!" to "pidibble".
+
 ## [1.7.1] - 2026-07-15
 
 ### Added

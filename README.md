@@ -1,13 +1,18 @@
 # Pidibble 
-> a complete PDB-file parser
+> a complete parser for PDB and PDBx/mmCIF files
 
+[![PyPI version](https://img.shields.io/pypi/v/pidibble.svg)](https://pypi.org/project/pidibble/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pidibble.svg)](https://pypi.org/project/pidibble/)
+[![License](https://img.shields.io/pypi/l/pidibble.svg)](https://github.com/cameronabrams/pidibble/blob/main/LICENSE)
+[![Tests](https://github.com/cameronabrams/pidibble/actions/workflows/tests.yaml/badge.svg)](https://github.com/cameronabrams/pidibble/actions/workflows/tests.yaml)
+[![Documentation Status](https://readthedocs.org/projects/pidibble/badge/?version=latest)](https://pidibble.readthedocs.io/en/latest/)
 [![PyPI Downloads](https://static.pepy.tech/badge/pidibble)](https://pepy.tech/projects/pidibble)
 
-Pidibble is a Python package for parsing standard Protein Data Bank (PDB) files.  It conforms to the [most recent standard](https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html) (v.3.3 Atomic Coordinate Entry Format, ca. 2011).
+Pidibble is a Python package for parsing Protein Data Bank structures in both the legacy [PDB format](https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html) (v.3.3 Atomic Coordinate Entry Format, ca. 2011) and the modern [PDBx/mmCIF format](https://mmcif.wwpdb.org/) that is now standard at the RCSB.
 
 Unlike parsers like that found in packages like [BioPython](https://biopython.org/wiki/PDBParser), `pidibble` provides meaningfully parsed objects from *all* standard PDB record types, not just ATOMs and CONECTs.
 
-Once installed, the user has access to the `PDBParser` class in the `pidibble.pdbparse` module.
+Once installed, the user has access to the `PDBParser` class in the `pidibble.pdbparse` module.  Full documentation is at [pidibble.readthedocs.io](https://pidibble.readthedocs.io/en/latest/).
 
 # Example interactive usage
 
@@ -73,6 +78,23 @@ ATOM
 
 
 ```
+
+# Example reading a PDBx/mmCIF file
+
+Many recent RCSB entries have no legacy PDB file at all.  Pass `input_format='mmCIF'` and pidibble parses the mmCIF/PDBx file into the *same* record objects (using author numbering), so downstream code stays the same:
+
+```
+>>> from pidibble.pdbparse import PDBParser
+>>> p=PDBParser(source_db='rcsb', source_id='4tvp', input_format='mmCIF').parse()
+>>> p.parsed['HEADER'].idCode
+'4TVP'
+>>> p.parsed['HEADER'].classification
+'VIRAL PROTEIN/IMMUNE SYSTEM'
+>>> len(p.parsed['ATOM'])
+11344
+```
+
+See the [mmCIF guide](https://pidibble.readthedocs.io/en/latest/guide/mmcif.html) for the full coverage and the small, deliberate differences from the PDB parse.
 
 ## Changelog
 

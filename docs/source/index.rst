@@ -13,6 +13,10 @@ pidibble
    :target: https://github.com/cameronabrams/pidibble/blob/main/LICENSE
    :alt: License
 
+.. |tests| image:: https://github.com/cameronabrams/pidibble/actions/workflows/tests.yaml/badge.svg
+   :target: https://github.com/cameronabrams/pidibble/actions/workflows/tests.yaml
+   :alt: Tests
+
 .. |downloads| image:: https://static.pepy.tech/badge/pidibble
    :target: https://pepy.tech/projects/pidibble
    :alt: PyPI downloads
@@ -21,7 +25,7 @@ pidibble
    :target: https://pidibble.readthedocs.io/en/latest/
    :alt: Documentation status
 
-|pypi| |pyversions| |license| |downloads| |docs|
+|pypi| |pyversions| |license| |tests| |downloads| |docs|
 
 **Pidibble** is a Python package for parsing Protein Data Bank (PDB) files in both legacy PDB and modern PDBx/mmCIF formats.  It conforms to the `most recent standard <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>`_ (v.3.3 Atomic Coordinate Entry Format, ca. 2011).
 
