@@ -1,5 +1,6 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
+from pidibble.pdbrecord import PDBRecordList
 import unittest
 from itertools import product
 import logging
@@ -54,6 +55,28 @@ class Test4zmj(unittest.TestCase):
     def test_obslte(self):
         q=self.P
         self.assertTrue('OBSLTE' not in q.parsed)
+
+    def test_record_container_types(self):
+        # Pins the behavior documented in docs/source/usage.rst: every value in
+        # parsed[] is either a single PDBRecord or a PDBRecordList of them.
+        # PDBRecordList subclasses collections.UserList, so type(v) == list is
+        # ALWAYS False -- consumers must use isinstance(v, PDBRecordList).
+        parsed=self.P.parsed
+        multi=[k for k,v in parsed.items() if isinstance(v,PDBRecordList)]
+        single=[k for k,v in parsed.items() if not isinstance(v,PDBRecordList)]
+        # both partitions are non-empty and disjoint/exhaustive
+        self.assertTrue(multi)
+        self.assertTrue(single)
+        self.assertEqual(set(multi)|set(single),set(parsed.keys()))
+        self.assertEqual(set(multi)&set(single),set())
+        # the naive type()==list check the docs used to show matches nothing
+        self.assertEqual([k for k,v in parsed.items() if type(v)==list],[])
+        # representative members land in the expected partition
+        for k in ('ATOM','SEQRES','LINK','CONECT'):
+            self.assertIsInstance(parsed[k],PDBRecordList)
+        for k in ('HEADER','TITLE','CRYST1'):
+            self.assertIsInstance(parsed[k],PDBRecord)
+            self.assertNotIsInstance(parsed[k],PDBRecordList)
 
     def test_title(self):
         rec=self.P.parsed['TITLE']

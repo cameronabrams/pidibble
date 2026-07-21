@@ -7,7 +7,7 @@ Pidibble is a Python package for parsing standard Protein Data Bank (PDB) files.
 
 Unlike parsers like that found in packages like [BioPython](https://biopython.org/wiki/PDBParser), `pidibble` provides meaningfully parsed objects from *all* standard PDB record types, not just ATOMs and CONECTs.
 
-Once installed, the user has access to the `PDBParser` class in the `pidibble.pdbparser` module.
+Once installed, the user has access to the `PDBParser` class in the `pidibble.pdbparse` module.
 
 # Example interactive usage
 
@@ -20,9 +20,11 @@ VIRAL PROTEIN
 04-MAY-15
 >>> print (p.parsed['HEADER'].idCode)
 4ZMJ
->>> keys=list(sorted(list(p.parsed.keys())))
->>> print(keys)
-['ANISOU', 'ATOM', 'AUTHOR', 'CISPEP', 'COMPND', 'CONECT', 'CRYST1', 'DBREF', 'END', 'EXPDTA', 'FORMUL', 'HEADER', 'HELIX', 'HET', 'HETATM', 'HETNAM', 'JRNL.AUTH', 'JRNL.DOI', 'JRNL.PMID', 'JRNL.REF', 'JRNL.REFN', 'JRNL.TITL', 'KEYWDS', 'LINK', 'MASTER', 'ORIGX1', 'ORIGX2', 'ORIGX3', 'REMARK.100', 'REMARK.2', 'REMARK.200', 'REMARK.280', 'REMARK.290', 'REMARK.290.CRYSTSYMMTRANS', 'REMARK.3', 'REMARK.300', 'REMARK.350', 'REMARK.350.BIOMOLECULE.1', 'REMARK.4', 'REMARK.465', 'REMARK.500', 'REVDAT', 'SCALE1', 'SCALE2', 'SCALE3', 'SEQADV', 'SEQRES', 'SHEET', 'SOURCE', 'SSBOND', 'TER', 'TITLE']
+>>> keys=sorted(p.parsed.keys())
+>>> len(keys)
+60
+>>> keys[:8]
+['ANISOU', 'ATOM', 'AUTHOR', 'CISPEP', 'COMPND', 'CONECT', 'CRYST1', 'DBREF']
 >>> header=p.parsed['HEADER']
 >>> print(header.pstr())
 HEADER
@@ -52,7 +54,7 @@ ATOM
 
 ```
 >>> from pidibble.pdbparse import PDBParser
->>> p=PDBParser(alphafold='O46077').parse()
+>>> p=PDBParser(source_db='alphafold', source_id='O46077').parse()
 >>> p.parsed['TITLE'].title
 'ALPHAFOLD MONOMER V2.0 PREDICTION FOR ODORANT RECEPTOR 2A (O46077)'
 >>> print(p.parsed['ATOM'][0].pstr())

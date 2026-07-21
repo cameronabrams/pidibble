@@ -13,4 +13,4 @@ Pidibble is under active development, so you can also install the latest version
 
 .. code-block:: bash
 
-   (.venv) $ pip install git+https://github.com/cfa22/pidibble.git
+   (.venv) $ pip install git+https://github.com/cameronabrams/pidibble.git

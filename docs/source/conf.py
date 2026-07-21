@@ -2,12 +2,21 @@
 
 # -- Project information
 
+import doctest
 import importlib.metadata
+
+# Pretty-printed record output (``pstr()``) carries trailing spaces and a final
+# blank line, and numpy array reprs pad columns in version-dependent ways.
+# Normalizing whitespace lets the doctests validate content without being held
+# hostage to invisible spacing.
+doctest_default_flags = (doctest.ELLIPSIS
+                         | doctest.NORMALIZE_WHITESPACE
+                         | doctest.IGNORE_EXCEPTION_DETAIL)
 
 project = 'pidibble'
 release = importlib.metadata.version(project)
 version = '.'.join(release.split('.')[:2])  # major.minor
-copyright = '2023-2025, Cameron F. Abrams'
+copyright = '2023-2026, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
 # -- General configuration
