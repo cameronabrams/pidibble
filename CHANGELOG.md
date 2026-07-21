@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-07-21
+
 ### Added
 - Continuous-integration workflow (`tests.yaml`) running the unit tests on
   Python 3.10–3.12 and the documentation doctests on every push and pull
