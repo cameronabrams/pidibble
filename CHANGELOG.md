@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-07-22
+
 ### Added
 - PDB *writing*: parsed structures can be serialized back to conformant
   fixed-column PDB. `PDBParser.write_PDB()` assembles a document in canonical
