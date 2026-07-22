@@ -5,6 +5,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- PDB *writing* (prototype): parsed structures can be serialized back to
+  conformant fixed-column PDB. `PDBParser.write_PDB()` assembles a document in
+  canonical section order, reconstructs the coordinate section (`ATOM` with
+  interleaved `ANISOU` and chain-terminating `TER` cards, then `HETATM`), and
+  regenerates the `MASTER`/`END` bookkeeping records from the emitted content.
+  The record-level engine (`pidibble.pdbwrite.PDBWriter`) is the inverse of the
+  parser, driven by the same field specs plus optional per-field writer hints
+  (`{prec, just}`) carried as a third element in the YAML field definitions.
+  Scope is type-1/3 records (single-line and multiple-single-line) plus `TER`;
+  a `parse -> write -> re-parse` round-trip is byte-exact across all 5,272
+  ATOM/HETATM/CRYST1/HEADER/SSBOND/LINK/CONECT records of 4ZMJ.
+
+### Changed
+- Field specs may now carry an optional third element with writer formatting
+  hints; parsing ignores it (the byte-range unpacking is now width-tolerant), so
+  the change is fully backward-compatible.
+
+### Not yet supported
+- Writing of continuation/grouped/embedded records (types 2/4/6 — `REMARK`,
+  `COMPND`, `SOURCE`, `SEQRES`, `JRNL`, `SITE`, `FORMUL`, …); these are skipped
+  and reported, making the output a reduced but internally consistent file.
+- Multi-model coordinate sections and hexadecimal serials above 99999.
+
 ## [1.7.2] - 2026-07-21
 
 ### Added

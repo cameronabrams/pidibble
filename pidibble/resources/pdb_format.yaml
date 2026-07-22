@@ -72,9 +72,9 @@ record_formats:
         a: [Float,[7,15]]
         b: [Float,[16,24]]
         c: [Float,[25,33]]
-        alpha: [Float,[34,40]]
-        beta: [Float,[41,47]]
-        gamma: [Float,[48,54]]
+        alpha: [Float,[34,40],{prec: 2}]
+        beta: [Float,[41,47],{prec: 2}]
+        gamma: [Float,[48,54],{prec: 2}]
         sGroup: [String,[56,66]]
         z: [Integer,[67,70]]
   END:
@@ -308,7 +308,7 @@ record_formats:
     groupby: MODEL.serial
     fields:
       serial: [HxInteger,[7,11]]
-      name: [String,[13,16]]
+      name: [String,[13,16],{just: atomname}]
       altLoc: [String,[17,17]]
       residue: [Residue10,[18,27]]
       u00: [Integer,[29,35]]
@@ -317,37 +317,37 @@ record_formats:
       u01: [Integer,[50,56]]
       u02: [Integer,[57,63]]
       u12: [Integer,[64,70]]
-      element: [String,[77,78]]
+      element: [String,[77,78],{just: right}]
       charge: [String,[79,80]]
   ATOM:
     type: 3
     groupby: MODEL.serial
     fields:
       serial: [HxInteger,[7,11]]
-      name: [String,[13,16]]
+      name: [String,[13,16],{just: atomname}]
       altLoc: [String,[17,17]]
       residue: [Residue10,[18,27]]
       x: [Float,[31,38]]
       y: [Float,[39,46]]
       z: [Float,[47,54]]
-      occupancy: [Float,[55,60]]
-      tempFactor: [Float,[61,66]]
-      element: [String,[77,78]]
+      occupancy: [Float,[55,60],{prec: 2}]
+      tempFactor: [Float,[61,66],{prec: 2}]
+      element: [String,[77,78],{just: right}]
       charge: [String,[79,80]]
   HETATM:
     type: 3
     groupby: MODEL.serial
     fields:
       serial: [HxInteger,[7,11]]
-      name: [String,[13,16]]
+      name: [String,[13,16],{just: atomname}]
       altLoc: [String,[17,17]]
       residue: [Residue10,[18,27]]
       x: [Float,[31,38]]
       y: [Float,[39,46]]
       z: [Float,[47,54]]
-      occupancy: [Float,[55,60]]
-      tempFactor: [Float,[61,66]]
-      element: [String,[77,78]]
+      occupancy: [Float,[55,60],{prec: 2}]
+      tempFactor: [Float,[61,66],{prec: 2}]
+      element: [String,[77,78],{just: right}]
       charge: [String,[79,80]]
   CISPEP:
     type: 3
@@ -435,15 +435,15 @@ record_formats:
   LINK:
     type: 3
     fields:
-      name1: [String,[13,16]]
+      name1: [String,[13,16],{just: atomname}]
       altLoc1: [String,[17,17]]
       residue1: [Residue10,[18,27]]
-      name2: [String,[43,46]]
+      name2: [String,[43,46],{just: atomname}]
       altLoc2: [String,[47,47]]
       residue2: [Residue10,[48,57]]
-      sym1: [String,[60,65]]
-      sym2: [String,[67,72]]
-      length: [Float,[74,78]]
+      sym1: [String,[60,65],{just: right}]
+      sym2: [String,[67,72],{just: right}]
+      length: [Float,[74,78],{prec: 2}]
   MODRES:
     type: 3
     fields:
@@ -523,9 +523,9 @@ record_formats:
       serNum: [Integer,[8,10]]
       residue1: [Residue11,[12,22]]
       residue2: [Residue11,[26,36]]
-      sym1: [String,[60,65]]
-      sym2: [String,[67,72]]
-      length: [Float,[74,78]]
+      sym1: [String,[60,65],{just: right}]
+      sym2: [String,[67,72],{just: right}]
+      length: [Float,[74,78],{prec: 2}]
   FORMUL:
     type: 4
     fields:

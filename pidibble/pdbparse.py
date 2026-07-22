@@ -430,6 +430,38 @@ class PDBParser:
             logger.warning(f'No data.')
         return self
 
+    def write_PDB(self, filename: str = None, anisou: bool = True, include_master: bool = True):
+        """
+        Write the parsed structure back out as a conformant PDB file.
+
+        This assembles every writable (type-1/3, plus ``TER``) record in
+        canonical section order, reconstructs the coordinate section, and
+        regenerates the ``MASTER``/``END`` bookkeeping records. Record types
+        that cannot yet be written (continuation/grouped/embedded records such
+        as ``REMARK``, ``COMPND``, ``SEQRES``) are skipped and reported to the
+        logger, so the output is a reduced but internally consistent file.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Destination path. If omitted, no file is written.
+        anisou : bool, optional
+            Interleave ``ANISOU`` records after their atoms (default True).
+        include_master : bool, optional
+            Regenerate a ``MASTER`` record from the emitted counts (default True).
+
+        Returns
+        -------
+        list of str
+            The assembled document as a list of record lines.
+        """
+        from .pdbwrite import assemble_pdb
+        lines = assemble_pdb(self, anisou=anisou, include_master=include_master)
+        if filename:
+            with open(filename, 'w') as f:
+                f.write('\n'.join(lines) + '\n')
+        return lines
+
 def get_symm_ops(rec: PDBRecord):
     """
     Extract the symmetry operations from a PDB record.

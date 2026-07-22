@@ -200,7 +200,9 @@ class StringParser:
         input_dict = {}
         record += ' ' * (80 - len(record))  # pad
         for k, v in self.fields.items():
-            typestring, byte_range = v
+            # a field spec is [typestring, byte_range] with an optional third
+            # element carrying writer hints (prec/just); parsing ignores it
+            typestring, byte_range = v[0], v[1]
             typ = self.typemap[typestring]
             assert byte_range[1] <= len(record), f'{record} {byte_range}'
             # using columns beginning with "1" not "0"
