@@ -434,12 +434,14 @@ class PDBParser:
         """
         Write the parsed structure back out as a conformant PDB file.
 
-        This assembles every writable (type-1/3, plus ``TER``) record in
-        canonical section order, reconstructs the coordinate section, and
-        regenerates the ``MASTER``/``END`` bookkeeping records. Record types
-        that cannot yet be written (continuation/grouped/embedded records such
-        as ``REMARK``, ``COMPND``, ``SEQRES``) are skipped and reported to the
-        logger, so the output is a reduced but internally consistent file.
+        This assembles every writable record in canonical section order —
+        single-line records (types 1/3), continuation and determinant-group
+        records (types 2/4, e.g. ``TITLE``, ``COMPND``, ``SEQRES``, ``SITE``),
+        and ``TER`` — reconstructs the coordinate section, passes ``REMARK`` and
+        ``JRNL`` through verbatim from the source, and regenerates the
+        ``MASTER``/``END`` bookkeeping records. When the parse came from mmCIF
+        (no PDB source lines), ``REMARK``/``JRNL`` are omitted and reported to
+        the logger.
 
         Parameters
         ----------

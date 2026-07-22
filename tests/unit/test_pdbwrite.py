@@ -94,15 +94,23 @@ def test_roundtrip_semantic():
     assert checked > 50000
 
 
-def test_unsupported_record_type_raises():
-    """A type outside 1/3 is rejected rather than silently mis-emitted."""
+def test_single_line_emit_rejects_multiline_record():
+    """The single-line emit() refuses a continuation record (use emit_multiline);
+    it must not silently mis-emit a multi-line record as one line."""
     parser, w = _load()
-    # COMPND is a type-2 (continuation) record
     try:
-        w.emit(parser.parsed['COMPND'], 'COMPND')
+        w.emit(parser.parsed['COMPND'], 'COMPND')       # COMPND is type-2
     except NotImplementedError:
         return
-    raise AssertionError('expected NotImplementedError for type-2 record')
+    raise AssertionError('expected NotImplementedError from single-line emit()')
+
+
+def test_multiline_emit_handles_continuation_record():
+    """emit_multiline renders a type-2 record as one or more numbered lines."""
+    parser, w = _load()
+    out = w.emit_multiline(parser.parsed['KEYWDS'], 'KEYWDS')
+    assert len(out) >= 1 and out[0].startswith('KEYWDS')
+    assert 'HIV-1' in out[0]
 
 
 # --- document assembler -----------------------------------------------------
@@ -140,22 +148,77 @@ def test_assemble_roundtrip(tmp_path):
            {k: rewritten.parsed['CRYST1'].__dict__[k] for k in ck}
 
 
-def test_assembler_master_describes_output(tmp_path):
-    """The regenerated MASTER counts match what was actually emitted."""
+def test_assembler_master_matches_original(tmp_path):
+    """With types 2/4 written and REMARK/JRNL passed through, the regenerated
+    MASTER equals the original entry's MASTER byte-for-byte."""
     parser, _ = _load()
     lines = parser.write_PDB(str(tmp_path / 'x.pdb'))
     master = next(l for l in lines if l.startswith('MASTER'))
+    orig_master = next(l.rstrip() for l in open('4zmj.pdb') if l.startswith('MASTER'))
+    assert master == orig_master
+
     reparsed = PDBParser(filepath=str(tmp_path / 'x.pdb')).parse()
     m = reparsed.parsed['MASTER']
-    # coordinate + geometry bookkeeping is reconstructable and must be right
     assert m.numCoord == len(parser.parsed['ATOM']) + len(parser.parsed['HETATM'])
     assert m.numTer == len(parser.parsed['TER'])
-    assert m.numConect == len(parser.parsed['CONECT'])
-    assert m.numXform == 6                       # ORIGX1-3 + SCALE1-3
-    assert m.numHelix == len(parser.parsed['HELIX'])
-    assert m.numSheet == len(parser.parsed['SHEET'])
-    # REMARK/SEQRES are not yet writable, so the reduced file reports zero
-    assert m.numRemark == 0 and m.numSeq == 0
+    assert m.numXform == 6                        # ORIGX1-3 + SCALE1-3
+    assert m.numRemark == 649 and m.numSeq == 49  # passthrough + re-serialized
+
+
+def test_continuation_and_group_records_reparse(tmp_path):
+    """Type-2 (continuation) and type-4 (determinant-group) records survive a
+    write / re-parse cycle with identical parsed content."""
+    parser, _ = _load()
+    parser.write_PDB(str(tmp_path / 'x.pdb'))
+    q = PDBParser(filepath=str(tmp_path / 'x.pdb')).parse()
+
+    # type-2: merged string / list / token content
+    assert parser.parsed['TITLE'].title == q.parsed['TITLE'].title
+    assert parser.parsed['KEYWDS'].keywds == q.parsed['KEYWDS'].keywds
+    assert parser.parsed['COMPND'].get_token('CHAIN') == q.parsed['COMPND'].get_token('CHAIN')
+    assert parser.parsed['SOURCE'].get_token('ORGANISM_TAXID') == \
+           q.parsed['SOURCE'].get_token('ORGANISM_TAXID')
+
+    # type-4: per-chain SEQRES residue lists
+    for a, b in zip(parser.parsed['SEQRES'], q.parsed['SEQRES']):
+        assert a.chainID == b.chainID and a.resNames == b.resNames
+
+    # REVDAT: type-3 record that is genuinely multi-line (modNum 6 spans lines)
+    orig6 = [r.records for r in parser.parsed['REVDAT'] if r.modNum == 6]
+    new6 = [r.records for r in q.parsed['REVDAT'] if r.modNum == 6]
+    assert orig6 == new6 and len(orig6[0]) == 6
+
+
+def test_type4_seqres_byte_exact(tmp_path):
+    """SEQRES re-serializes byte-exactly (13 residues/line matches the source)."""
+    parser, _ = _load()
+    lines = parser.write_PDB(str(tmp_path / 'x.pdb'))
+    emitted = [l for l in lines if l.startswith('SEQRES')]
+    src = [l.rstrip() for l in open('4zmj.pdb') if l.startswith('SEQRES')]
+    assert emitted == src
+
+
+def test_type6_passthrough_verbatim(tmp_path):
+    """REMARK/JRNL are re-emitted verbatim from the source lines."""
+    parser, _ = _load()
+    lines = parser.write_PDB(str(tmp_path / 'x.pdb'))
+    for card in ('REMARK', 'JRNL'):
+        emitted = [l for l in lines if l[:6].strip() == card]
+        src = [l.rstrip() for l in open('4zmj.pdb') if l[:6].strip() == card]
+        assert emitted == src, f'{card} passthrough differs from source'
+
+
+def test_full_key_preservation(tmp_path):
+    """Every top-level parsed key survives a full write / re-parse round-trip."""
+    parser, _ = _load()
+    parser.write_PDB(str(tmp_path / 'x.pdb'))
+    q = PDBParser(filepath=str(tmp_path / 'x.pdb')).parse()
+    for key in parser.parsed:
+        a, b = parser.parsed[key], q.parsed.get(key)
+        assert b is not None, f'{key} missing after round-trip'
+        la = len(a) if isinstance(a, (list, PDBRecordList)) else 1
+        lb = len(b) if isinstance(b, (list, PDBRecordList)) else 1
+        assert la == lb, f'{key}: orig {la} != rewritten {lb}'
 
 
 def test_assembler_ter_cards(tmp_path):

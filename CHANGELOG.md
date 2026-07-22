@@ -6,17 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- PDB *writing* (prototype): parsed structures can be serialized back to
-  conformant fixed-column PDB. `PDBParser.write_PDB()` assembles a document in
-  canonical section order, reconstructs the coordinate section (`ATOM` with
-  interleaved `ANISOU` and chain-terminating `TER` cards, then `HETATM`), and
-  regenerates the `MASTER`/`END` bookkeeping records from the emitted content.
-  The record-level engine (`pidibble.pdbwrite.PDBWriter`) is the inverse of the
+- PDB *writing*: parsed structures can be serialized back to conformant
+  fixed-column PDB. `PDBParser.write_PDB()` assembles a document in canonical
+  section order, reconstructs the coordinate section (`ATOM` with interleaved
+  `ANISOU` and chain-terminating `TER` cards, then `HETATM`), and regenerates
+  the `MASTER`/`END` bookkeeping records from the emitted content. The
+  record-level engine (`pidibble.pdbwrite.PDBWriter`) is the inverse of the
   parser, driven by the same field specs plus optional per-field writer hints
   (`{prec, just}`) carried as a third element in the YAML field definitions.
-  Scope is type-1/3 records (single-line and multiple-single-line) plus `TER`;
-  a `parse -> write -> re-parse` round-trip is byte-exact across all 5,272
-  ATOM/HETATM/CRYST1/HEADER/SSBOND/LINK/CONECT records of 4ZMJ.
+- Coverage spans all four writable record families: single-line records
+  (types 1/3, plus `TER`), continuation records (type 2 — `TITLE`, `COMPND`,
+  `SOURCE`, `KEYWDS`, `AUTHOR`, …), and determinant-group records (type 4 —
+  `SEQRES`, `HETNAM`, `HETSYN`, `FORMUL`, `SITE`, and the multi-line `REVDAT`),
+  re-wrapped/chunked across numbered continuation lines. `REMARK` and `JRNL`
+  (type 6) are re-emitted verbatim from the source lines.
+- A full `parse -> write -> re-parse` round-trip preserves every parsed record
+  type and all field values on 4ZMJ (60 keys) and 4TVP (64 keys, incl. `SITE`);
+  the regenerated `MASTER` matches the original entry's byte-for-byte, and the
+  coordinate/`SEQRES`/`HETNAM`/`FORMUL`/`KEYWDS`/`TITLE` records re-serialize
+  byte-exactly.
 
 ### Changed
 - Field specs may now carry an optional third element with writer formatting
@@ -24,10 +32,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the change is fully backward-compatible.
 
 ### Not yet supported
-- Writing of continuation/grouped/embedded records (types 2/4/6 — `REMARK`,
-  `COMPND`, `SOURCE`, `SEQRES`, `JRNL`, `SITE`, `FORMUL`, …); these are skipped
-  and reported, making the output a reduced but internally consistent file.
-- Multi-model coordinate sections and hexadecimal serials above 99999.
+- Re-serialization of `REMARK`/`JRNL` from the parsed model (they are passed
+  through from the source instead, so they are omitted when the input was
+  mmCIF), multi-model coordinate sections, and hexadecimal serials above 99999.
 
 ## [1.7.2] - 2026-07-21
 

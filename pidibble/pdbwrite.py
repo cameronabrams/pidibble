@@ -35,6 +35,9 @@ DEFAULT_FLOAT_PREC = 3
 #: type-5 (grouping) records that are nonetheless a single emittable line
 TYPE5_EMITTABLE = {'TER'}
 
+#: how a list-valued field is re-joined into its column, by list type
+LIST_SEP = {'CList': ', ', 'SList': '; ', 'WList': ' ', 'DList': ': ', 'LList': ' '}
+
 
 def _hints(spec):
     """Return the optional formatting-hints dict from a field spec (or {})."""
@@ -143,31 +146,150 @@ class PDBWriter:
             raise NotImplementedError(
                 f'{card} is record type {rtype}; only type-1/3 writing is implemented')
 
-        line = bytearray(b' ' * 80)
-        self._place(line, 1, 6, card.ljust(6))
-
-        for fname, spec in fmt['fields'].items():
-            typestring, (start, end) = spec[0], spec[1]
-            hints = _hints(spec)
-            width = end - start + 1
-            value = getattr(record, fname, '')
-
-            if typestring in self.custom_formats:
-                text = self._emit_composite(typestring, value, width)
-            elif hints.get('just') == 'atomname':
-                text = self._emit_atomname(value, getattr(record, 'element', ''), width)
-            else:
-                text = self.formatter.format(value, typestring, width, hints)
-
-            self._place(line, start, end, text)
-
-        return line.decode('ascii').rstrip()
+        values = {f: getattr(record, f, '') for f in fmt['fields']}
+        return self._render_line(card, values, fmt)
 
     def emit_all(self, records, key):
         """Render a :class:`.pdbrecord.PDBRecordList` (or list) of records."""
         return [self.emit(r, key) for r in records]
 
+    def emit_multiline(self, record, key=None):
+        """
+        Render a continuation (type-2) or determinant-group (type-4) record as
+        one or more numbered lines.
+
+        Both record families share a shape: a *counter* field, some *constant*
+        fields repeated on every line, and a single *continued* field whose
+        content is chunked across the lines. The differences are all derivable
+        from the format: whether the counter is the blank-first ``continuation``
+        field or a one-based serial (``serNum``/``seqNum``), and whether the
+        continued field is a real column or a ``concatenate`` of sub-fields
+        (e.g. ``SITE``'s four residue slots).
+
+        Parameters
+        ----------
+        record : PDBRecord
+            A parsed (already-merged) record.
+        key : str, optional
+            The record key; defaults to ``record.key``.
+
+        Returns
+        -------
+        list of str
+            The record rendered as one line per chunk.
+        """
+        key = key or getattr(record, 'key', None)
+        card = key.split('.')[0]
+        fmt = self.record_formats[card]
+        continues = fmt.get('continues', [])
+        assert len(continues) == 1, f'{card}: expected exactly one continued field'
+        cf = continues[0]
+        counter = fmt.get('continuation', 'continuation')
+        blank_first = counter == 'continuation'
+        concat = fmt.get('concatenate', {})
+
+        # a String counter (the blank-first `continuation` field) must be
+        # right-justified by hand so its number aligns like the spec expects;
+        # an Integer counter (serNum/seqNum) is right-justified by the formatter
+        counter_type, (cs, ce) = fmt['fields'][counter][0], fmt['fields'][counter][1]
+        counter_w = ce - cs + 1
+
+        chunks = self._chunk(cf, getattr(record, cf, ''), fmt, concat)
+
+        # constant fields = everything that is neither the counter nor part of
+        # the continued content
+        content = set(concat.get(cf, [cf])) | {cf}
+        const = {f: getattr(record, f, '') for f in fmt['fields']
+                 if f != counter and f not in content}
+
+        lines = []
+        for i, chunk in enumerate(chunks):
+            values = dict(const)
+            if blank_first and i == 0:
+                values[counter] = ''
+            else:
+                values[counter] = str(i + 1).rjust(counter_w) \
+                    if counter_type == 'String' else i + 1
+            if cf in concat:
+                for j, sub in enumerate(concat[cf]):
+                    values[sub] = chunk[j] if j < len(chunk) else ''
+            else:
+                values[cf] = chunk
+            lines.append(self._render_line(card, values, fmt))
+        return lines
+
     # ---- internals -------------------------------------------------------
+
+    def _render_line(self, card, values, fmt):
+        """Render one 80-column line from a ``{fieldname: value}`` mapping."""
+        line = bytearray(b' ' * 80)
+        self._place(line, 1, 6, card.ljust(6))
+        for fname, spec in fmt['fields'].items():
+            typestring, (start, end) = spec[0], spec[1]
+            hints = _hints(spec)
+            width = end - start + 1
+            value = values.get(fname, '')
+            if typestring in self.custom_formats:
+                text = self._emit_composite(typestring, value, width)
+            elif hints.get('just') == 'atomname':
+                text = self._emit_atomname(value, values.get('element', ''), width)
+            elif isinstance(value, list):
+                text = self._emit_list(value, typestring, width)
+            else:
+                text = self.formatter.format(value, typestring, width, hints)
+            self._place(line, start, end, text)
+        return line.decode('ascii').rstrip()
+
+    def _emit_list(self, items, typestring, width):
+        """Join a list value into its column using the type's separator."""
+        sep = LIST_SEP.get(typestring, ' ')
+        s = sep.join(str(x) for x in items)
+        if len(s) > width:
+            logger.warning(f'list field overflows {width} cols; clipping: {s!r}')
+            s = s[:width]
+        return s.ljust(width)
+
+    def _chunk(self, cf, value, fmt, concat):
+        """Split a continued field's value into per-line pieces."""
+        if cf in concat:                                   # e.g. SITE residues
+            per = len(concat[cf])
+            items = list(value) if isinstance(value, list) else []
+            return [items[i:i + per] for i in range(0, len(items), per)] or [[]]
+        start, end = fmt['fields'][cf][1]
+        width = end - start + 1
+        if isinstance(value, list):                        # WList/CList/SList
+            typestring = fmt['fields'][cf][0]
+            return self._pack_items(value, LIST_SEP.get(typestring, ' '), width) or [[]]
+        return self._wrap_words(str(value), width) or ['']  # plain String
+
+    @staticmethod
+    def _pack_items(items, sep, width):
+        """Greedily pack whole items into lines no wider than ``width``."""
+        lines, cur = [], []
+        for it in items:
+            if cur and len(sep.join(cur + [str(it)])) > width:
+                lines.append(cur)
+                cur = [str(it)]
+            else:
+                cur.append(str(it))
+        if cur:
+            lines.append(cur)
+        return lines
+
+    @staticmethod
+    def _wrap_words(text, width):
+        """Word-wrap ``text`` at whitespace into lines no wider than ``width``."""
+        lines, cur = [], ''
+        for word in text.split():
+            trial = (cur + ' ' + word).strip()
+            if cur and len(trial) > width:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = trial
+        if cur:
+            lines.append(cur)
+        return lines
 
     def _emit_composite(self, typestring, subrecord, width):
         """Assemble a composite field (e.g. ``Residue10``) from its sub-record."""
@@ -207,7 +329,7 @@ class PDBWriter:
 #: legible and future-proof, and are silently skipped when not emittable.
 _PRE_COORD_ORDER = [
     'HEADER', 'OBSLTE', 'TITLE', 'SPLIT', 'CAVEAT', 'COMPND', 'SOURCE', 'KEYWDS',
-    'EXPDTA', 'NUMMDL', 'MDLTYP', 'AUTHOR', 'REVDAT', 'SPRSDE', 'JRNL',
+    'EXPDTA', 'NUMMDL', 'MDLTYP', 'AUTHOR', 'REVDAT', 'SPRSDE', 'JRNL', 'REMARK',
     'DBREF', 'DBREF1', 'DBREF2', 'SEQADV', 'SEQRES', 'MODRES',
     'HET', 'HETNAM', 'HETSYN', 'FORMUL',
     'HELIX', 'SHEET',
@@ -226,14 +348,16 @@ def assemble_pdb(parser, anisou=True, include_master=True):
     """
     Assemble a conformant PDB document from a parsed structure.
 
-    Emits every type-1/3 record (plus ``TER``) present in ``parser.parsed`` in
-    canonical section order, reconstructs the coordinate section (``ATOM`` with
+    Emits every writable record present in ``parser.parsed`` in canonical
+    section order: single-line records (types 1/3) via :meth:`PDBWriter.emit`,
+    continuation/determinant-group records (types 2/4, plus ``REVDAT``) via
+    :meth:`PDBWriter.emit_multiline`, and the coordinate section (``ATOM`` with
     interleaved ``ANISOU`` and chain-terminating ``TER`` cards, then
-    ``HETATM``), and regenerates the ``MASTER`` and ``END`` bookkeeping records
-    from the emitted content. Record types that cannot yet be written
-    (continuation, grouped, embedded — e.g. ``REMARK``, ``COMPND``, ``SEQRES``)
-    are skipped and reported via the logger, so the result is a *reduced* but
-    internally consistent file.
+    ``HETATM``). ``REMARK`` and ``JRNL`` (type 6) are re-emitted verbatim from
+    the source lines. The ``MASTER`` and ``END`` bookkeeping records are
+    regenerated from the emitted content. When the input was mmCIF there are no
+    source lines to pass through, so ``REMARK``/``JRNL`` are omitted and
+    reported via the logger.
 
     Parameters
     ----------
@@ -261,16 +385,45 @@ def assemble_pdb(parser, anisou=True, include_master=True):
     lines = []
     counts = {}
 
+    #: type-6 records re-emitted verbatim from the source (never re-serialized)
+    passthrough_cards = {'REMARK', 'JRNL'}
+
     def _emit_key(key):
+        if key in passthrough_cards:
+            _passthrough(key)
+            return
         recs = parsed.get(key)
         if recs is None:
             return
-        if rf.get(key, {}).get('type') not in (1, 3):
-            return
+        fmt = rf.get(key, {})
         rlist = list(recs) if isinstance(recs, (list, PDBRecordList)) else [recs]
-        for r in rlist:
-            lines.append(w.emit(r, key))
-        counts[key] = counts.get(key, 0) + len(rlist)
+        # presence of `continues` (not the type number) is the discriminator:
+        # every continuation/determinant-group record has it, including REVDAT
+        # (tagged type 3 but genuinely multi-line); nothing single-line does
+        if fmt.get('continues'):
+            n = 0
+            for r in rlist:
+                out = w.emit_multiline(r, key)
+                lines.extend(out)
+                n += len(out)
+            counts[key] = counts.get(key, 0) + n
+        elif fmt.get('type') in (1, 3):
+            for r in rlist:
+                lines.append(w.emit(r, key))
+            counts[key] = counts.get(key, 0) + len(rlist)
+
+    def _passthrough(card):
+        """Re-emit a record type's original source lines verbatim (type 6)."""
+        n = 0
+        for ln in getattr(parser, 'pdb_lines', []) or []:
+            if ln[:6].strip() == card:
+                lines.append(ln.rstrip())
+                n += 1
+        if n:
+            counts[card] = counts.get(card, 0) + n
+        elif card in {k.split('.')[0] for k in parsed}:
+            logger.info(f'{card} present in parse but no source lines to pass '
+                        f'through (input was not PDB); omitted from output')
 
     # --- everything up to and including the crystallographic section --------
     for key in _PRE_COORD_ORDER:
