@@ -362,7 +362,7 @@ _XFORM_KEYS = ['ORIGX1', 'ORIGX2', 'ORIGX3', 'SCALE1', 'SCALE2', 'SCALE3',
                'MTRIX1', 'MTRIX2', 'MTRIX3']
 
 
-def assemble_pdb(parser, anisou=True, include_master=True):
+def assemble_pdb(parser, anisou=True, include_master=True, record_formats=None):
     """
     Assemble a conformant PDB document from a parsed structure.
 
@@ -385,13 +385,17 @@ def assemble_pdb(parser, anisou=True, include_master=True):
         Interleave ``ANISOU`` records after their matching atom (default True).
     include_master : bool, optional
         Regenerate a ``MASTER`` record from the emitted counts (default True).
+    record_formats : dict, optional
+        The record-format table to write with. Defaults to the parser's active
+        (dialect-aware) ``record_formats``; pass an explicit table to write a
+        different dialect than the parser was built with.
 
     Returns
     -------
     list of str
         The document as a list of record lines (no trailing newlines).
     """
-    rf = parser.pdb_format_dict['record_formats']
+    rf = record_formats if record_formats is not None else parser.record_formats
     cf = parser.pdb_format_dict['custom_formats']
     w = PDBWriter(rf, cf)
     parsed = parser.parsed

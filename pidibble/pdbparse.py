@@ -60,6 +60,7 @@ class PDBParser:
                  filepath: str | Path = None,
                  mappers: dict[str, Callable] = None,
                  comment_chars: list[str] = ['#'],
+                 dialect: str = 'standard',
                  pdb_format_file: str = 'pdb_format.yaml',
                  mmcif_format_file: str = 'mmcif_format.yaml',
                  **kwargs):
@@ -83,6 +84,7 @@ class PDBParser:
             self.mappers.update(mappers)
         self.mappers.update(ListParsers)
         self.comment_chars = comment_chars
+        self.dialect = dialect
         self.pdb_lines = []
         self.cif_data = {}
 
@@ -90,6 +92,9 @@ class PDBParser:
         self.nonconformances = NonconformanceRegistry()
         self.pdb_format_dict = self._load_format(pdb_format_file)
         self.mmcif_format_dict = self._load_format(mmcif_format_file)
+        # the active record-format table for this instance's dialect; both
+        # parsing and writing read this so they stay exact inverses
+        self.record_formats = self._apply_dialect(self.pdb_format_dict, dialect)
 
         # update mappers with delimiters and custom formats
         delimiter_dict = self.pdb_format_dict.get('delimiters', {})
@@ -100,6 +105,36 @@ class PDBParser:
         for cname, cformat in cformat_dict.items():
             if not cname in self.mappers:
                 self.mappers[cname] = BaseRecordParser(cformat, self.mappers).parse
+
+    @staticmethod
+    def _apply_dialect(pdb_format_dict, dialect):
+        """
+        Build the record-format table for a dialect.
+
+        Returns a copy of the base ``record_formats`` with the dialect's
+        coordinate-record overrides merged in. ``'standard'`` is strict wwPDB;
+        ``'charmm'`` swaps ``ATOM``/``HETATM``/``TER`` for the wide-resName,
+        segID-bearing CHARMM layouts (``charmm_formats`` in the YAML), keeping
+        x/y/z pinned at columns 31-54.
+
+        Parameters
+        ----------
+        pdb_format_dict : dict
+            The loaded PDB format file.
+        dialect : str
+            ``'standard'`` (default) or ``'charmm'``.
+
+        Returns
+        -------
+        dict
+            The active ``{record_key: format}`` mapping for the dialect.
+        """
+        record_formats = dict(pdb_format_dict['record_formats'])
+        if dialect == 'charmm':
+            record_formats.update(pdb_format_dict.get('charmm_formats', {}))
+        elif dialect != 'standard':
+            raise ValueError(f"unknown dialect {dialect!r}; expected 'standard' or 'charmm'")
+        return record_formats
 
     @staticmethod
     def _load_format(filename: str) -> dict:
@@ -252,7 +287,7 @@ class PDBParser:
         This method uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data and store the parsed records
         in :attr:`PDBParser.parsed`.
         """
-        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict, self.pdb_format_dict['record_formats'], self.cif_data)
+        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict, self.record_formats, self.cif_data)
         self.parsed = mmcif_parser.parse()
 
     def parse_PDB(self):
@@ -264,7 +299,7 @@ class PDBParser:
         """
         self._atom_serial_parser.reset()
         self.nonconformances = NonconformanceRegistry()
-        record_formats = self.pdb_format_dict['record_formats']
+        record_formats = self.record_formats
         key = ''
         record_format = {}
         group_open_record = None
@@ -368,12 +403,12 @@ class PDBParser:
             if isinstance(p, PDBRecord):
                 rf = p.format
                 if 'embedded_records' in rf:
-                    new_parsed_records.update(p.parse_embedded(self.pdb_format_dict['record_formats'], self.mappers))
+                    new_parsed_records.update(p.parse_embedded(self.record_formats, self.mappers))
             elif isinstance(p, PDBRecordList):
                 for q in p:
                     rf = q.format
                     if 'embedded_records' in rf:
-                        new_parsed_records.update(q.parse_embedded(self.pdb_format_dict['record_formats'], self.mappers))
+                        new_parsed_records.update(q.parse_embedded(self.record_formats, self.mappers))
         self.parsed.update(new_parsed_records)
 
     def parse_tokens(self):
@@ -430,7 +465,8 @@ class PDBParser:
             logger.warning(f'No data.')
         return self
 
-    def write_PDB(self, filename: str = None, anisou: bool = True, include_master: bool = True):
+    def write_PDB(self, filename: str = None, anisou: bool = True, include_master: bool = True,
+                  dialect: str = None):
         """
         Write the parsed structure back out as a conformant PDB file.
 
@@ -451,6 +487,11 @@ class PDBParser:
             Interleave ``ANISOU`` records after their atoms (default True).
         include_master : bool, optional
             Regenerate a ``MASTER`` record from the emitted counts (default True).
+        dialect : str, optional
+            Column dialect to write, ``'standard'`` or ``'charmm'``. Defaults to
+            the dialect this parser was constructed with. The CHARMM dialect
+            widens ``resName`` to 6 columns and writes the authoritative segID
+            column (73-76) while pinning x/y/z at columns 31-54.
 
         Returns
         -------
@@ -458,7 +499,9 @@ class PDBParser:
             The assembled document as a list of record lines.
         """
         from .pdbwrite import assemble_pdb
-        lines = assemble_pdb(self, anisou=anisou, include_master=include_master)
+        record_formats = self._apply_dialect(self.pdb_format_dict, dialect) if dialect else None
+        lines = assemble_pdb(self, anisou=anisou, include_master=include_master,
+                             record_formats=record_formats)
         if filename:
             with open(filename, 'w') as f:
                 f.write('\n'.join(lines) + '\n')

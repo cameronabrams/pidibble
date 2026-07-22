@@ -42,6 +42,59 @@ custom_formats:
     m2: [Float,[11,20]]
     m3: [Float,[21,30]]
     t:  [Float,[36,45]]
+  # CHARMM dialect residue block (field span [18,29]): resName widened to 6
+  # columns for CHARMM/glycan names (e.g. BGLCNA, ANE5AC), packed leftward so
+  # the coordinate columns (x at 31) never move.  resName 18-23, chainID 24,
+  # seqNum 25-28, iCode 29, gap 30, x 31.
+  ResidueCharmm:
+    resName: [String,[1,6]]
+    chainID: [String,[7,7]]
+    seqNum:  [Integer,[8,11]]
+    iCode:  [String,[12,12]]
+
+# CHARMM write/read dialect: overrides for the coordinate records only.  Selected
+# via PDBParser(dialect='charmm') / write_PDB(dialect='charmm').  Widens resName
+# to 6 columns (ResidueCharmm) and adds the authoritative segID column (73-76)
+# that psfgen coordpdb depends on, while pinning x/y/z at columns 31-54.
+charmm_formats:
+  ATOM:
+    type: 3
+    groupby: MODEL.serial
+    fields:
+      serial: [HxInteger,[7,11]]
+      name: [String,[13,16],{just: atomname}]
+      altLoc: [String,[17,17]]
+      residue: [ResidueCharmm,[18,29]]
+      x: [Float,[31,38]]
+      y: [Float,[39,46]]
+      z: [Float,[47,54]]
+      occupancy: [Float,[55,60],{prec: 2}]
+      tempFactor: [Float,[61,66],{prec: 2}]
+      segID: [String,[73,76]]
+      element: [String,[77,78],{just: right}]
+      charge: [String,[79,80]]
+  HETATM:
+    type: 3
+    groupby: MODEL.serial
+    fields:
+      serial: [HxInteger,[7,11]]
+      name: [String,[13,16],{just: atomname}]
+      altLoc: [String,[17,17]]
+      residue: [ResidueCharmm,[18,29]]
+      x: [Float,[31,38]]
+      y: [Float,[39,46]]
+      z: [Float,[47,54]]
+      occupancy: [Float,[55,60],{prec: 2}]
+      tempFactor: [Float,[61,66],{prec: 2}]
+      segID: [String,[73,76]]
+      element: [String,[77,78],{just: right}]
+      charge: [String,[79,80]]
+  TER:
+    type: 5
+    groupby: MODEL.serial
+    fields:
+      serial: [HxInteger,[7,11]]
+      residue: [ResidueCharmm,[18,29]]
 
 record_formats:
   HEADER:

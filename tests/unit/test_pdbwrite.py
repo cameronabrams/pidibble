@@ -283,3 +283,86 @@ def test_assembler_without_anisou(tmp_path):
     lines = parser.write_PDB(str(tmp_path / 'x.pdb'), anisou=False)
     assert not any(l.startswith('ANISOU') for l in lines)
     assert sum(l.startswith('ATOM') for l in lines) == len(parser.parsed['ATOM'])
+
+
+# --- CHARMM write/read dialect ----------------------------------------------
+
+CHARMM_FIXTURE = 'charmm_glycan.pdb'   # wide resNames + segID + iCode + altLoc + TER
+
+# fields pestifer relies on surviving the CHARMM round-trip
+CHARMM_FIELDS = ('serial', 'name', 'altLoc', 'x', 'y', 'z',
+                 'occupancy', 'tempFactor', 'segID', 'element', 'charge')
+
+
+def test_charmm_dialect_parses_wide_resname_and_segid():
+    """The CHARMM dialect reads 6-char resNames, the segID column, and
+    leading-digit atom names that the standard 3-4 column model can't."""
+    p = PDBParser(filepath=CHARMM_FIXTURE, dialect='charmm').parse()
+    a = p.parsed['ATOM'][0]
+    assert a.residue.resName == 'BGLCNA'          # 6 chars, not truncated
+    assert a.residue.chainID == 'A' and a.residue.seqNum == 1
+    assert a.segID == 'GLYC'
+    assert (a.x, a.y, a.z) == (12.345, 23.456, 34.567)
+    assert p.parsed['ATOM'][1].name == '1HD1'     # leading-digit 4-char name
+    assert p.parsed['ATOM'][1].residue.resName == 'ANE5AC'
+    assert p.parsed['ATOM'][2].altLoc == 'A'      # altLoc preserved
+    assert p.parsed['ATOM'][4].residue.iCode == 'A'  # insertion code preserved
+
+
+def test_charmm_dialect_roundtrip(tmp_path):
+    """Acceptance test: parse -> write -> parse is the identity for every field
+    pestifer relies on, on a CHARMM structure with glycans and a segID column."""
+    p = PDBParser(filepath=CHARMM_FIXTURE, dialect='charmm').parse()
+    out = tmp_path / 'charmm_out.pdb'
+    p.write_PDB(str(out), anisou=False, dialect='charmm')
+    q = PDBParser(filepath=str(out), dialect='charmm').parse()
+
+    for key in ('ATOM', 'HETATM'):
+        assert len(p.parsed[key]) == len(q.parsed[key])
+        for a, b in zip(p.parsed[key], q.parsed[key]):
+            for f in CHARMM_FIELDS:
+                assert getattr(a, f) == getattr(b, f), \
+                    f'{key}.{f}: {getattr(a, f)!r} != {getattr(b, f)!r}'
+            assert a.residue.__dict__ == b.residue.__dict__   # resName/chain/seq/iCode
+    # TER cards (with wide resNames) survive too
+    assert len(p.parsed['TER']) == len(q.parsed['TER']) == 2
+    assert [t.residue.resName for t in q.parsed['TER']] == ['AGLC', 'HSD']
+
+
+def test_charmm_coordinate_columns_pinned(tmp_path):
+    """The hazard is designed out: x/y/z stay at columns 31-54 and segID at
+    73-76 regardless of resName width, so fixed-column readers never scramble."""
+    p = PDBParser(filepath=CHARMM_FIXTURE, dialect='charmm').parse()
+    lines = p.write_PDB(str(tmp_path / 'out.pdb'), anisou=False, dialect='charmm')
+    coord = [l for l in lines if l[:6].strip() in ('ATOM', 'HETATM')]
+    for l in coord:
+        padded = l.ljust(80)
+        assert float(padded[30:38]) == float(padded[30:38])   # x parses at 31-38
+        # x column is numeric and the resName never bleeds into it
+        assert padded[30:54].strip() and padded[24:30].strip() != ''
+    first = next(l for l in coord if l.startswith('ATOM')).ljust(80)
+    assert first[17:23] == 'BGLCNA'      # resName at 18-23
+    assert first[30:38] == '  12.345'    # x pinned at 31-38
+    assert first[72:76] == 'GLYC'        # segID at 73-76
+
+
+def test_dialect_selects_format_table():
+    """Constructing with a dialect swaps the coordinate-record column model;
+    'standard' has no segID field, 'charmm' does and uses the wide residue."""
+    std = PDBParser(dialect='standard')
+    chm = PDBParser(dialect='charmm')
+    assert 'segID' not in std.record_formats['ATOM']['fields']
+    assert std.record_formats['ATOM']['fields']['residue'][0] == 'Residue10'
+    assert 'segID' in chm.record_formats['ATOM']['fields']
+    assert chm.record_formats['ATOM']['fields']['residue'][0] == 'ResidueCharmm'
+    # x stays pinned at column 31 in both dialects
+    assert std.record_formats['ATOM']['fields']['x'][1] == [31, 38]
+    assert chm.record_formats['ATOM']['fields']['x'][1] == [31, 38]
+
+
+def test_unknown_dialect_rejected():
+    try:
+        PDBParser(dialect='amber')
+    except ValueError:
+        return
+    raise AssertionError('expected ValueError for an unknown dialect')

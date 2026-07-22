@@ -1,0 +1,4 @@
+# RCSB structures fetched by the tests at run time (re-downloaded each run).
+# Only committed fixtures (e.g. charmm_glycan.pdb) belong in this directory.
+4zmj.pdb
+4tvp.pdb

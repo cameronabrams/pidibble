@@ -1,0 +1,10 @@
+REMARK   1 CHARMM-dialect fixture: wide resnames + segID + iCode + altLoc
+ATOM      1  C1  BGLCNAA   1    12.345  23.456  34.567  1.00  0.00      GLYC C
+ATOM      2 1HD1 ANE5ACA   1    -5.100 100.250   7.000  1.00  0.00      GLYC H
+ATOM      3  O5 AAGLC  A   2     0.001  -0.002   0.003  0.50 12.30      GLYC O
+TER       4      AGLC  A   2
+ATOM      5  N   ALA   B  10     1.111   2.222   3.333  1.00  0.00      PROA N
+ATOM      6  CA  HSD   B  10A    4.444   5.555   6.666  1.00  0.00      PROA C
+TER       7      HSD   B  10A
+HETATM    8  OH2 TIP3  W 100    40.000  41.000  42.000  1.00  0.00      WT1  O
+END

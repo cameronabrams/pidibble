@@ -31,6 +31,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   staying hex thereafter — including small `CONECT` back-references, which the
   parser reads as hex once tripped. Serials round-trip up to the 5-column
   hybrid-hex ceiling (`0xFFFFF` = 1 048 575 atoms).
+- CHARMM read/write **dialect** (`PDBParser(dialect='charmm')`,
+  `write_PDB(dialect='charmm')`), for coordinate PDBs that must stay
+  column-congruent with a CHARMM/psfgen PSF. It widens `resName` to 6 columns
+  for CHARMM/glycan names (e.g. `BGLCNA`, `ANE5AC`) and writes the authoritative
+  `segID` column (73-76) that psfgen `coordpdb` depends on, while **pinning
+  x/y/z at columns 31-54** regardless of resName width — designing out the
+  wide-resName coordinate-column drift that scrambles fixed-column readers.
+  Parser and writer share one column model (`charmm_formats`/`ResidueCharmm` in
+  the YAML) so they are exact inverses; the default `'standard'` dialect remains
+  strict wwPDB. A `parse -> write -> parse` round-trip on a glycan structure
+  with a populated segID column is the identity for every coordinate field.
 
 ### Changed
 - Field specs may now carry an optional third element with writer formatting
