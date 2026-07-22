@@ -11,6 +11,7 @@ import logging
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecord, PDBRecordList
 from pidibble.pdbwrite import PDBWriter, FieldFormatter
+from pidibble.hex import HexSerialEncoder, AtomSerialParser
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +220,53 @@ def test_full_key_preservation(tmp_path):
         la = len(a) if isinstance(a, (list, PDBRecordList)) else 1
         lb = len(b) if isinstance(b, (list, PDBRecordList)) else 1
         assert la == lb, f'{key}: orig {la} != rewritten {lb}'
+
+
+def test_hex_serial_encoder_mirrors_parser():
+    """The encoder is the exact inverse of AtomSerialParser, including the
+    permanent decimal->hex trip and hex-encoded small back-references after it."""
+    # emission order of a big file: serials climb past the ceiling, then a
+    # CONECT section referencing a small atom (10) and a mid atom (255)
+    serials = [99998, 99999, 100000, 100001, 250000, 1048575, 10, 255]
+    enc, dec = HexSerialEncoder(), AtomSerialParser()
+    for s in serials:
+        assert dec(enc(s)) == s, f'{s} did not round-trip'
+    # the boundary crossing is genuinely hex, not truncated decimal
+    enc2 = HexSerialEncoder()
+    assert enc2(99999) == '99999'
+    assert enc2(100000) == '186A0'
+    assert enc2(10) == 'A'            # tripped: small serial now hex
+
+
+def test_big_serial_document_roundtrip(tmp_path):
+    """A structure whose serials exceed 99999 writes hex serials that re-parse
+    to the original decimal values across ATOM/HETATM/TER/CONECT."""
+    parser, _ = _load()
+    off = 100000
+    for key in ('ATOM', 'HETATM', 'ANISOU', 'TER'):
+        for r in parser.parsed[key]:
+            r.serial += off
+    for r in parser.parsed['CONECT']:
+        r.serial += off
+        for f in ('partner1', 'partner2', 'partner3', 'partner4'):
+            v = getattr(r, f)
+            if v != '':
+                setattr(r, f, v + off)
+
+    out = tmp_path / 'big.pdb'
+    lines = parser.write_PDB(str(out))
+    # the first atom's serial is emitted as hex, not clipped decimal
+    assert next(l for l in lines if l.startswith('ATOM'))[6:11] == '186A1'
+
+    q = PDBParser(filepath=str(out)).parse()
+    assert [r.serial for r in parser.parsed['ATOM']] == [r.serial for r in q.parsed['ATOM']]
+    assert [r.serial for r in parser.parsed['TER']] == [r.serial for r in q.parsed['TER']]
+
+    def conect(rec):
+        return (rec.serial,) + tuple(getattr(rec, f)
+                                     for f in ('partner1', 'partner2', 'partner3', 'partner4'))
+    assert sorted(conect(r) for r in parser.parsed['CONECT']) == \
+           sorted(conect(r) for r in q.parsed['CONECT'])
 
 
 def test_assembler_ter_cards(tmp_path):

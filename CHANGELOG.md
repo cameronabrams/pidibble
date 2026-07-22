@@ -25,6 +25,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the regenerated `MASTER` matches the original entry's byte-for-byte, and the
   coordinate/`SEQRES`/`HETNAM`/`FORMUL`/`KEYWDS`/`TITLE` records re-serialize
   byte-exactly.
+- Hexadecimal serial numbers for structures with more than 99999 atoms (e.g.
+  large solvated systems): `HexSerialEncoder` is the exact inverse of the
+  parser's `AtomSerialParser`, switching to hex once a serial passes 99999 and
+  staying hex thereafter — including small `CONECT` back-references, which the
+  parser reads as hex once tripped. Serials round-trip up to the 5-column
+  hybrid-hex ceiling (`0xFFFFF` = 1 048 575 atoms).
 
 ### Changed
 - Field specs may now carry an optional third element with writer formatting
@@ -34,7 +40,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Not yet supported
 - Re-serialization of `REMARK`/`JRNL` from the parsed model (they are passed
   through from the source instead, so they are omitted when the input was
-  mmCIF), multi-model coordinate sections, and hexadecimal serials above 99999.
+  mmCIF), and multi-model coordinate sections.
 
 ## [1.7.2] - 2026-07-21
 

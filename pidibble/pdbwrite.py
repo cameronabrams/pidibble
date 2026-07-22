@@ -25,6 +25,7 @@ of scope and raise or degrade gracefully.
 """
 import logging
 
+from .hex import HexSerialEncoder
 from .pdbrecord import PDBRecordList
 
 logger = logging.getLogger(__name__)
@@ -86,10 +87,10 @@ class FieldFormatter:
 
         if typestring in ('Integer', 'HxInteger'):
             iv = int(value)
-            if typestring == 'HxInteger' and iv > 99999:
-                # hex-serial writing (files > 99999 atoms) is out of scope here
-                logger.warning(f'serial {iv} exceeds 99999; hex writing not implemented')
-            return self._fit(str(iv), width, just or 'right')
+            # stateless fallback: hex once past the decimal ceiling (the
+            # document path uses a stateful encoder instead — see PDBWriter)
+            s = format(iv, 'X') if (typestring == 'HxInteger' and iv > 99999) else str(iv)
+            return self._fit(s, width, just or 'right')
 
         # String
         return self._fit(str(value), width, just or 'left')
@@ -119,6 +120,9 @@ class PDBWriter:
         self.record_formats = format_dict
         self.custom_formats = custom_formats
         self.formatter = FieldFormatter()
+        # stateful decimal->hex serial encoder, threaded through every serial
+        # field this writer emits in order (see HexSerialEncoder)
+        self.hex = HexSerialEncoder()
 
     def emit(self, record, key=None):
         """
@@ -233,12 +237,26 @@ class PDBWriter:
                 text = self._emit_composite(typestring, value, width)
             elif hints.get('just') == 'atomname':
                 text = self._emit_atomname(value, values.get('element', ''), width)
+            elif typestring == 'HxInteger':
+                text = self._emit_serial(value, width)
             elif isinstance(value, list):
                 text = self._emit_list(value, typestring, width)
             else:
                 text = self.formatter.format(value, typestring, width, hints)
             self._place(line, start, end, text)
         return line.decode('ascii').rstrip()
+
+    def _emit_serial(self, value, width):
+        """Encode a serial-number field via the stateful decimal->hex encoder."""
+        if value == '' or value is None:
+            return ' ' * width
+        s = self.hex(int(value))
+        if len(s) > width:
+            logger.warning(f'serial {int(value)} needs {len(s)} cols but the '
+                           f'field is {width}; the file exceeds the hybrid-hex '
+                           f'ceiling (~1M atoms) and cannot be represented')
+            return s[-width:]
+        return s.rjust(width)
 
     def _emit_list(self, items, typestring, width):
         """Join a list value into its column using the type's separator."""
