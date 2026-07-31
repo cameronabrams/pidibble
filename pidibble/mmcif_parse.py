@@ -10,8 +10,18 @@
 
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .baserecord import BaseRecord
+from .baseparsers import EmptyField
 import logging
 logger = logging.getLogger(__name__)
+
+# mmCIF spells a missing value '.' (inapplicable) or '?' (unknown); an attribute
+# the file simply omits is missing too. rectify() flattens all three to ''.
+MMCIF_EMPTY_REASON = "absent from the mmCIF ('.', '?', or attribute not present)"
+
+def _is_bare_empty(value):
+    """True for a plain empty string -- not for one already guarded, and not for
+    the empty list that ``as_list`` fields legitimately carry."""
+    return type(value) is str and value == ''
 
 def split_ri(ri):
     """
@@ -76,10 +86,15 @@ class MMCIF_Parser:
         A dictionary defining the PDB formats to be parsed.
     cif_data : object
         An object containing the CIF data to be parsed.
+    custom_formats : dict, optional
+        The ``custom_formats`` block of the PDB format file, used to type the
+        fields of nested sub-records such as residues. Without it, empty
+        sub-record fields stay plain ``''``.
     """
-    def __init__(self, mmcif_formats, pdb_formats, cif_data):
+    def __init__(self, mmcif_formats, pdb_formats, cif_data, custom_formats=None):
         self.formats = mmcif_formats
         self.pdb_formats = pdb_formats
+        self.custom_formats = custom_formats or {}
         self.global_maps = {}
         self.global_ids = {}
         self.cif_data = cif_data
@@ -389,6 +404,50 @@ class MMCIF_Parser:
                             idict[k] = v.upper()
         return idicts
 
+    def _guard_empty_fields(self, rectype, idict):
+        """
+        Replace bare ``''`` values with :class:`~pidibble.baseparsers.EmptyField`
+        wherever the corresponding PDB record field is declared numeric.
+
+        mmCIF carries no per-attribute type, so :func:`rectify` infers one from
+        the text and returns ``''`` for a missing value whatever the field is.
+        The PDB format spec *does* declare the type, and the same record read
+        from a ``.pdb`` file gets a guarded empty there (see
+        :meth:`~pidibble.baseparsers.StringParser.parse`) -- so apply the same
+        rule here, and a caller can treat both sources identically.
+
+        Parameters
+        ----------
+        rectype : str
+            The PDB record type these fields belong to, e.g. ``'SSBOND'``.
+        idict : dict
+            The assembled ``{field: value}`` dict, modified in place.
+
+        Returns
+        -------
+        dict
+            The same dict, for convenience.
+        """
+        fields = (self.pdb_formats.get(rectype) or {}).get('fields', {})
+        for k, v in idict.items():
+            spec = fields.get(k)
+            if spec is None:            # bookkeeping key, or field the PDB spec has no slot for
+                continue
+            if isinstance(v, (PDBRecord, BaseRecord)):
+                self._guard_subrecord(spec[0], v)
+            elif _is_bare_empty(v) and spec[0] != 'String':
+                idict[k] = EmptyField(k, spec[0], MMCIF_EMPTY_REASON)
+        return idict
+
+    def _guard_subrecord(self, typestring, record):
+        """Apply :meth:`_guard_empty_fields`' rule to a nested sub-record whose
+        layout is named by a custom format (``Residue11``, ``Biomtrow``, …)."""
+        subfields = self.custom_formats.get(typestring, {})
+        for k, v in vars(record).items():
+            spec = subfields.get(k)
+            if spec is not None and _is_bare_empty(v) and spec[0] != 'String':
+                setattr(record, k, EmptyField(k, spec[0], MMCIF_EMPTY_REASON))
+
     def parse(self):
         """
         Parse the mmCIF data and generate a dictionary of :class:`pdbrecord.PDBRecord` instances.
@@ -403,6 +462,7 @@ class MMCIF_Parser:
         for rectype, mapspec in self.formats.items():
             idicts = self.gen_dict(mapspec)
             for idict in idicts:
+                self._guard_empty_fields(rectype, idict)
                 this_key = idict.get('tmp_label', '')
                 reckey = rectype if not this_key else f'{rectype}.{this_key}'
                 if reckey in recdict:

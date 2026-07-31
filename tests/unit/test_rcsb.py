@@ -1,6 +1,7 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
 from pidibble.pdbrecord import PDBRecordList
+from pidibble.baseparsers import EmptyField
 import unittest
 from itertools import product
 import logging
@@ -841,6 +842,34 @@ class Test_mmCIF(unittest.TestCase):
         TL[bad_idx]='OA'
         TL.sort()
         self.assertEqual(rec.header,TL)
+
+class Test_mmCIF_empty_fields(unittest.TestCase):
+    def test_missing_numeric_values_are_guarded_like_the_pdb_path(self):
+        # mmCIF carries no per-attribute type, so a missing value ('.', '?', or
+        # an absent attribute) used to come back as a bare '' whatever the field
+        # was -- unlike the same record read from a .pdb file. Both paths now
+        # hand back an EmptyField for a field the PDB spec declares numeric.
+        cif = PDBParser(PDBcode='4zmj', input_format='mmCIF').parse().parsed
+        # label_seq_id is '.' for a non-polymer HETATM, so residue.seqNum is
+        # genuinely unknown (the auth_* copy carries the number)
+        het = cif['HETATM'][0]
+        self.assertIsInstance(het.residue.seqNum, EmptyField)   # nested sub-record
+        self.assertEqual(het.residue.seqNum, '')                # still empty for every existing check
+        self.assertFalse(het.residue.seqNum)
+        self.assertEqual(het.residue_auth.seqNum, 1)            # present values untouched
+        with self.assertRaises(TypeError) as ctx:
+            het.residue.seqNum + 1
+        self.assertIn("'seqNum'", str(ctx.exception))
+        self.assertIn('mmCIF', str(ctx.exception))              # says which source it was missing from
+        # a String field keeps a plain '': there the empty string is a value
+        self.assertNotIsInstance(het.charge, EmptyField)
+        self.assertEqual(het.charge, '')
+
+    def test_present_values_and_list_fields_are_untouched(self):
+        cif = PDBParser(PDBcode='4zmj', input_format='mmCIF').parse().parsed
+        self.assertEqual(cif['SSBOND'][0].length, 2.075)        # a real Float still arrives
+        self.assertIsInstance(cif['SEQRES'][0].resNames, list)  # as_list fields stay lists
+
 
 class Test_mmCIF_metal(unittest.TestCase):
     def test_metalc_links(self):

@@ -287,7 +287,8 @@ class PDBParser:
         This method uses the :class:`.mmcif_parse.MMCIF_Parser` to parse the mmCIF data and store the parsed records
         in :attr:`PDBParser.parsed`.
         """
-        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict, self.record_formats, self.cif_data)
+        mmcif_parser = MMCIF_Parser(self.mmcif_format_dict, self.record_formats, self.cif_data,
+                                    custom_formats=self.pdb_format_dict.get('custom_formats', {}))
         self.parsed = mmcif_parser.parse()
 
     def parse_PDB(self):

@@ -75,6 +75,26 @@ A few purely representational fields differ where the formats themselves differ.
    (``2014-06-27``) rather than the PDB ``DD-MON-YY`` form (``27-JUN-14``), and
    ``TITLE``/``KEYWDS`` text is upper-cased to match the PDB convention.
 
+Missing values
+--------------
+
+mmCIF writes an inapplicable value as ``.`` and an unknown one as ``?``; an
+attribute the file omits is missing too.  All three parse to an empty field, and
+because mmCIF carries no per-attribute type, the field's declared type is taken
+from the PDB record spec — so a missing value in a field declared ``Float``,
+``Integer`` or ``HxInteger`` yields the same guarded
+:class:`~pidibble.baseparsers.EmptyField` as it would from a ``.pdb`` file (see
+:ref:`empty-fields`).  It equals ``''`` but refuses to act as a number:
+
+.. code-block:: python
+
+   het = cif.parsed['HETATM'][0]
+   het.residue.seqNum == ''      # True -- label_seq_id is '.' for a non-polymer
+   het.residue.seqNum + 1        # TypeError: Integer field 'seqNum' is empty:
+                                 # absent from the mmCIF ('.', '?', or attribute
+                                 # not present) ...
+   het.residue_auth.seqNum       # 1 -- the auth_* copy carries the number
+
 Comparing the two parses
 ------------------------
 

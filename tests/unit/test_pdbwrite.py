@@ -8,6 +8,9 @@ guards records whose source spacing the parser already normalized away.
 """
 import logging
 
+import pytest
+
+from pidibble.baseparsers import EmptyField
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecord, PDBRecordList
 from pidibble.pdbwrite import PDBWriter, FieldFormatter
@@ -65,6 +68,34 @@ def test_field_formatter_basics():
     assert f.format(1, 'Integer', 5, {}) == '    1'                 # right by default
     assert f.format('LEU', 'String', 4, {}) == 'LEU '              # left by default
     assert f.format('N', 'String', 2, {'just': 'right'}) == ' N'
+    # an absent typed field renders as blanks like a plain '' -- the writer must
+    # not trip over the guard that makes it refuse numeric use
+    assert f.format(EmptyField('length', 'Float'), 'Float', 5, {'prec': 2}) == ' ' * 5
+
+
+def test_truncated_record_roundtrips_and_guards_its_empty_fields(tmp_path):
+    """A record that stops short of its optional trailing fields (here SSBOND
+    without sym1/sym2/length) parses, re-emits byte-identically, and hands back
+    a guarded empty for the Float field rather than a '' that would multiply."""
+    src = tmp_path / 'short.pdb'
+    src.write_text('HEADER    TEST                                    01-JAN-00   XXXX\n'
+                   'SSBOND   1 CYS A   54    CYS A   74\n'
+                   'END\n')
+    p = PDBParser(filepath=str(src)).parse()
+    ssbond = p.parsed['SSBOND'][0]
+    # the residue columns are canonical in this line, so they read correctly
+    assert (ssbond.residue1.resName, ssbond.residue1.chainID, ssbond.residue1.seqNum) == ('CYS', 'A', 54)
+    assert (ssbond.residue2.resName, ssbond.residue2.chainID, ssbond.residue2.seqNum) == ('CYS', 'A', 74)
+    # a short record is not a nonconformance -- the columns are absent, not wrong
+    assert p.nonconformances.types() == []
+    # sym1/sym2 are String fields: plain '' is a legitimate value there
+    assert ssbond.sym1 == '' and ssbond.sym2 == ''
+    # length is declared Float, so it must refuse to behave like one
+    assert ssbond.length == '' and not ssbond.length
+    with pytest.raises(TypeError, match="'length'"):
+        ssbond.length * 2
+    lines = p.write_PDB(str(tmp_path / 'out.pdb'))
+    assert [l for l in lines if l.startswith('SSBOND')] == ['SSBOND   1 CYS A   54    CYS A   74']
 
 
 def test_atomname_justification():

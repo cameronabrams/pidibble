@@ -7,6 +7,9 @@
 
 """
 import logging
+
+import yaml
+
 logger = logging.getLogger(__name__)
 
 class ListParser:
@@ -153,6 +156,110 @@ class NonconformanceRegistry:
             log.info(f'  {name}: {e["count"]} value(s) {kind}{eg}')
 
 
+class EmptyField(str):
+    """
+    The value of a non-String field that the source record gave no usable value
+    for -- either the columns were blank (a truncated or minimal record) or the
+    text there could not be coerced to the declared type.
+
+    It *is* the empty string: ``field == ''`` is True, ``bool(field)`` is False,
+    ``f'{field}'`` is empty, and the writer renders it as blanks. Every existing
+    emptiness test keeps working unchanged.
+
+    What it refuses to do is impersonate a number. A plain ``''`` in a field
+    declared ``Float`` bites silently -- ``rec.length * 2`` evaluates to ``''``
+    by string repetition rather than raising -- so the numeric operators are
+    overridden here to fail loudly, naming the field and why it is empty::
+
+        rec.length * 2
+        TypeError: Float field 'length' is empty: absent from the source
+        record. It has no value to multiply; test `if rec.length != '':` first.
+
+    Attributes
+    ----------
+    field : str
+        Name of the field this stood in for.
+    typestring : str
+        The field's declared type, e.g. ``'Float'``.
+    reason : str
+        Why it is empty: ``'absent from the source record'`` or
+        ``"not coercible to Float (found 'O-')"``.
+    """
+
+    def __new__(cls, field='', typestring='', reason='absent from the source record'):
+        self = super().__new__(cls, '')
+        self.field = field
+        self.typestring = typestring
+        self.reason = reason
+        return self
+
+    def _complain(self, op):
+        name = f'{self.typestring} field {self.field!r}' if self.typestring else f'field {self.field!r}'
+        return TypeError(f'{name} is empty: {self.reason}. It has no value to {op}; '
+                         f"test `if rec.{self.field or 'field'} != '':` first.")
+
+    # numeric coercions -- ValueError/AttributeError from these would be cryptic
+    def __float__(self):
+        raise self._complain('convert to float')
+
+    def __int__(self):
+        raise self._complain('convert to int')
+
+    def __index__(self):
+        raise self._complain('use as an index')
+
+    # str inherits these and they succeed silently on '', which is the trap:
+    # '' * 2 == '' and '' % x == ''.  Concatenation with another string is
+    # still allowed -- it is meaningful, and the result is a plain str.
+    def __mul__(self, other):
+        raise self._complain('multiply')
+
+    __rmul__ = __mul__
+
+    def __mod__(self, other):
+        raise self._complain('use as a format string')
+
+    def __add__(self, other):
+        if isinstance(other, str):
+            return str(self) + other
+        raise self._complain('add')
+
+    # arithmetic str does not define at all: those already raise, but the
+    # default message names only the type, so give the same guided one
+    def __sub__(self, other):
+        raise self._complain('subtract from')
+
+    def __rsub__(self, other):
+        raise self._complain('subtract')
+
+    def __truediv__(self, other):
+        raise self._complain('divide')
+
+    def __rtruediv__(self, other):
+        raise self._complain('divide by')
+
+    def __round__(self, ndigits=None):
+        raise self._complain('round')
+
+    def __abs__(self):
+        raise self._complain('take the absolute value of')
+
+    def __neg__(self):
+        raise self._complain('negate')
+
+    def __repr__(self):
+        return f'<empty {self.typestring or "field"} {self.field!r}: {self.reason}>'
+
+
+# PyYAML dispatches on exact type, so an unregistered str subclass raises
+# RepresenterError; a caller dumping parsed records must keep seeing ''.
+for _dumper in ('Dumper', 'SafeDumper', 'CDumper', 'CSafeDumper'):
+    if hasattr(yaml, _dumper):  # the C dumpers need libyaml
+        yaml.add_representer(EmptyField, lambda dumper, data: dumper.represent_str(''),
+                             Dumper=getattr(yaml, _dumper))
+del _dumper
+
+
 class StringParser:
     """
     A parser for fixed-width strings, with a customizable field map.
@@ -208,15 +315,21 @@ class StringParser:
             # using columns beginning with "1" not "0"
             fieldstring = record[byte_range[0] - 1:byte_range[1]]
             fieldstring = fieldstring.rstrip()
+            # a field with no usable value becomes EmptyField -- equal to '' for
+            # every emptiness test, but loud if used as the number its declared
+            # type promises. String fields keep a plain '': there the empty
+            # string is a legitimate value, not a missing one.
             try:
-                # if len(fieldstring)>0 and not typ==str:
-                #     fieldstring=''
-                input_dict[k] = '' if fieldstring == '' else typ(fieldstring)
+                if fieldstring == '':
+                    input_dict[k] = '' if typ == str else EmptyField(k, typestring)
+                else:
+                    input_dict[k] = typ(fieldstring)
             except (ValueError, TypeError):
                 self.nonconformances.append({'field': k, 'kind': f'not coercible to {typestring}',
                                              'byte_range': byte_range, 'value': fieldstring})
                 self.report_field_error(record, k)
-                input_dict[k] = ''
+                input_dict[k] = EmptyField(k, typestring,
+                                           f'not coercible to {typestring} (found {fieldstring!r})')
             if typ == str:
                 input_dict[k] = input_dict[k].strip()
             if fieldstring in self.allowed:

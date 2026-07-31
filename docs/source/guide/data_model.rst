@@ -69,6 +69,41 @@ The keys shown by ``pstr()`` are exactly the attribute names:
 ``continuation`` are hidden by default) and a ``pad`` width for the labels, so
 you can widen or narrow the display or reveal the hidden internals.
 
+.. _empty-fields:
+
+Empty fields
+------------
+
+A PDB record may simply stop before its optional trailing fields, and many
+records leave interior columns blank.  Any such field reads as empty:
+
+>>> c = p.parsed['CONECT'][0]
+>>> c.partner2 == '', bool(c.partner2)
+(True, False)
+
+For a field declared ``String`` that is a plain ``''``.  For a field declared
+``Float``, ``Integer`` or ``HxInteger``, pidibble hands back an
+:class:`~pidibble.baseparsers.EmptyField` instead — still equal to ``''``, still
+falsy, still written back out as blanks, but it refuses to stand in for the
+number its type promises:
+
+>>> c.partner2 * 2                              # doctest: +IGNORE_EXCEPTION_DETAIL
+Traceback (most recent call last):
+TypeError: HxInteger field 'partner2' is empty: absent from the source record.
+It has no value to multiply; test `if rec.partner2 != '':` first.
+
+Without that guard a plain ``''`` would quietly evaluate ``c.partner2 * 2`` to
+``''`` by string repetition, and ``float(c.partner2)`` would raise a
+``ValueError`` naming neither the record nor the field.  Test for emptiness
+before doing arithmetic:
+
+>>> partners = [c.partner1, c.partner2, c.partner3, c.partner4]
+>>> [q for q in partners if q != '']
+[332]
+
+The same applies to records parsed from mmCIF, where the missing-value markers
+``.`` and ``?`` land in the same place — see :doc:`mmcif`.
+
 Residues and other structured sub-fields
 -----------------------------------------
 

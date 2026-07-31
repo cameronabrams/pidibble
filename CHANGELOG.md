@@ -5,6 +5,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Fields declared `Float`, `Integer`, or `HxInteger` that the source record
+  leaves blank (or whose text cannot be coerced) now parse to
+  `baseparsers.EmptyField` rather than a bare `''`. It is a `str` subclass equal
+  to `''`, falsy, written back out as blanks, and accepted anywhere `''` was
+  before — including `record.empty()`, JSON, and YAML — so existing
+  `if field == '':` / `!= ''` checks are unaffected. What it refuses is
+  impersonating a number: `float()`, `int()`, and the arithmetic operators raise
+  `TypeError` naming the field and why it is empty. Previously a blank `Float`
+  field silently evaluated `rec.length * 2` to `''` by string repetition, and
+  `float(rec.length)` raised a `ValueError` identifying neither record nor
+  field. Fields declared `String` are unchanged: there `''` is a legitimate
+  value, not a missing one.
+- The mmCIF path applies the same rule. mmCIF carries no per-attribute type, so
+  a missing value (`.`, `?`, or an omitted attribute) previously came back as a
+  bare `''` whatever the field was; the declared type is now taken from the PDB
+  record spec, at both record and sub-record level (`residue.seqNum` and
+  friends, typed from `custom_formats`). A record read from `.cif` and the same
+  record read from `.pdb` now behave identically. `MMCIF_Parser` takes a new
+  optional `custom_formats` argument to do it.
+- The writer tests' 4ZMJ structure is now a committed fixture rather than a
+  run-time RCSB download, so the unit suite runs offline on a clean checkout and
+  the byte-for-byte round-trip assertions are pinned to a known release.
+
 ### Fixed
 - `baseparsers.safe_float` now recognizes a padded or capitalized NaN sentinel
   (`'   nan'`, `'NaN'`) and not only the bare lowercase string. Float fields are
@@ -16,11 +40,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Regression tests for two previously untested paths: the `safe_float` NaN
   sentinel (`tests/unit/test_baseparsers.py`) and the strict `> 99999` decimal-
   to-hex trip threshold in `hex.AtomSerialParser` (`tests/unit/test_hex.py`).
-
-### Changed
-- The writer tests' 4ZMJ structure is now a committed fixture rather than a
-  run-time RCSB download, so the unit suite runs offline on a clean checkout and
-  the byte-for-byte round-trip assertions are pinned to a known release.
+- An "Empty fields" section in the data-model guide documenting the convention
+  above.
 
 ## [1.8.0] - 2026-07-22
 
