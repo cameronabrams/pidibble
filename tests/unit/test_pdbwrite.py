@@ -20,6 +20,9 @@ ROUNDTRIP_KEYS = ['HEADER', 'CRYST1', 'ATOM', 'HETATM', 'SSBOND', 'LINK', 'CONEC
 
 
 def _load():
+    # 4zmj.pdb is a committed fixture in this directory (pinned to the RCSB
+    # release these byte-exact assertions were written against), so
+    # PDBParser.fetch() finds it locally and never reaches the network.
     p = PDBParser(source_db='rcsb', source_id='4zmj').parse()
     w = PDBWriter(p.pdb_format_dict['record_formats'],
                   p.pdb_format_dict['custom_formats'])
@@ -29,6 +32,21 @@ def _load():
 def _records(parser, key):
     v = parser.parsed[key]
     return list(v) if isinstance(v, (list, PDBRecordList)) else [v]
+
+
+def _assert_serials_equal(expected, got, label):
+    """Compare two long serial-number sequences elementwise.
+
+    Deliberately *not* a bare ``assert expected == got``: on the ~4500
+    near-identical values of a full coordinate section, a mismatch sends
+    pytest's assertion rewriting into difflib's ``_fancy_replace`` recursion,
+    which takes effectively unbounded time and makes a plain regression look
+    like a hung suite. Reporting a bounded slice fails just as loudly, in
+    under a second, and points at the first bad serial.
+    """
+    assert len(got) == len(expected), f'{label}: got {len(got)} records, expected {len(expected)}'
+    mismatch = [(i, e, g) for i, (e, g) in enumerate(zip(expected, got)) if e != g]
+    assert not mismatch, f'{label}: {len(mismatch)} mismatches; first 10: {mismatch[:10]}'
 
 
 def _source_lines():
@@ -259,14 +277,15 @@ def test_big_serial_document_roundtrip(tmp_path):
     assert next(l for l in lines if l.startswith('ATOM'))[6:11] == '186A1'
 
     q = PDBParser(filepath=str(out)).parse()
-    assert [r.serial for r in parser.parsed['ATOM']] == [r.serial for r in q.parsed['ATOM']]
-    assert [r.serial for r in parser.parsed['TER']] == [r.serial for r in q.parsed['TER']]
+    for key in ('ATOM', 'TER'):
+        _assert_serials_equal([r.serial for r in parser.parsed[key]],
+                              [r.serial for r in q.parsed[key]], key)
 
     def conect(rec):
         return (rec.serial,) + tuple(getattr(rec, f)
                                      for f in ('partner1', 'partner2', 'partner3', 'partner4'))
-    assert sorted(conect(r) for r in parser.parsed['CONECT']) == \
-           sorted(conect(r) for r in q.parsed['CONECT'])
+    _assert_serials_equal(sorted(conect(r) for r in parser.parsed['CONECT']),
+                          sorted(conect(r) for r in q.parsed['CONECT']), 'CONECT')
 
 
 def test_assembler_ter_cards(tmp_path):

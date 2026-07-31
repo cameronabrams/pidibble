@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `baseparsers.safe_float` now recognizes a padded or capitalized NaN sentinel
+  (`'   nan'`, `'NaN'`) and not only the bare lowercase string. Float fields are
+  right-justified in fixed-column PDB, so the guard previously almost never
+  fired and `float('nan')` let a NaN propagate silently into coordinates,
+  occupancies, and B-factors.
+
+### Added
+- Regression tests for two previously untested paths: the `safe_float` NaN
+  sentinel (`tests/unit/test_baseparsers.py`) and the strict `> 99999` decimal-
+  to-hex trip threshold in `hex.AtomSerialParser` (`tests/unit/test_hex.py`).
+
+### Changed
+- The writer tests' 4ZMJ structure is now a committed fixture rather than a
+  run-time RCSB download, so the unit suite runs offline on a clean checkout and
+  the byte-for-byte round-trip assertions are pinned to a known release.
+
 ## [1.8.0] - 2026-07-22
 
 ### Added

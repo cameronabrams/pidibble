@@ -257,9 +257,15 @@ class StringParser:
 
 def safe_float(x):
     """
-    Convert a string to a float, returning 0.0 if the string is 'nan'.
+    Convert a string to a float, returning 0.0 if the string denotes NaN.
+
+    Fixed-column float fields are right-justified, so a NaN written by an
+    upstream tool arrives padded (``'     nan'``); the comparison is made on the
+    stripped, case-folded value so those are caught too.  ``float()`` accepts
+    'nan' happily, so without this the sentinel would propagate silently into
+    every downstream calculation.
     """
-    if x == 'nan':
+    if isinstance(x, str) and x.strip().lower() == 'nan':
         return 0.0
     return float(x)
 

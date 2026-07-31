@@ -1,4 +1,6 @@
-# RCSB structures fetched by the tests at run time (re-downloaded each run).
-# Only committed fixtures (e.g. charmm_glycan.pdb) belong in this directory.
-4zmj.pdb
+# RCSB structures fetched by the tests at run time.
+# 4zmj.pdb is deliberately NOT listed here: it is a committed fixture, pinned so
+# the byte-for-byte round-trip assertions cannot break on an RCSB re-release and
+# so the writer tests run offline. Refresh it deliberately (delete it and re-run
+# the suite) if the entry is revised upstream.
 4tvp.pdb
