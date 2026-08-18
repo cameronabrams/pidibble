@@ -22,6 +22,7 @@ Submodules
 
    pidibble.baseparsers
    pidibble.baserecord
+   pidibble.citation
    pidibble.hex
    pidibble.mmcif_parse
    pidibble.pdbparse

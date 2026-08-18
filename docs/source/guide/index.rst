@@ -14,6 +14,7 @@ start with the :doc:`../quickstart`.
    records
    assemblies
    mmcif
+   citations
    large_structures
    nonconformance
    advanced

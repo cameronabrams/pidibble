@@ -25,6 +25,8 @@ from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float, Nonco
 from .baserecord import BaseRecordParser
 from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .mmcif_parse import MMCIF_Parser
+from .citation import (CitationId, citations_from_cif, citations_from_parsed,
+                       citations_from_rcsb, merge_citations)
 from .hex import AtomSerialParser, str2atomSerial, hex_reset
 
 logger = logging.getLogger(__name__)
@@ -465,6 +467,71 @@ class PDBParser:
         else:
             logger.warning(f'No data.')
         return self
+
+    def citations(self, role: str = None, enrich: bool = False, timeout: float = 10):
+        """
+        Return the papers this entry credits, as normalized
+        :class:`~pidibble.citation.Citation` objects.
+
+        The same citations come back whether the entry was read as PDB or as
+        mmCIF. An mmCIF source gives more: proper title case, the last page,
+        and the journal's full name, none of which the PDB format carries. Pass
+        ``enrich=True`` to fetch those from the RCSB Data API when the source
+        was a ``.pdb`` file.
+
+        Parameters
+        ----------
+        role : str, optional
+            Keep only citations in this role -- ``'primary'`` (the paper
+            describing this structure), ``'related'`` (earlier work the entry
+            cites) or ``'original_data'``. Default: all of them, primary first.
+        enrich : bool, optional
+            Contact the RCSB Data API to fill in what the local file cannot
+            carry (default False). **This is the only part of this method that
+            touches the network**; it is off unless asked for, and a failed
+            request is logged and ignored rather than raised.
+        timeout : float, optional
+            Socket timeout for the enrichment request, in seconds.
+
+        Returns
+        -------
+        list of :class:`~pidibble.citation.Citation`
+            Empty if the entry names no papers.
+        """
+        pdb_id = self.source_id or getattr(self.parsed.get('HEADER'), 'idCode', '') or ''
+        if self.input_format == 'mmCIF' and self.cif_data:
+            cits = citations_from_cif(self.cif_data, pdb_id)
+        else:
+            cits = citations_from_parsed(self.parsed, pdb_id)
+        if enrich and pdb_id:
+            cits = merge_citations(cits, citations_from_rcsb(pdb_id, timeout=timeout))
+        if role is not None:
+            cits = [c for c in cits if c.role == role]
+        return cits
+
+    def citation_ids(self, role: str = None):
+        """
+        Return just the identifiers -- DOI and PMID -- for the papers this entry
+        credits.
+
+        These name a paper unambiguously and cannot be wrong the way a
+        reconstructed reference string can, so this is the right call for a
+        caller that resolves the bibliographic detail itself. It never touches
+        the network.
+
+        Parameters
+        ----------
+        role : str, optional
+            Keep only citations in this role; default all, primary first.
+
+        Returns
+        -------
+        list of :class:`~pidibble.citation.CitationId`
+            Citations carrying neither a DOI nor a PMID are omitted -- there is
+            nothing to resolve them by.
+        """
+        return [CitationId(pdb_id=c.pdb_id, id=c.id, role=c.role, doi=c.doi, pmid=c.pmid)
+                for c in self.citations(role=role) if c.doi or c.pmid]
 
     def write_PDB(self, filename: str = None, anisou: bool = True, include_master: bool = True,
                   dialect: str = None):

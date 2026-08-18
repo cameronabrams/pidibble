@@ -12,11 +12,21 @@ from .pdbrecord import PDBRecord, PDBRecordDict, PDBRecordList
 from .baserecord import BaseRecord
 from .baseparsers import EmptyField
 import logging
+import re
 logger = logging.getLogger(__name__)
 
 # mmCIF spells a missing value '.' (inapplicable) or '?' (unknown); an attribute
 # the file simply omits is missing too. rectify() flattens all three to ''.
 MMCIF_EMPTY_REASON = "absent from the mmCIF ('.', '?', or attribute not present)"
+
+# mmCIF keeps every citation -- the structure's own paper and any prior work --
+# in one `citation` table, with authors in `citation_author` joined on
+# citation_id. The PDB format splits the same information across JRNL (the
+# structure's own paper, `citation.id == 'primary'`) and REMARK 1 REFERENCE n
+# (everything else). _citation_records() emits both shapes so a parse reads the
+# same whichever file format it came from.
+CITATION_CATEGORIES = ('citation', 'citation_author')
+ISSN_RE = re.compile(r'^\d{4}-\d{3}[\dxX]$')
 
 def _is_bare_empty(value):
     """True for a plain empty string -- not for one already guarded, and not for
@@ -73,6 +83,33 @@ def rectify(val):
     except ValueError:
         pass
     return val
+
+# mmCIF stores citation authors as 'Pancera, M.'; the PDB JRNL AUTH record
+# stores the same name as 'M.PANCERA'. Both forms are useful, so keep the
+# record layer in the PDB form (that is what a .pdb-sourced parse yields) and
+# let the citation layer hand back the mmCIF form as the normalized one.
+def pdb_author_name(name):
+    """
+    Convert an mmCIF citation-author name to the PDB ``JRNL AUTH`` form.
+
+    Parameters
+    ----------
+    name : str
+        A name as mmCIF spells it, e.g. ``'Pancera, M.'`` or ``'Bergsten, P.-C.'``.
+
+    Returns
+    -------
+    str
+        The PDB spelling, e.g. ``'M.PANCERA'``, ``'P.-C.BERGSTEN'``. A name with
+        no comma is simply upper-cased.
+    """
+    name = str(name).strip()
+    if ',' not in name:
+        return name.upper()
+    last, initials = (x.strip() for x in name.split(',', 1))
+    if initials and not initials.endswith('.'):
+        initials += '.'
+    return f'{initials}{last}'.upper()
 
 class MMCIF_Parser:
     """
@@ -448,6 +485,142 @@ class MMCIF_Parser:
             if spec is not None and _is_bare_empty(v) and spec[0] != 'String':
                 setattr(record, k, EmptyField(k, spec[0], MMCIF_EMPTY_REASON))
 
+    def _citation_subformat(self, subkey):
+        """Return the PDB ``JRNL`` sub-record format for ``subkey`` (``'AUTH'``,
+        ``'TITL'``, ...), or ``{}`` if the format spec has no such sub-record."""
+        jrnl = self.pdb_formats.get('JRNL', {})
+        return jrnl.get('subrecords', {}).get('formats', {}).get(subkey, {})
+
+    def _citation_authors(self):
+        """Group ``citation_author`` names by ``citation_id``, in ordinal order."""
+        auth = self.cif_data.getObj('citation_author')
+        by_id = {}
+        if auth is None:
+            return by_id
+        rows = [auth.getRowAttributeDict(i) for i in range(len(auth))]
+
+        def ordinal(row):
+            try:
+                return int(row.get('ordinal', 0))
+            except (TypeError, ValueError):
+                return 0
+
+        for row in sorted(rows, key=ordinal):
+            name = str(row.get('name', '')).strip()
+            if name and name not in '.?':
+                by_id.setdefault(str(row.get('citation_id', '')).strip(), []).append(name)
+        return by_id
+
+    def _citation_subrecords(self, row, authors):
+        """
+        Lay one ``citation`` row out as the PDB ``JRNL`` sub-records that carry
+        the same information.
+
+        Only sub-records the row actually populates are emitted -- a ``.pdb``
+        file likewise carries no ``JRNL DOI`` line when it has no DOI, so a
+        caller can test for the key either way.
+
+        Parameters
+        ----------
+        row : dict
+            One ``citation`` row as ``{attribute: value}``.
+        authors : list of str
+            The names from ``citation_author`` for this citation, in order.
+
+        Returns
+        -------
+        dict
+            ``{subkey: {field: value}}``, e.g. ``{'TITL': {'title': '...'}}``.
+        """
+        def val(attr):
+            return rectify(row.get(attr, ''))
+
+        def caps(attr):
+            v = val(attr)
+            return v.upper() if isinstance(v, str) else v
+
+        out = {}
+        if authors:
+            out['AUTH'] = {'authorList': [pdb_author_name(a) for a in authors]}
+        if val('title'):
+            out['TITL'] = {'title': str(val('title')).upper()}
+        journal = caps('journal_abbrev') or caps('journal_full') or caps('book_title')
+        volume, page, year = val('journal_volume'), val('page_first'), val('year')
+        if journal or volume or page or year:
+            out['REF'] = {'pubName': journal,
+                          'volumelabel': 'V.' if volume != '' else '',
+                          'volume': str(volume),
+                          'page': str(page),
+                          'year': year}
+        if val('book_publisher'):
+            out['PUBL'] = {'pub': caps('book_publisher')}
+        # mmCIF records an ISSN without saying whether it is the print or the
+        # electronic one, so REFN comes back as ISSN even where the .pdb file
+        # says ESSN. A book's ISBN belongs in book_id_ISBN but is often filed
+        # under journal_id_ISSN instead, so classify by shape: an ISSN is
+        # NNNN-NNNC, anything else that long is an ISBN.
+        isbn, issn = val('book_id_ISBN'), val('journal_id_ISSN')
+        serial = str(isbn or issn)
+        if serial:
+            kind = 'ISSN' if (not isbn and ISSN_RE.match(serial)) else 'ISBN'
+            out['REFN'] = {'issnORessn': kind, 'issn': serial}
+        # -1 is mmCIF's 'no PubMed ID', not an identifier; a .pdb file simply
+        # carries no JRNL PMID line in that case.
+        pmid = val('pdbx_database_id_PubMed')
+        if isinstance(pmid, int) and pmid > 0:
+            out['PMID'] = {'pmid': pmid}
+        if val('pdbx_database_id_DOI'):
+            out['DOI'] = {'doi': str(val('pdbx_database_id_DOI')).upper()}
+        return out
+
+    def _citation_records(self, recdict):
+        """
+        Add ``JRNL.*`` and ``REMARK.1.REFERENCE<n>.*`` records built from the
+        mmCIF ``citation``/``citation_author`` categories.
+
+        The ``citation.id == 'primary'`` row -- the paper describing this
+        structure -- becomes ``JRNL``; every other row becomes a numbered
+        ``REMARK 1`` reference, matching how the PDB format files the same data.
+
+        Parameters
+        ----------
+        recdict : PDBRecordDict
+            The record dictionary being assembled; modified in place.
+        """
+        cit = self.cif_data.getObj('citation')
+        if cit is None or not len(cit):
+            return
+        by_id = self._citation_authors()
+        nonprimary = 0
+        for i in range(len(cit)):
+            row = cit.getRowAttributeDict(i)
+            cid = str(row.get('id', '')).strip()
+            if cid == 'primary':
+                base = 'JRNL'
+            else:
+                nonprimary += 1
+                # mmCIF numbers the non-primary citations 1, 2, 3 ... exactly as
+                # REMARK 1 does; fall back to our own count if it does not.
+                base = f'REMARK.1.REFERENCE{cid if cid.isdigit() else nonprimary}'
+            for subkey, fields in self._citation_subrecords(row, by_id.get(cid, [])).items():
+                key = f'{base}.{subkey}'
+                fields = self._guard_citation_fields(subkey, fields)
+                fields['key'] = key
+                fields['continuation'] = '0'
+                rec = PDBRecord(fields)
+                rec.format = self._citation_subformat(subkey)
+                recdict[key] = rec
+
+    def _guard_citation_fields(self, subkey, fields):
+        """Apply :meth:`_guard_empty_fields`' rule using the ``JRNL`` sub-record
+        format, which :attr:`pdb_formats` does not expose under a dotted key."""
+        spec_fields = self._citation_subformat(subkey).get('fields', {})
+        for k, v in fields.items():
+            spec = spec_fields.get(k)
+            if spec is not None and _is_bare_empty(v) and spec[0] != 'String':
+                fields[k] = EmptyField(k, spec[0], MMCIF_EMPTY_REASON)
+        return fields
+
     def parse(self):
         """
         Parse the mmCIF data and generate a dictionary of :class:`pdbrecord.PDBRecord` instances.
@@ -473,12 +646,13 @@ class MMCIF_Parser:
                 else:
                     idict['key'] = reckey
                     recdict[reckey] = PDBRecord(idict)
+        self._citation_records(recdict)
         self._report_unmapped_categories()
         return recdict
 
     def _referenced_categories(self):
         """Return the set of mmCIF category names any mapspec reads from."""
-        cats = set()
+        cats = set(CITATION_CATEGORIES)
         for mapspec in self.formats.values():
             cats.add(mapspec.get('data_obj'))
             for directive in ('merge', 'join'):

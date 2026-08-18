@@ -682,6 +682,12 @@ record_formats:
             title: [String,[20,79]]
           continues:
             - title
+        EDIT:
+          fields:
+            continuation: [String,[17,18]]
+            editorList: [CList,[20,79]]
+          continues:
+            - editorList
         REF:
           fields:
             continuation: [String,[17,18]]

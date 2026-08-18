@@ -5,6 +5,59 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `PDBParser.citations()` returns the papers an entry credits as normalized
+  `citation.Citation` dataclasses — title, authors, journal, volume, pages,
+  year, DOI, PMID, ISSN/ISBN, publisher, editors, ORCIDs — with a `role` of
+  `'primary'` (the paper describing the structure), `'related'` (earlier work
+  the entry cites) or `'original_data'`. The same citations come back whether
+  the entry was read as PDB or as mmCIF, so a caller crediting the science
+  behind a model no longer has to know which format it read.
+- `PDBParser.citation_ids()` returns just DOI and PMID as `citation.CitationId`
+  objects, for callers that resolve the bibliographic detail themselves.
+  Identifiers cannot be wrong the way a reconstructed reference string can.
+- `citation.Citation.reference_string()` renders a single-line reference for a
+  "please cite" report; `asdict()` gives a plain dict for callers that would
+  rather not depend on the dataclass. `doi_url`/`pubmed_url` give resolvable
+  links.
+- Opt-in `citations(enrich=True)` queries the RCSB Data API — the records the
+  RCSB entry page shows — and overlays properly-cased titles and journals, the
+  last page, ORCIDs, and authors in their own capitalization, none of which the
+  PDB format can carry. **Every other citation call is offline**: a failed
+  request is logged and ignored, never raised.
+- The mmCIF path reads the `citation` and `citation_author` categories, which
+  it previously dropped entirely, and emits them as `JRNL.*` and
+  `REMARK.1.REFERENCE<n>.*` records. Code reading `parsed` directly now sees
+  the same citation records from either input format.
+- `JRNL`/`REMARK 1` gained the `EDIT` sub-record (a book reference's editors),
+  which the format spec previously had no slot for; it fell through to the
+  base record and lost its field structure.
+
+### Fixed
+- `REMARK 1` blocks holding more than one reference collapsed into a single
+  `REMARK.1.REFERENCE1` record: because the format separates `REFERENCE 1`,
+  `REFERENCE 2`, ... with no blank line, embedded-record capture never left the
+  first block, and continuation merging then concatenated every reference's
+  authors into one list and every title into one string. Each reference is now
+  its own `REMARK.1.REFERENCE<n>.*` group. 1CA2 went from 1 mangled reference
+  to its actual 4; 1LYZ, from 1 to 12. `REMARK 0`'s `ORIGREF` embeds are fixed
+  by the same change. A block now also ends at a blank line without abandoning
+  the scan, so a later reference in the same remark is still found.
+- Citations come back in a deterministic order — primary, then numbered
+  references counting up. mmCIF does not oblige its `citation` rows to appear
+  in id order (4HHB files them 1, 3, 4, 5, 6, 2, 7, 8) while `REMARK 1` always
+  counts up, so the two paths disagreed on order for such entries.
+- `-1`, which mmCIF and the RCSB API use for "this paper has no PubMed ID"
+  (1MBN, for one), is no longer reported as a PMID, and no longer produces a
+  `JRNL.PMID` record from an mmCIF source. A `.pdb` file simply carries no
+  `JRNL PMID` line in that case, so the paths agree again.
+
+Verified across 35 entries: PDB- and mmCIF-sourced citations now agree exactly
+on roles, identifiers, years, volumes, pages and author lists. The one thing a
+PDB-format source cannot reproduce is capitalization — it stores
+`A.B.MCDERMOTT`, from which `McDermott, A.B.` is not recoverable — so read the
+mmCIF or pass `enrich=True` where the exact rendering matters.
+
 ## [1.9.0] - 2026-07-31
 
 ### Changed

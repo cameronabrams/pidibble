@@ -370,18 +370,27 @@ class PDBRecord(BaseRecord):
             current_division = 0
             state = self._EmbedState.SEARCHING
 
+            def start_block(record):
+                """Consume a signal line: name the block from its index and say
+                which state capture resumes in."""
+                nonlocal embedkey, token_hold, header_hold, lskip, current_division
+                idx = None if not ctx['idxparse'] else ctx['idxparse'](record).record_index
+                embedkey = f'{base_key}.{ename}' + (str(idx) if idx else '')
+                token_hold = {}
+                header_hold = []
+                lskip = 0
+                current_division = 0
+                if not ctx['skiplines'] and not ctx['tokenize'] and not ctx['headers']:
+                    return self._EmbedState.CAPTURING
+                return self._EmbedState.PRE_CAPTURE
+
             for record in self.__dict__[embedfrom]:
                 if state == self._EmbedState.SEARCHING:
                     sigrec = ctx['sigparse'](record)
                     if sigrec.signal != espec['value']:
                         logger.debug(f'Ignoring {record}')
                         continue
-                    idx = None if not ctx['idxparse'] else ctx['idxparse'](record).record_index
-                    embedkey = f'{base_key}.{ename}' + (str(idx) if idx else '')
-                    if not ctx['skiplines'] and not ctx['tokenize'] and not ctx['headers']:
-                        state = self._EmbedState.CAPTURING
-                    else:
-                        state = self._EmbedState.PRE_CAPTURE
+                    state = start_block(record)
 
                 elif state == self._EmbedState.PRE_CAPTURE:
                     if ctx['skiplines']:
@@ -407,9 +416,20 @@ class PDBRecord(BaseRecord):
                         logger.debug(f'First capture into division {current_division}')
 
                 elif state == self._EmbedState.CAPTURING:
+                    # a further signal line opens the *next* block rather than
+                    # continuing this one -- REMARK 1 runs its REFERENCE 1, 2,
+                    # 3 ... back to back with no blank line between them, so
+                    # without this every reference would merge into REFERENCE1.
+                    if ctx['sigparse'](record).signal == espec['value']:
+                        logger.debug(f'New embed block for {ename} from record {record}')
+                        state = start_block(record)
+                        continue
                     if ctx['terparse'](record).blank == '':
+                        # end of this block; keep scanning -- a later signal line
+                        # starts a new one.
                         logger.debug(f'Terminate embed capture for {embedkey} from record {record}')
-                        break
+                        state = self._EmbedState.SEARCHING
+                        continue
                     logger.debug(f'Parsing "{record}"')
                     if ctx['tokenize']:
                         is_ht = header_or_token(record, ctx['tokenize']['d'], ctx['headers'],
