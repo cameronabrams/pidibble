@@ -416,3 +416,194 @@ def test_unknown_dialect_rejected():
     except ValueError:
         return
     raise AssertionError('expected ValueError for an unknown dialect')
+
+
+# --- JRNL serialized from mmCIF -------------------------------------------
+#
+# A .pdb source round-trips JRNL by passthrough (test_type6_passthrough_verbatim
+# above). An mmCIF source has no JRNL lines to pass through, so the block is
+# serialized from the JRNL.* sub-records the `citation` category supplies. The
+# correctness gate is the entry's own .pdb file: the two are committed
+# fixtures of the same release, so the emitted block should match it exactly.
+# They live in ../test_rcsb rather than being duplicated here (1ca2.cif alone
+# is 276K).
+
+CIF_1CA2 = '../test_rcsb/1ca2.cif'
+PDB_1CA2 = '../test_rcsb/1ca2.pdb'
+CIF_4ZMJ = '../test_rcsb/4zmj.cif'
+PDB_4ZMJ = '../test_rcsb/4zmj.pdb'
+
+
+def _jrnl(lines):
+    return [l for l in lines if l[:6].strip() == 'JRNL']
+
+
+def _source_jrnl(path):
+    return [l.rstrip() for l in open(path) if l[:6].strip() == 'JRNL']
+
+
+def _emit_jrnl_block(parser):
+    """Emit just the JRNL block, without assembling a whole document.
+
+    Full CIF-to-PDB assembly is unrelatedly broken for some entries (mmCIF puts
+    struct_conn.id, e.g. 'disulf1', into the Integer SSBOND.serNum), so the
+    tests that need only the JRNL block drive the writer directly.
+    """
+    from pidibble.pdbwrite import JRNL_SUBKEYS
+    w = PDBWriter(parser.record_formats, parser.pdb_format_dict['custom_formats'])
+    subfmts = parser.record_formats['JRNL']['subrecords']['formats']
+    out = []
+    for subkey in JRNL_SUBKEYS:
+        rec = parser.parsed.get(f'JRNL.{subkey}')
+        if rec is not None and subkey in subfmts:
+            out.extend(w.emit_subrecord(rec, 'JRNL', subkey, subfmts[subkey]))
+    return out
+
+
+def test_jrnl_from_mmcif_is_byte_identical_to_the_pdb_file(tmp_path):
+    """The whole JRNL block, rebuilt from mmCIF, matches the entry's own .pdb."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_1CA2).parse()
+    emitted = _jrnl(p.write_PDB(str(tmp_path / 'x.pdb')))
+    assert emitted == _source_jrnl(PDB_1CA2)
+    assert len(emitted) == 7          # AUTH, TITL x2, REF, REFN, PMID, DOI
+
+
+def test_jrnl_from_mmcif_wraps_a_long_author_list_like_the_pdb():
+    """4ZMJ has 53 authors across 10 AUTH lines. The separator trails the line
+    it ends, and packing keeps a column free for it."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_4ZMJ).parse()
+    emitted = _emit_jrnl_block(p)
+    want = _source_jrnl(PDB_4ZMJ)
+
+    auth = [l for l in emitted if l[12:16] == 'AUTH']
+    assert len(auth) == 10
+    assert [l for l in want if l[12:16] == 'AUTH'] == auth
+    # every continued line ends with the separator; the last one does not
+    assert all(l.rstrip().endswith(',') for l in auth[:-1])
+    assert not auth[-1].rstrip().endswith(',')
+    assert all(len(l.rstrip()) <= 80 for l in emitted)
+
+    # the entry's ESSN is the sole thing mmCIF cannot supply (it records an
+    # ISSN without saying whether it is the print or the electronic one)
+    diffs = [(a, b) for a, b in zip(emitted, want) if a != b]
+    assert len(emitted) == len(want)
+    assert diffs == [(next(l for l in emitted if l[12:16] == 'REFN'),
+                      next(l for l in want if l[12:16] == 'REFN'))]
+    assert diffs[0][0].replace('ISSN', 'ESSN') == diffs[0][1]
+
+
+def test_jrnl_from_mmcif_reparses_to_the_same_records(tmp_path):
+    """The emitted block re-parses to the sub-records it was built from."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_1CA2).parse()
+    # re-parse the emitted JRNL block on its own: a whole assembled document
+    # would trip over unrelated CIF-to-PDB breakage (see _emit_jrnl_block)
+    out = tmp_path / 'jrnl.pdb'
+    out.write_text('\n'.join(_emit_jrnl_block(p)) + '\nEND\n')
+    q = PDBParser(filepath=str(out)).parse()
+    assert q.parsed['JRNL.AUTH'].authorList == p.parsed['JRNL.AUTH'].authorList
+    assert q.parsed['JRNL.TITL'].title == p.parsed['JRNL.TITL'].title
+    assert q.parsed['JRNL.REF'].year == p.parsed['JRNL.REF'].year
+    assert q.parsed['JRNL.REF'].volume == p.parsed['JRNL.REF'].volume
+    assert q.parsed['JRNL.PMID'].pmid == p.parsed['JRNL.PMID'].pmid
+    assert q.parsed['JRNL.DOI'].doi == p.parsed['JRNL.DOI'].doi
+    # the citation survives the write cycle in everything the PDB format can
+    # carry. Title case and last_page are not among those things -- the mmCIF
+    # holds them and a .pdb cannot, which is the documented asymmetry.
+    before, after = p.citations()[0], q.citations()[0]
+    assert (after.authors, after.doi, after.pmid, after.year) == \
+           (before.authors, before.doi, before.pmid, before.year)
+    assert (after.journal, after.volume, after.first_page) == \
+           (before.journal.upper(), before.volume, before.first_page)
+    assert after.title == before.title.upper()
+
+
+def test_pdb_source_still_passes_jrnl_through_verbatim(tmp_path):
+    """Serialization is the mmCIF fallback only: a .pdb source keeps the
+    byte-exact passthrough, even where the two would differ."""
+    p = PDBParser(filepath=PDB_4ZMJ).parse()
+    emitted = _jrnl(p.write_PDB(str(tmp_path / 'x.pdb')))
+    assert emitted == _source_jrnl(PDB_4ZMJ)
+    assert any('ESSN' in l for l in emitted)      # the passthrough kept it
+
+
+def test_remark_is_still_omitted_for_an_mmcif_source(tmp_path, caplog):
+    """REMARK is not regenerated: its free text is held as an LList whose line
+    breaks the parser discards, so it cannot be reproduced faithfully."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_1CA2).parse()
+    with caplog.at_level(logging.INFO):
+        lines = p.write_PDB(str(tmp_path / 'x.pdb'))
+    assert not [l for l in lines if l[:6].strip() == 'REMARK']
+    assert _jrnl(lines)                            # but JRNL is there
+    assert any('REMARK' in r.message for r in caplog.records)
+
+
+def test_break_long_token_prefers_a_comma_boundary():
+    """A journal name too wide for its column breaks after a comma rather than
+    being clipped: PHILOS.TRANS.R.SOC.LONDON, / SER.B (4INS)."""
+    assert PDBWriter._break_long_token('PHILOS.TRANS.R.SOC.LONDON,SER.B', 28) == \
+           ['PHILOS.TRANS.R.SOC.LONDON,', 'SER.B']
+    # no comma to break at: a hard break, but nothing is lost
+    assert ''.join(PDBWriter._break_long_token('A' * 70, 28)) == 'A' * 70
+    assert PDBWriter._break_long_token('SHORT', 28) == ['SHORT']
+
+
+def test_pack_items_reserves_a_column_only_while_items_remain():
+    """The trailing separator is owed on every line but the last, so the last
+    line may use the full width."""
+    # 'aaaa,bbbb' is 9 wide; with a trailing ',' it would be 10
+    assert PDBWriter._pack_items(['aaaa', 'bbbb'], ',', 9, reserve=1) == [['aaaa', 'bbbb']]
+    # a third item makes the first line owe its comma, forcing the wrap earlier
+    assert PDBWriter._pack_items(['aaaa', 'bbbb', 'cc'], ',', 9, reserve=1) == \
+           [['aaaa'], ['bbbb', 'cc']]
+
+
+# --- a whole document written from mmCIF ----------------------------------
+
+def test_cif_sourced_document_round_trips(tmp_path):
+    """mmCIF -> write_PDB -> re-parse. Previously this raised: the mmCIF
+    mapping put struct_conn.id ('disulf1') into the Integer SSBOND.serNum."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_4ZMJ).parse()
+    q = PDBParser(filepath=str(tmp_path / 'x.pdb')).parse() if \
+        p.write_PDB(str(tmp_path / 'x.pdb')) else None
+    assert q is not None
+    assert [r.serNum for r in p.parsed['SSBOND']] == [r.serNum for r in q.parsed['SSBOND']]
+    # the entry's paper survives the whole trip
+    assert [(c.doi, c.pmid) for c in q.citation_ids(role='primary')] == \
+           [(c.doi, c.pmid) for c in p.citation_ids(role='primary')]
+
+
+def test_contentless_card_is_omitted_not_written_blank(tmp_path, caplog):
+    """An mmCIF COMPND carries molID/molName/chains, not the raw `compound`
+    SList the PDB declares, so there is nothing to write. Emitting a bare
+    'COMPND' produced a non-conformant record that broke re-parsing."""
+    p = PDBParser(input_format='mmCIF', filepath=CIF_1CA2).parse()
+    assert 'COMPND' in p.parsed                      # the record is there
+    with caplog.at_level(logging.INFO):
+        lines = p.write_PDB(str(tmp_path / 'x.pdb'))
+    for card in ('COMPND', 'SOURCE'):
+        assert not [l for l in lines if l[:6].strip() == card], f'blank {card} written'
+    assert any('no writable content' in r.message for r in caplog.records)
+    PDBParser(filepath=str(tmp_path / 'x.pdb')).parse()   # re-parses cleanly
+
+
+def test_a_record_with_no_continued_content_but_other_fields_is_kept(tmp_path):
+    """The omission rule tests the rendered line, not one field: a REVDAT
+    initial-release entry has an empty `records` list but real modNum/date."""
+    parser, _ = _load()
+    lines = parser.write_PDB(str(tmp_path / 'x.pdb'))
+    q = PDBParser(filepath=str(tmp_path / 'x.pdb')).parse()
+    assert len(q.parsed['REVDAT']) == len(parser.parsed['REVDAT'])
+    initial = [r for r in q.parsed['REVDAT'] if not r.records]
+    assert initial and all(r.modNum and r.modDate for r in initial)
+
+
+def test_parse_tokens_survives_a_non_list_field(caplog):
+    """A malformed tokenized card must not abort the parse. It used to assert."""
+    fmt = {'fields': {'continuation': ['String', [9, 10]],
+                      'compound': ['SList', [11, 80]]},
+           'token_formats': {'compound': {'tokens': {'MOL_ID': {'type': 'Integer'}}}}}
+    rec = PDBRecord({'key': 'COMPND', 'compound': '', 'format': fmt})
+    with caplog.at_level(logging.WARNING):
+        rec.parse_tokens({})
+    assert rec.tokengroups == {'compound': {}}
+    assert any('not a list of token-strings' in r.message for r in caplog.records)

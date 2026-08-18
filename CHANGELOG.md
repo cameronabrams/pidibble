@@ -5,6 +5,58 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `JRNL` is now serialized when the input was mmCIF, instead of being dropped.
+  The writer re-emits `JRNL`/`REMARK` verbatim from the source `.pdb` lines,
+  and an mmCIF parse has none — so a CIF-to-PDB conversion silently lost the
+  entry's own paper, even though 1.10.0 puts it in `parsed` as `JRNL.*`
+  sub-records. `PDBWriter.emit_subrecord()` renders those: the card in cols
+  1-6, the sub-record name in cols 13-16, and the sub-record's own field spec
+  from col 17 on, wrapped across numbered continuation lines where it declares
+  a `continues` field. A `.pdb` source keeps the byte-exact passthrough; this
+  is the mmCIF fallback only.
+  Across 35 entries the rebuilt block is byte-identical to the entry's own
+  `.pdb` file for 27. The other 8 differ in exactly one character: mmCIF
+  records an ISSN without saying whether it is the print or the electronic
+  one, so `REFN` comes back `ISSN` where the `.pdb` says `ESSN`. That
+  distinction is absent from the source data and cannot be recovered.
+- A `sep` writer hint for list-valued fields, for a separator the type default
+  does not fit: `JRNL`'s author list is comma-separated with no space, unlike
+  `COMPND`'s. A field carrying the hint also gets the PDB's wrapping
+  convention, where the separator stays at the end of the line it ends rather
+  than leading the next one.
+
+### Fixed
+- A token wider than its own column was clipped and its tail silently lost.
+  Long journal names now break after a comma, as the PDB does — 4INS emits
+  `PHILOS.TRANS.R.SOC.LONDON,` / `SER.B` across a `REF 2` continuation instead
+  of truncating to `PHILOS.TRANS.R.SOC.LONDON,SE`.
+
+- Assembling a whole PDB document from an mmCIF parse raised
+  `ValueError: invalid literal for int() with base 10: 'disulf1'` for any entry
+  with disulfides — so most real structures. The mmCIF mapping put
+  `struct_conn.id`, an arbitrary label, into `SSBOND.serNum`, which the PDB
+  spec declares `Integer`; the value was wrong from the moment it was parsed
+  and only surfaced on write. mmCIF has no counterpart to the PDB's 1..N
+  disulfide serial, so it is now generated, via a new `enumerate` directive in
+  the mmCIF mapspec. A survey of every numeric PDB field across 20 entries
+  found this was the only place a non-numeric mmCIF value reached one.
+- Re-parsing an mmCIF-sourced document asserted in `parse_tokens`
+  (`Invalid type <class 'EmptyField'> ... expecting a list of token-strings`).
+  Two causes, both fixed: the writer emitted a bare `COMPND`/`SOURCE` card
+  when there was no content to put in it, and the tokenizer aborted the whole
+  parse on such a card rather than skipping it. A continuation record that
+  renders as nothing but its card name is now omitted and logged — the test is
+  the rendered line, not any one field, so a record with no continued content
+  but real other fields (a `REVDAT` initial-release entry, whose `records`
+  list is empty) is still written.
+
+  Note that an mmCIF-sourced `COMPND`/`SOURCE` genuinely has nothing to write:
+  that path carries the tokenized attributes (`molID`, `molName`, `chains`)
+  rather than the raw `compound` SList the PDB format declares. Reconstructing
+  the PDB spelling from them is a separate piece of work; for now the cards are
+  absent from the output rather than present and malformed.
+
 ## [1.10.0] - 2026-08-18
 
 ### Added

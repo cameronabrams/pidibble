@@ -119,5 +119,28 @@ Current limitations
 The mmCIF path is deliberately scoped to what downstream consumers need.  It does
 not yet group atoms into ``MODEL``/``ENDMDL`` structures for multi-model files,
 and it maps a subset of the file's categories (records such as ``ANISOU``,
-``CONECT``, ``DBREF``, ``SITE``, ``FORMUL``/``HETNAM``, ``REVDAT`` and ``JRNL``
-are PDB-only for now).  The :doc:`record_reference` is the authoritative list.
+``CONECT``, ``DBREF``, ``SITE``, ``FORMUL``/``HETNAM`` and ``REVDAT`` are
+PDB-only for now).  The :doc:`record_reference` is the authoritative list.
+
+Writing back out
+----------------
+
+``write_PDB()`` re-emits ``JRNL`` and ``REMARK`` verbatim from the source
+``.pdb`` lines, which an mmCIF parse does not have.  ``JRNL`` is therefore
+rebuilt from the ``JRNL.*`` sub-records the ``citation`` category supplies, so
+the entry's own paper survives the conversion; see :doc:`citations`.  The
+rebuilt block matches the entry's own ``.pdb`` file byte for byte, apart from
+one character it cannot know: mmCIF records an ISSN without saying whether it
+is the print or the electronic one, so ``REFN`` reads ``ISSN`` where the
+``.pdb`` says ``ESSN``.
+
+``REMARK`` is *not* rebuilt.  Most of its content is free text held as an
+``LList`` whose line breaks the parser discards, so it cannot be reproduced
+faithfully; it is omitted and reported to the logger.
+
+``COMPND`` and ``SOURCE`` are likewise absent from the output.  The mmCIF path
+carries them as tokenized attributes (``molID``, ``molName``, ``chains``)
+rather than as the raw ``compound``/``srcName`` list the PDB format declares,
+so there is nothing in the PDB's own spelling to write.  Rather than emit a
+bare card name — which is not a conformant record, and which the tokenizer
+cannot re-read — pidibble omits the card and says so at ``INFO``.

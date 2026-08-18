@@ -689,6 +689,17 @@ class Test_mmCIF(unittest.TestCase):
             self.assertEqual(self._res(ps.residue1), self._res(cs.residue1_auth))
             self.assertEqual(self._res(ps.residue2), self._res(cs.residue2_auth))
 
+    def test_cif_ssbond_sernum_is_the_pdb_serial(self):
+        """serNum is declared Integer. mmCIF has no counterpart -- struct_conn.id
+        is an arbitrary label ('disulf1') -- so the 1..N serial is generated."""
+        css = self._aslist(self.mmCIF, 'SSBOND')
+        pss = self._aslist(self.pdb, 'SSBOND')
+        self.assertGreater(len(css), 0)
+        self.assertEqual([cs.serNum for cs in css], list(range(1, len(css) + 1)))
+        self.assertEqual([cs.serNum for cs in css], [ps.serNum for ps in pss])
+        for cs in css:
+            self.assertIsInstance(cs.serNum, int)
+
     def test_cif_pdb_correspondence_seqadv(self):
         psa = self._aslist(self.pdb, 'SEQADV')
         csa = self._aslist(self.mmCIF, 'SEQADV')

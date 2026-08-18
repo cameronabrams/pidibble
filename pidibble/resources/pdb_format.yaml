@@ -673,7 +673,7 @@ record_formats:
         AUTH:
           fields:
             continuation: [String,[17,18]]
-            authorList: [CList,[20,79]]
+            authorList: [CList,[20,79],{sep: ','}]
           continues:
             - authorList
         TITL:
@@ -685,7 +685,7 @@ record_formats:
         EDIT:
           fields:
             continuation: [String,[17,18]]
-            editorList: [CList,[20,79]]
+            editorList: [CList,[20,79],{sep: ','}]
           continues:
             - editorList
         REF:
@@ -693,8 +693,8 @@ record_formats:
             continuation: [String,[17,18]]
             pubName: [String,[20,47]]
             volumelabel: [String,[50,51]]
-            volume: [String,[52,55]]
-            page: [String,[57,61]]
+            volume: [String,[52,55],{just: right}]
+            page: [String,[57,61],{just: right}]
             year: [Integer,[63,66]]
           continues:
             - pubName
@@ -710,7 +710,7 @@ record_formats:
             issn: [String,[41,65]]
         PMID:
           fields:
-            pmid: [Integer,[20,79]]
+            pmid: [Integer,[20,79],{just: left}]
         DOI:
           fields:
             doi: [String,[20,79]]

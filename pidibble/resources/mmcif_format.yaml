@@ -143,8 +143,12 @@ SSBOND:
   data_obj: struct_conn
   signal_attr: conn_type_id
   signal_value: disulf
+  # the PDB numbers disulfides 1..N. mmCIF has no counterpart: struct_conn.id
+  # is an arbitrary label ('disulf1'), not a number, so generate the serial
+  # rather than mapping a string into an Integer field.
+  enumerate:
+    - serNum
   attr_map: 
-    serNum: id
     sym1: ptnr1_symmetry
     sym2: ptnr2_symmetry
     length: pdbx_dist_value

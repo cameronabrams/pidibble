@@ -36,6 +36,13 @@ DEFAULT_FLOAT_PREC = 3
 #: type-5 (grouping) records that are nonetheless a single emittable line
 TYPE5_EMITTABLE = {'TER'}
 
+#: synthetic field name under which :meth:`PDBWriter.emit_subrecord` places a
+#: sub-record's name (cols 13-16). Not a real field of any record spec.
+_SUBKEY_FIELD = '_subrecord_name'
+
+#: ``JRNL`` sub-records in the order the PDB format writes them
+JRNL_SUBKEYS = ('AUTH', 'TITL', 'EDIT', 'REF', 'PUBL', 'REFN', 'PMID', 'DOI')
+
 #: how a list-valued field is re-joined into its column, by list type
 LIST_SEP = {'CList': ', ', 'SList': '; ', 'WList': ' ', 'DList': ': ', 'LList': ' '}
 
@@ -222,6 +229,71 @@ class PDBWriter:
             lines.append(self._render_line(card, values, fmt))
         return lines
 
+    def emit_subrecord(self, record, card, subkey, subfmt):
+        """
+        Render one sub-record of a ``JRNL``-style card.
+
+        These sit a level below :meth:`emit_multiline`: the card name occupies
+        cols 1-6, the sub-record name (``AUTH``, ``TITL``, ...) cols 13-16, and
+        the sub-record's *own* field spec governs everything from col 17 on.
+        A sub-record declaring a ``continues`` field is chunked across numbered
+        continuation lines exactly as a type-2 record is; one that does not
+        (``REFN``, ``PMID``, ``DOI``) emits a single line.
+
+        Parameters
+        ----------
+        record : PDBRecord
+            The parsed (already-merged) sub-record, e.g. ``parsed['JRNL.AUTH']``.
+        card : str
+            The parent card name, e.g. ``'JRNL'``.
+        subkey : str
+            The sub-record name written in cols 13-16, e.g. ``'AUTH'``.
+        subfmt : dict
+            The sub-record's format (``fields``, optional ``continues``).
+
+        Returns
+        -------
+        list of str
+            One line per chunk.
+        """
+        # the sub-record name is not a field of any sub-record spec, so splice
+        # it in as one: cols 13-16 are free in every JRNL sub-record layout
+        render_fmt = {'fields': {_SUBKEY_FIELD: ['String', [13, 16]],
+                                 **subfmt['fields']}}
+        continues = subfmt.get('continues', [])
+        if not continues:
+            values = {f: getattr(record, f, '') for f in subfmt['fields']}
+            values[_SUBKEY_FIELD] = subkey
+            return [self._render_line(card, values, render_fmt)]
+
+        cf = continues[0]
+        counter = 'continuation'
+        counter_type, (cs, ce) = subfmt['fields'][counter][0], subfmt['fields'][counter][1]
+        counter_w = ce - cs + 1
+        chunks = self._chunk(cf, getattr(record, cf, ''), subfmt, {})
+        # a trailing separator belongs to the line it ends, not the one it
+        # precedes: 'A,B,C,' / 'D,E' -- so hang it off each non-final chunk
+        trail = _hints(subfmt['fields'][cf]).get('sep', '').rstrip()
+        if trail:
+            for chunk in chunks[:-1]:
+                if isinstance(chunk, list) and chunk:
+                    chunk[-1] = f'{chunk[-1]}{trail}'
+        const = {f: getattr(record, f, '') for f in subfmt['fields']
+                 if f not in (counter, cf)}
+
+        lines = []
+        for i, chunk in enumerate(chunks):
+            # constants ride the first line only: a wrapped JRNL REF repeats
+            # the journal name's tail, not the volume/page/year alongside it
+            values = dict(const) if i == 0 else {}
+            values[_SUBKEY_FIELD] = subkey
+            # the first line leaves the counter blank, as the spec requires
+            values[counter] = '' if i == 0 else (
+                str(i + 1).rjust(counter_w) if counter_type == 'String' else i + 1)
+            values[cf] = chunk
+            lines.append(self._render_line(card, values, render_fmt))
+        return lines
+
     # ---- internals -------------------------------------------------------
 
     def _render_line(self, card, values, fmt):
@@ -240,7 +312,7 @@ class PDBWriter:
             elif typestring == 'HxInteger':
                 text = self._emit_serial(value, width)
             elif isinstance(value, list):
-                text = self._emit_list(value, typestring, width)
+                text = self._emit_list(value, typestring, width, hints)
             else:
                 text = self.formatter.format(value, typestring, width, hints)
             self._place(line, start, end, text)
@@ -258,14 +330,21 @@ class PDBWriter:
             return s[-width:]
         return s.rjust(width)
 
-    def _emit_list(self, items, typestring, width):
-        """Join a list value into its column using the type's separator."""
-        sep = LIST_SEP.get(typestring, ' ')
+    def _emit_list(self, items, typestring, width, hints=None):
+        """Join a list value into its column using the type's separator, or the
+        field's own ``sep`` hint where the type default does not apply (JRNL's
+        author list is comma-separated with no space, unlike COMPND's)."""
+        sep = self._sep(typestring, hints)
         s = sep.join(str(x) for x in items)
         if len(s) > width:
             logger.warning(f'list field overflows {width} cols; clipping: {s!r}')
             s = s[:width]
         return s.ljust(width)
+
+    @staticmethod
+    def _sep(typestring, hints):
+        """Separator for a list field: its ``sep`` hint, else the type default."""
+        return (hints or {}).get('sep', LIST_SEP.get(typestring, ' '))
 
     def _chunk(self, cf, value, fmt, concat):
         """Split a continued field's value into per-line pieces."""
@@ -277,15 +356,24 @@ class PDBWriter:
         width = end - start + 1
         if isinstance(value, list):                        # WList/CList/SList
             typestring = fmt['fields'][cf][0]
-            return self._pack_items(value, LIST_SEP.get(typestring, ' '), width) or [[]]
+            hints = _hints(fmt['fields'][cf])
+            sep = self._sep(typestring, hints)
+            # an explicit `sep` hint marks a *trailing* separator: it stays at
+            # the end of a wrapped line, so a column must be kept free for it
+            reserve = len(sep.rstrip()) if 'sep' in hints else 0
+            return self._pack_items(value, sep, width, reserve) or [[]]
         return self._wrap_words(str(value), width) or ['']  # plain String
 
     @staticmethod
-    def _pack_items(items, sep, width):
-        """Greedily pack whole items into lines no wider than ``width``."""
+    def _pack_items(items, sep, width, reserve=0):
+        """Greedily pack whole items into lines no wider than ``width``, keeping
+        ``reserve`` columns free for a separator that trails the line."""
         lines, cur = [], []
-        for it in items:
-            if cur and len(sep.join(cur + [str(it)])) > width:
+        for n, it in enumerate(items):
+            # the reserved column is only owed while items remain: the last
+            # line carries no trailing separator and may use the full width
+            owed = reserve if n < len(items) - 1 else 0
+            if cur and len(sep.join(cur + [str(it)])) + owed > width:
                 lines.append(cur)
                 cur = [str(it)]
             else:
@@ -295,10 +383,37 @@ class PDBWriter:
         return lines
 
     @staticmethod
+    def _break_long_token(word, width):
+        """
+        Break a single token too wide for its column, preferring a comma
+        boundary -- the PDB wraps a long journal name as
+        ``PHILOS.TRANS.R.SOC.LONDON,`` / ``SER.B`` rather than truncating it.
+        Falls back to a hard break when the token holds no comma.
+        """
+        pieces = []
+        while len(word) > width:
+            cut = word.rfind(',', 0, width)
+            if cut < 0:
+                cut = width - 1
+            pieces.append(word[:cut + 1])
+            word = word[cut + 1:]
+        if word:
+            pieces.append(word)
+        return pieces
+
+    @staticmethod
     def _wrap_words(text, width):
         """Word-wrap ``text`` at whitespace into lines no wider than ``width``."""
         lines, cur = [], ''
-        for word in text.split():
+        for word in str(text).split():
+            # a token wider than the column would otherwise be clipped away
+            if len(word) > width:
+                if cur:
+                    lines.append(cur)
+                pieces = PDBWriter._break_long_token(word, width)
+                lines.extend(pieces[:-1])
+                cur = pieces[-1]
+                continue
             trial = (cur + ' ' + word).strip()
             if cur and len(trial) > width:
                 lines.append(cur)
@@ -373,9 +488,14 @@ def assemble_pdb(parser, anisou=True, include_master=True, record_formats=None):
     interleaved ``ANISOU`` and chain-terminating ``TER`` cards, then
     ``HETATM``). ``REMARK`` and ``JRNL`` (type 6) are re-emitted verbatim from
     the source lines. The ``MASTER`` and ``END`` bookkeeping records are
-    regenerated from the emitted content. When the input was mmCIF there are no
-    source lines to pass through, so ``REMARK``/``JRNL`` are omitted and
-    reported via the logger.
+    regenerated from the emitted content.
+
+    When the input was mmCIF there are no source lines to pass through.
+    ``JRNL`` is then serialized from the ``JRNL.*`` sub-records the mmCIF
+    ``citation`` category supplies, so the entry's own paper survives a
+    CIF-to-PDB conversion. ``REMARK`` is still omitted and reported via the
+    logger: most of its content is free text held as an ``LList`` whose line
+    breaks are discarded at parse time, so it cannot be regenerated faithfully.
 
     Parameters
     ----------
@@ -411,6 +531,9 @@ def assemble_pdb(parser, anisou=True, include_master=True, record_formats=None):
     passthrough_cards = {'REMARK', 'JRNL'}
 
     def _emit_key(key):
+        if key == 'JRNL':
+            _emit_jrnl()
+            return
         if key in passthrough_cards:
             _passthrough(key)
             return
@@ -426,13 +549,58 @@ def assemble_pdb(parser, anisou=True, include_master=True, record_formats=None):
             n = 0
             for r in rlist:
                 out = w.emit_multiline(r, key)
+                # a record that renders as a bare card name carries nothing:
+                # it is not a conformant record, and it re-parses to an empty
+                # field where the tokenizer expects a list. This is how an
+                # mmCIF-sourced COMPND/SOURCE arrives -- that path carries the
+                # tokenized attributes (molID, molName, chains) rather than
+                # the raw `compound` SList the PDB format declares. Testing
+                # the rendered line rather than one field keeps records that
+                # have no continued content but do carry other fields, such as
+                # a REVDAT initial-release entry with an empty `records` list.
+                if all(not line[6:].strip() for line in out):
+                    logger.info(f'{key}: record has no writable content '
+                                f'(the mmCIF path carries it in other fields); omitted')
+                    continue
                 lines.extend(out)
                 n += len(out)
-            counts[key] = counts.get(key, 0) + n
+            if n:
+                counts[key] = counts.get(key, 0) + n
         elif fmt.get('type') in (1, 3):
             for r in rlist:
                 lines.append(w.emit(r, key))
             counts[key] = counts.get(key, 0) + len(rlist)
+
+    def _emit_jrnl():
+        """
+        Emit the ``JRNL`` block, preferring the source lines when there are any.
+
+        A ``.pdb`` source round-trips byte-exactly through passthrough, so that
+        path is kept. An mmCIF source has no ``JRNL`` lines to pass through but
+        (since 1.10.0) does carry the citation as ``JRNL.*`` sub-records, so
+        serialize those instead of dropping the entry's own paper on the floor.
+        """
+        if any(ln[:6].strip() == 'JRNL' for ln in getattr(parser, 'pdb_lines', []) or []):
+            _passthrough('JRNL')
+            return
+        subrecords = rf.get('JRNL', {}).get('subrecords', {}).get('formats', {})
+        n = 0
+        for subkey in JRNL_SUBKEYS:
+            rec = parsed.get(f'JRNL.{subkey}')
+            if rec is None:
+                continue
+            subfmt = subrecords.get(subkey)
+            if not subfmt:
+                logger.warning(f'JRNL.{subkey} present in parse but the format '
+                               f'spec declares no such sub-record; omitted')
+                continue
+            if isinstance(rec, (list, PDBRecordList)):
+                rec = rec[0]
+            out = w.emit_subrecord(rec, 'JRNL', subkey, subfmt)
+            lines.extend(out)
+            n += len(out)
+        if n:
+            counts['JRNL'] = counts.get('JRNL', 0) + n
 
     def _passthrough(card):
         """Re-emit a record type's original source lines verbatim (type 6)."""

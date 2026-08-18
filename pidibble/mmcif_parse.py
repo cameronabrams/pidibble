@@ -431,6 +431,12 @@ class MMCIF_Parser:
                 if not isinstance(v, list):
                     idict[k] = [v] if v != '' else []
 
+        # fields the PDB numbers sequentially but mmCIF does not carry: assign
+        # 1-based ordinals over the records this mapspec produced
+        for k in mapspec.get('enumerate', []):
+            for n, idict in enumerate(idicts, start=1):
+                idict[k] = n
+
         if allcaps:
             for idict in idicts:
                 for k, v in idict.items():

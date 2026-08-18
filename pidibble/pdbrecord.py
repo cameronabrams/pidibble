@@ -231,8 +231,16 @@ class PDBRecord(BaseRecord):
         logger.debug(f'{self.key} {list(attr_w_tokens.keys())}')
         self.tokengroups = {}  # one tokengroup per attribute in attr_w_tokens
         for a in attr_w_tokens.keys():
-            obj = self.__dict__[a]  # expect to be a list
-            assert isinstance(obj, list), f'Invalid type {type(obj)} for {obj} for token parsing; expecting a list of token-strings'
+            obj = self.__dict__.get(a, '')  # expect to be a list
+            if not isinstance(obj, list):
+                # a card carrying no content parses to an empty field rather
+                # than a list of token-strings. There is nothing to tokenize,
+                # but a malformed record must not abort the whole parse.
+                logger.warning(f'{self.key}: field {a!r} holds '
+                               f'{type(obj).__name__}, not a list of '
+                               f'token-strings; no tokens parsed from it')
+                self.tokengroups[a] = {}
+                continue
             tdict = attr_w_tokens[a]['tokens']
             determinants = attr_w_tokens[a].get('determinants', [])
             assert len(determinants) in [0, 1], f'Token group for field {a} of {self.key} may not have more than one determinant'
