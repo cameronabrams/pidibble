@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-08-18
+
 ### Added
 - `PDBParser.citations()` returns the papers an entry credits as normalized
   `citation.Citation` dataclasses — title, authors, journal, volume, pages,
