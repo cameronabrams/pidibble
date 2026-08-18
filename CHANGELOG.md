@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-08-18
+
 ### Added
 - `JRNL` is now serialized when the input was mmCIF, instead of being dropped.
   The writer re-emits `JRNL`/`REMARK` verbatim from the source `.pdb` lines,
