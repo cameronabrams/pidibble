@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `requires-python` now declares `>=3.10`, which is what the package has
+  actually required since it began using PEP 604 unions (`str | Path`) in
+  runtime-evaluated signatures. The old `>=3.7` let `pip` install pidibble on
+  interpreters where it cannot import, and made dependency resolution
+  unsatisfiable for tools that resolve across the whole declared range (no
+  `numpy>=1.24` supports 3.7-3.9). CI has tested 3.10-3.12 throughout.
+
 ## [1.11.0] - 2026-08-18
 
 ### Added

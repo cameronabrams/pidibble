@@ -9,7 +9,7 @@ authors = [
 ]
 description = "A complete Protein Data Bank (PDB) file parser"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
