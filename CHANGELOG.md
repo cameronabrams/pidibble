@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-09-12
+
 ### Fixed
 - `requires-python` now declares `>=3.10`, which is what the package has
   actually required since it began using PEP 604 unions (`str | Path`) in
