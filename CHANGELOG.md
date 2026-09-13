@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-13
+
 ### Changed
 - **`mmcif` is now an optional dependency.** Install `pidibble[mmcif]` to read
   PDBx/mmCIF files; PDB parsing, PDB writing and citations no longer need it.
