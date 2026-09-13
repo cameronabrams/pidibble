@@ -18,11 +18,11 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "pyyaml>=6",
-    "mmcif"
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+mmcif = ["mmcif"]
+test = ["pytest", "mmcif"]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pidibble"
 "Documentation" = "https://pidibble.readthedocs.io/en/latest/"

@@ -36,3 +36,5 @@ python:
    # install documents the previous release.
    - method: pip
      path: .
+     extra_requirements:
+       - mmcif

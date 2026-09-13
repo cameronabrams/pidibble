@@ -81,7 +81,7 @@ ATOM
 
 # Example reading a PDBx/mmCIF file
 
-Many recent RCSB entries have no legacy PDB file at all.  Pass `input_format='mmCIF'` and pidibble parses the mmCIF/PDBx file into the *same* record objects (using author numbering), so downstream code stays the same:
+Many recent RCSB entries have no legacy PDB file at all.  Pass `input_format='mmCIF'` and pidibble parses the mmCIF/PDBx file into the *same* record objects (using author numbering), so downstream code stays the same. This needs the optional mmCIF reader: `pip install 'pidibble[mmcif]'`.
 
 ```
 >>> from pidibble.pdbparse import PDBParser

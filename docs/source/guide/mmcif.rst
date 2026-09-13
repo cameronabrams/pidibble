@@ -9,6 +9,9 @@ format-agnostic.
 Enabling it
 -----------
 
+mmCIF reading needs the optional ``mmcif`` package; install pidibble with
+``pip install 'pidibble[mmcif]'`` (see :ref:`installation`).
+
 Pass ``input_format='mmCIF'``.  Everything else — the source arguments, the
 :attr:`~pidibble.pdbparse.PDBParser.parsed` dictionary, the record attributes —
 is unchanged:

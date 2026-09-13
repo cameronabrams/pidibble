@@ -18,7 +18,6 @@ from typing import Callable
 
 import numpy as np
 
-from mmcif.io.IoAdapterCore import IoAdapterCore
 from pathlib import Path
 
 from .baseparsers import ListParsers, ListParser, str2int_sig, safe_float, NonconformanceRegistry
@@ -31,6 +30,34 @@ from .hex import AtomSerialParser, str2atomSerial, hex_reset
 
 logger = logging.getLogger(__name__)
 __version__ = importlib.metadata.version("pidibble")
+
+def _require_mmcif():
+    """
+    Import the mmCIF reader on demand.
+
+    ``mmcif`` (wwPDB py-mmcif) is an optional dependency: it is a compiled
+    package that not every distribution channel carries, and only the mmCIF
+    input path needs it. PDB parsing, writing, and citations work without it.
+
+    Returns
+    -------
+    type
+        :class:`mmcif.io.IoAdapterCore.IoAdapterCore`
+
+    Raises
+    ------
+    ImportError
+        If ``mmcif`` is not installed (or fails to import), with install advice.
+    """
+    try:
+        from mmcif.io.IoAdapterCore import IoAdapterCore
+    except ImportError as e:
+        raise ImportError(
+            "Reading PDBx/mmCIF requires the optional 'mmcif' package (wwPDB py-mmcif). "
+            "Install it with `pip install 'pidibble[mmcif]'`, or with "
+            "`conda install -c bioconda mmcif`."
+        ) from e
+    return IoAdapterCore
 
 class PDBParser:
     """
@@ -257,7 +284,7 @@ class PDBParser:
         This method uses the :class:`mmcif.io.IoAdapterCore.IoAdapterCore` to read the
         mmCIF file and store the data in :attr:`PDBParser.cif_data`.
         """
-        io = IoAdapterCore()
+        io = _require_mmcif()()
         l_dc = io.readFile(self.filepath)
         self.cif_data = l_dc[0]
 
@@ -458,7 +485,15 @@ class PDBParser:
         -------
         self : PDBParser
             The instance of :class:`.pdbrecord.PDBRecord` containing the parsed records.
+
+        Raises
+        ------
+        ImportError
+            If ``input_format='mmCIF'`` and the optional ``mmcif`` package is not
+            installed. Raised before anything is fetched.
         """
+        if self.input_format == 'mmCIF':
+            _require_mmcif()
         if self.fetch():
             self.read()
             self.parse_base()

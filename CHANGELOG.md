@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **`mmcif` is now an optional dependency.** Install `pidibble[mmcif]` to read
+  PDBx/mmCIF files; PDB parsing, PDB writing and citations no longer need it.
+  `mmcif` is a compiled package that conda-forge does not carry, and requiring
+  it kept pidibble itself off conda-forge. It is now imported only on the mmCIF
+  path, and `PDBParser(..., input_format='mmCIF').parse()` without it raises an
+  `ImportError` naming the fix *before* fetching anything.
+  **If you read mmCIF and install with plain `pip install pidibble`, change
+  that to `pidibble[mmcif]`.**
+
 ### Fixed
 - The Read the Docs build now installs the commit being built instead of
   pulling `pidibble` from PyPI. A tag push starts the docs build and the PyPI

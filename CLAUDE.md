@@ -117,6 +117,11 @@ Keep a Changelog style.
   it — a too-low floor also breaks `uv run --extra test`, because uv resolves
   across the whole declared range and no `numpy>=1.24` supports 3.7-3.9. If a
   lower floor is ever wanted, the code has to change first.
+- **`mmcif` is optional and must stay lazily imported.** Only
+  `_require_mmcif()` in `pdbparse.py` may import it; a module-level import
+  would make every install need a compiled package conda-forge lacks.
+  `tests/unit/test_optional_mmcif.py` checks this in a fresh interpreter. The
+  `test` extra pulls it in, so the suite still covers the mmCIF path.
 - **Docs builds must install the checkout, never `pidibble` from PyPI.**
   `docs/source/conf.py` reads the version from installed metadata and autodoc
   imports the installed package. `.readthedocs.yaml` pip-installs `path: .` and
