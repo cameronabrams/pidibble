@@ -5,4 +5,3 @@ sphinxcontrib-mermaid
 myst-parser
 readthedocs-sphinx-ext
 pyyaml
-pidibble

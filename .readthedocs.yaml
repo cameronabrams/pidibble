@@ -30,3 +30,9 @@ sphinx:
 python:
    install:
    - requirements: docs/requirements.txt
+   # Install the checkout being built, not pidibble from PyPI. conf.py takes
+   # the version from installed metadata and autodoc imports the installed
+   # package, and a tag-triggered build races the PyPI publish -- so a PyPI
+   # install documents the previous release.
+   - method: pip
+     path: .

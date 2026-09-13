@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- The Read the Docs build now installs the commit being built instead of
+  pulling `pidibble` from PyPI. A tag push starts the docs build and the PyPI
+  publish at the same moment, and the docs build could win, so release docs
+  were labeled with -- and could document the API of -- the previous release
+  (1.11.1's docs were titled "1.11.0").
+
 ## [1.11.1] - 2026-09-12
 
 ### Fixed

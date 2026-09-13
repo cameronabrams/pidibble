@@ -117,6 +117,11 @@ Keep a Changelog style.
   it — a too-low floor also breaks `uv run --extra test`, because uv resolves
   across the whole declared range and no `numpy>=1.24` supports 3.7-3.9. If a
   lower floor is ever wanted, the code has to change first.
+- **Docs builds must install the checkout, never `pidibble` from PyPI.**
+  `docs/source/conf.py` reads the version from installed metadata and autodoc
+  imports the installed package. `.readthedocs.yaml` pip-installs `path: .` and
+  CI's doctest job does `pip install -e .`; don't re-add `pidibble` to
+  `docs/requirements.txt`.
 - Docstrings are numpydoc; `docs/source/api/` is autodoc, so a signature change
   shows up in the published docs without any docs edit.
 - `docs/testing-notes.md` explains why a broken serial round-trip makes the
