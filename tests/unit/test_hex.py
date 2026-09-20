@@ -1,6 +1,6 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
-from pidibble.pdbwrite import PDBWriter
+from pidibble.pdbwrite import PDBWriter, FieldFormatter
 from pidibble.hex import str2atomSerial, AtomSerialParser
 import unittest
 import logging
@@ -55,3 +55,11 @@ def test_writer_emits_overflow_marker_past_the_ceiling():
     assert w._emit_serial(1048575, 5)=='FFFFF'
     assert w._emit_serial(1048576, 5)=='*****'
     assert AtomSerialParser()(w._emit_serial(1048576, 5))==0
+
+def test_formatter_marks_overflow_rather_than_clipping():
+    """The stateless fallback in FieldFormatter must follow the same rule as
+    _emit_serial: clipping 1579027 to '81813' would name a different atom."""
+    f=FieldFormatter()
+    assert f.format(1048575, 'HxInteger', 5, {})=='FFFFF'
+    assert f.format(1579027, 'HxInteger', 5, {})=='*****'
+    assert AtomSerialParser()(f.format(1579027, 'HxInteger', 5, {}))==0

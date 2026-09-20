@@ -37,7 +37,7 @@ The test path is **`tests/unit`**. `tests/` itself holds only `__init__.py` and
 
     uv run --extra test pytest tests/unit -q
 
-161 tests, ~40 s. Never a bare `pytest`.
+162 tests, ~40 s. Never a bare `pytest`.
 
 `conftest.py` chdirs each test module into a same-named subdirectory when one
 exists (`tests/unit/test_rcsb/`, `tests/unit/test_pdbwrite/`). That matters

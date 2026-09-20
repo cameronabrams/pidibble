@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `FieldFormatter.format` now writes the `*****` overflow marker for an
+  `HxInteger` too wide for its field, instead of clipping the hex digits to a
+  well-formed serial naming a different atom — the same rule `_emit_serial`
+  follows. Latent today, since `_render_line` routes every `HxInteger` through
+  `_emit_serial`; it would bite if a composite or list field ever carried one.
+  Reported by pestifer-sweep.
+
 ## [1.12.1] - 2026-09-20
 
 ### Fixed

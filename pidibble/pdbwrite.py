@@ -97,6 +97,15 @@ class FieldFormatter:
             # stateless fallback: hex once past the decimal ceiling (the
             # document path uses a stateful encoder instead — see PDBWriter)
             s = format(iv, 'X') if (typestring == 'HxInteger' and iv > 99999) else str(iv)
+            if typestring == 'HxInteger' and len(s) > width:
+                # Same rule as PDBWriter._emit_serial: a serial too wide for its
+                # field is unrepresentable, and clipping it would yield a
+                # well-formed serial naming a different atom. Unreachable while
+                # _render_line intercepts every HxInteger, but a composite or
+                # list field carrying one would land here.
+                logger.warning(f'serial {iv} needs {len(s)} cols but the field '
+                               f'is {width}; writing the overflow marker')
+                return '*' * width
             return self._fit(s, width, just or 'right')
 
         # String
