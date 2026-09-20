@@ -37,7 +37,7 @@ The test path is **`tests/unit`**. `tests/` itself holds only `__init__.py` and
 
     uv run --extra test pytest tests/unit -q
 
-156 tests, ~40 s. Never a bare `pytest`.
+161 tests, ~40 s. Never a bare `pytest`.
 
 `conftest.py` chdirs each test module into a same-named subdirectory when one
 exists (`tests/unit/test_rcsb/`, `tests/unit/test_pdbwrite/`). That matters
@@ -79,7 +79,12 @@ Not uniform across record families, by design:
   **not** on the type number (`REVDAT` is tagged type 3 but is multi-line).
 - Hex serials flip decimal→hex permanently at the first serial >99999 and stay
   hex for the rest of the document, back-references included (plain hex, not
-  hybrid-36); five serial columns puts the ceiling at `0xFFFFF`.
+  hybrid-36); five serial columns puts the ceiling at `0xFFFFF` (1,048,575).
+  Past it a serial is unrepresentable: VMD writes `*****`, the parser reads
+  that marker as 0, and the writer emits it. **The marker test must stay ahead
+  of the hex branch in `AtomSerialParser`** — hex trips at serial 100000, so a
+  guard behind it can never fire on a real file — which is exactly the bug
+  that made every structure over 1,048,575 atoms unreadable until 2026-09-20.
 - From an mmCIF parse, `REMARK` and `COMPND`/`SOURCE` cannot be written — the
   parse does not retain what those records need. `REMARK`/`JRNL` are otherwise
   passed through verbatim from the source lines.

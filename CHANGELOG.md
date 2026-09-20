@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Atom serials written as `*****` no longer raise `ValueError`. Past
+  0xFFFFF (1,048,575) a 5-column serial field cannot hold a number, and VMD
+  writes `*****` instead. `AtomSerialParser` tested for that marker *after* its
+  hex branch, but hex trips at serial 100000 — long before the first marker can
+  appear — so the guard was unreachable on any real file, and every structure
+  over 1,048,575 atoms failed to re-read. The marker is now tested first and
+  parses as 0.
+- Writing a serial too wide for its field now emits the same `*****` marker
+  instead of the truncated hex digits, which re-parsed silently as a different,
+  well-formed serial.
+
 ## [1.12.0] - 2026-09-13
 
 ### Changed

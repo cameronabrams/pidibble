@@ -29,10 +29,16 @@ class AtomSerialParser:
         assert isinstance(arg, str)
         if arg == 'nan':
             return_object = 0
+        elif '*' in arg:
+            # VMD and friends write '*****' once a serial passes 0xFFFFF
+            # (1,048,575), the widest value a 5-column field holds. It is an
+            # overflow marker, not a number, and there is nothing to recover
+            # from it. This test must stay AHEAD of the hex branch: hex trips
+            # at serial 100000, long before the first '*****', so a guard
+            # placed after it could never fire on a real file.
+            return_object = 0
         elif self._hex_tripped or any(x in arg for x in 'abcdefABCDEF'):
             return_object = int(arg, 16)
-        elif '*' in arg:
-            return_object = 0
         else:
             return_object = int(arg)
         if return_object > 99999 and not self._hex_tripped:

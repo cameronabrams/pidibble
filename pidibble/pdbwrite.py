@@ -325,9 +325,13 @@ class PDBWriter:
         s = self.hex(int(value))
         if len(s) > width:
             logger.warning(f'serial {int(value)} needs {len(s)} cols but the '
-                           f'field is {width}; the file exceeds the hybrid-hex '
-                           f'ceiling (~1M atoms) and cannot be represented')
-            return s[-width:]
+                           f'field is {width}; the file exceeds the hex '
+                           f'ceiling (0xFFFFF = 1048575 for 5 columns) and '
+                           f'cannot be represented; writing the overflow marker')
+            # What VMD writes past the ceiling, and what the parser reads back
+            # as 0. Truncating the digits instead would emit a well-formed but
+            # wrong serial that re-parses silently.
+            return '*' * width
         return s.rjust(width)
 
     def _emit_list(self, items, typestring, width, hints=None):

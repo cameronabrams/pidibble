@@ -1,5 +1,6 @@
 import numpy as np
 from pidibble.pdbparse import PDBParser, PDBRecord, get_symm_ops
+from pidibble.pdbwrite import PDBWriter
 from pidibble.hex import str2atomSerial, AtomSerialParser
 import unittest
 import logging
@@ -34,3 +35,23 @@ def test_hex_in_pdb():
     assert a1.serial==440691
     a1=atoms[3]
     assert a1.serial==65536
+
+def test_overflow_marker_after_hex_trip():
+    """``*****`` is what VMD writes past 0xFFFFF, and hex has always tripped by
+    then — so the marker must be recognized ahead of the hex branch."""
+    p=AtomSerialParser()
+    assert p('*****')==0        # before the trip
+    assert p('186a0')==100000   # atom 100000: hex trips here, permanently
+    assert p._hex_tripped
+    assert p('fffff')==1048575  # the last serial a 5-column field can hold
+    assert p('*****')==0        # one past it: a marker, not a number
+    assert p('*****')==0
+    assert p('100000')==1048576 # real hex digits still read as hex afterward
+
+def test_writer_emits_overflow_marker_past_the_ceiling():
+    """Past the ceiling the writer emits VMD's marker rather than a truncated
+    hex string, which would re-parse as a plausible but wrong serial."""
+    w=PDBWriter({}, {})
+    assert w._emit_serial(1048575, 5)=='FFFFF'
+    assert w._emit_serial(1048576, 5)=='*****'
+    assert AtomSerialParser()(w._emit_serial(1048576, 5))==0
