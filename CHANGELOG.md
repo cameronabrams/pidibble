@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-09-20
+
 ### Fixed
 - Atom serials written as `*****` no longer raise `ValueError`. Past
   0xFFFFF (1,048,575) a 5-column serial field cannot hold a number, and VMD
