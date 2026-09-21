@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Artwork in the documentation: a banner on the landing page, the medallion
+  icon as the sidebar logo, and a favicon. The favicon is a crop of the
+  medallion — the scribe's masked head — because the whole scene is
+  unreadable at 16 px.
+
 ### Fixed
 - `FieldFormatter.format` now writes the `*****` overflow marker for an
   `HxInteger` too wide for its field, instead of clipping the hex digits to a

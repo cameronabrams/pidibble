@@ -49,6 +49,15 @@ templates_path = ['_templates']
 # -- Options for HTML output
 
 html_theme = 'furo'
+
+# The sidebar logo is the medallion icon. One variant serves both themes: the
+# disc carries its own light fill, so it does not vanish in furo's dark mode
+# the way transparent line art would.
+html_logo = '_static/pidibble-icon.png'
+
+# The favicon is a crop of that medallion -- the scribe's masked head -- because
+# the whole scene is unreadable at 16 px. 16, 32 and 48 px in one .ico.
+html_favicon = '_static/pidibble-favicon.ico'
 html_theme_options = {
     "light_css_variables": {
         "color-icon": "#000000"  # Black for light mode
