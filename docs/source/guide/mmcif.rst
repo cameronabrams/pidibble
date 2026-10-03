@@ -24,6 +24,27 @@ pidibble reads the file with the RCSB/wwPDB ``py-mmcif`` library (the
 authoritative, C++-backed reader) and maps selected mmCIF *categories* onto PDB
 *record types* via a declarative specification.
 
+What conformance means here
+---------------------------
+
+Reading is the reference implementation's: ``py-mmcif`` is the wwPDB's own
+reader, so tokenization and data typing follow the `PDBx/mmCIF Exchange
+Dictionary (V5) <https://mmcif.wwpdb.org/dictionaries/mmcif_pdbx_v50.dic/Index/>`_,
+the dictionary that defines the archive's master format (Westbrook JD, Young JY,
+Shao C, *et al.* PDBx/mmCIF Ecosystem: Foundational Semantic Tools for Structural
+Biology. *J Mol Biol* **434**\ (11):167599, 2022,
+`doi:10.1016/j.jmb.2022.167599 <https://doi.org/10.1016/j.jmb.2022.167599>`_).
+
+*Interpretation* is deliberately partial, and that is the difference from the
+legacy path.  The PDB format is finite and frozen, so pidibble parses all of it;
+the dictionary defines far more categories than any one consumer needs.  pidibble
+reads **18** of them — the ones that reconstruct the PDB record set — and a
+typical entry draws on roughly 70.  So pidibble is a conformant *consumer* of
+PDBx/mmCIF, not a general mmCIF reader: a category it does not map is not an
+error, it is simply absent from :attr:`~pidibble.pdbparse.PDBParser.parsed`.
+``docs/mmcif_coverage.md`` in the repository is the audit of what is covered.
+
+
 Author numbering
 ----------------
 

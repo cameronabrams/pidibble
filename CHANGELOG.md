@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- The documentation now says what conformance means on each path: the legacy
+  PDB parse covers all of the final v3.3 record set, while PDBx/mmCIF files are
+  read by the wwPDB's own `py-mmcif` against the PDBx/mmCIF Exchange Dictionary
+  (V5), of whose categories pidibble interprets 18 — a conformant consumer of
+  the format, not a general mmCIF reader. Cites the dictionary and Westbrook et
+  al. 2022 (doi:10.1016/j.jmb.2022.167599).
+
 ### Added
 - Artwork in the documentation: a banner on the landing page, the medallion
   icon as the sidebar logo, and a favicon. The favicon is a crop of the

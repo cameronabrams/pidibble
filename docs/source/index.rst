@@ -32,7 +32,9 @@ pidibble
    :align: center
    :width: 100%
 
-**Pidibble** is a Python package for parsing Protein Data Bank (PDB) files in both legacy PDB and modern PDBx/mmCIF formats.  It conforms to the `most recent standard <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>`_ (v.3.3 Atomic Coordinate Entry Format, ca. 2011).
+**Pidibble** is a Python package for parsing Protein Data Bank structures in both the legacy PDB format and the modern PDBx/mmCIF format.
+
+For legacy files it conforms to the `final PDB standard <https://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html>`_ (v.3.3 Atomic Coordinate Entry Format, ca. 2011), parsing every standard record type.  PDBx/mmCIF files are read with the wwPDB's own ``py-mmcif`` reader, so they are interpreted against the `PDBx/mmCIF Exchange Dictionary (V5) <https://mmcif.wwpdb.org/dictionaries/mmcif_pdbx_v50.dic/Index/>`_ (Westbrook *et al.*, `J. Mol. Biol. 434:167599, 2022 <https://doi.org/10.1016/j.jmb.2022.167599>`_); pidibble maps a documented subset of its categories onto the same record objects, so downstream code need not branch on format.  See :doc:`guide/mmcif` for the coverage.
 
 Unlike parsers like that found in packages like `BioPython <https://biopython.org/wiki/PDBParser>`_, ``pidibble`` provides meaningfully parsed objects from *all* standard PDB record types, not just ``ATOM`` and ``CONECT`` records.
 
